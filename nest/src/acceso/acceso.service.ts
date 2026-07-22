@@ -46,7 +46,8 @@ export class AccesoService {
         .execute('sp_Acceso_RegistrarSalida');
       return result.recordset[0];
     } catch (err: any) {
-      if (err.message?.includes('51000')) throw new NotFoundException(err.message);
+      console.error('Salida error:', err.number, err.message?.substring(0, 100));
+      if (err.number === 51000 || err.message?.includes('51000')) throw new NotFoundException(err.message);
       throw err;
     }
   }

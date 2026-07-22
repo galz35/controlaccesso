@@ -30,7 +30,7 @@ export class CpfAuthService {
         .execute('sp_UsuarioCPF_Registrar');
       return result.recordset[0];
     } catch (err: any) {
-      if (err.message?.includes('51000')) throw new BadRequestException('El nombre de usuario ya existe.');
+      if (err.number === 51000 || err.message?.includes('51000')) throw new BadRequestException('El nombre de usuario ya existe.');
       throw err;
     }
   }

@@ -49,7 +49,8 @@ let AccesoService = class AccesoService {
             return result.recordset[0];
         }
         catch (err) {
-            if (err.message?.includes('51000'))
+            console.error('Salida error:', err.number, err.message?.substring(0, 100));
+            if (err.number === 51000 || err.message?.includes('51000'))
                 throw new common_1.NotFoundException(err.message);
             throw err;
         }
