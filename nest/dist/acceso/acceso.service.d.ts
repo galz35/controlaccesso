@@ -12,19 +12,8 @@ export declare class AccesoService {
         nombrePersona: string;
         cedulaPersona?: string;
         empresaPersona?: string;
-    }, usuario: string, fotoFile?: Express.Multer.File): Promise<{
-        id: any;
-        tipoPersona: any;
-        personaId: any;
-        nombre: any;
-        fechaEntrada: any;
-        fotoUrl: any;
-        edificioId: any;
-    }>;
-    registrarSalida(id: number): Promise<{
-        id: any;
-        fechaSalida: any;
-    }>;
+    }, usuario: string, fotoFile?: Express.Multer.File): Promise<any>;
+    registrarSalida(id: number): Promise<any>;
     accesosHoy(edificioId?: number): Promise<{
         id: any;
         tipoPersona: any;
@@ -38,20 +27,8 @@ export declare class AccesoService {
         fechaSalida: any;
         usuarioRegistra: any;
     }[]>;
-    reporte(eventoId?: number, edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina?: number, porPagina?: number): Promise<{
-        data: {
-            id: any;
-            tipoPersona: any;
-            personaId: any;
-            nombre: any;
-            cedula: any;
-            empresa: any;
-            edificio: any;
-            fotoUrl: any;
-            fechaEntrada: any;
-            fechaSalida: any;
-            usuarioRegistra: any;
-        }[];
+    reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina?: number, porPagina?: number): Promise<{
+        data: any;
         total: any;
         pagina: number;
         porPagina: number;

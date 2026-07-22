@@ -13,7 +13,6 @@ exports.AccesoService = void 0;
 const common_1 = require("@nestjs/common");
 const database_service_1 = require("../database/database.service");
 const config_1 = require("@nestjs/config");
-const sql = require("mssql");
 const path = require("path");
 const fs = require("fs");
 const sharp_1 = require("sharp");
@@ -25,74 +24,41 @@ let AccesoService = class AccesoService {
     }
     async registrarEntrada(dto, usuario, fotoFile) {
         const pool = await this.db.getPool();
-        let nombreFinal = dto.nombrePersona;
-        let cedulaFinal = dto.cedulaPersona || null;
-        if (dto.tipoPersona === 'EMPLEADO' || dto.tipoPersona === 'INSTRUCTOR_INTERNO') {
-            const result = await pool.request()
-                .input('carnet', sql.VarChar(50), dto.personaId)
-                .query('SELECT nombreCompleto, cedula FROM bdplaner.dbo.p_Usuarios WHERE carnet = @carnet AND activo = 1');
-            if (result.recordset[0]) {
-                nombreFinal = result.recordset[0].nombreCompleto;
-                cedulaFinal = result.recordset[0].cedula || cedulaFinal;
-            }
-        }
         let fotoUrl = null;
-        if (fotoFile) {
+        if (fotoFile)
             fotoUrl = await this.savePhoto(fotoFile);
-        }
-        const request = pool.request();
-        request.input('EventoCursoId', sql.Int, dto.eventoCursoId || null);
-        request.input('EdificioId', sql.Int, dto.edificioId);
-        request.input('TipoPersona', sql.VarChar(30), dto.tipoPersona);
-        request.input('PersonaId', sql.VarChar(50), dto.personaId);
-        request.input('NombrePersona', sql.VarChar(250), nombreFinal);
-        request.input('CedulaPersona', sql.VarChar(50), cedulaFinal);
-        request.input('EmpresaPersona', sql.VarChar(250), dto.empresaPersona || null);
-        request.input('FotoUrl', sql.VarChar(500), fotoUrl);
-        request.input('UsuarioRegistra', sql.VarChar(100), usuario);
-        const result = await request.query(`
-      INSERT INTO dbo.tblRegistroAcceso (EventoCursoId, EdificioId, TipoPersona, PersonaId, NombrePersona, CedulaPersona, EmpresaPersona, FotoUrl, UsuarioRegistra)
-      OUTPUT INSERTED.*
-      VALUES (@EventoCursoId, @EdificioId, @TipoPersona, @PersonaId, @NombrePersona, @CedulaPersona, @EmpresaPersona, @FotoUrl, @UsuarioRegistra)
-    `);
-        const r = result.recordset[0];
-        return {
-            id: r.Id, tipoPersona: r.TipoPersona, personaId: r.PersonaId,
-            nombre: r.NombrePersona, fechaEntrada: r.FechaEntrada,
-            fotoUrl: r.FotoUrl, edificioId: r.EdificioId,
-        };
+        const result = await pool.request()
+            .input('EventoCursoId', dto.eventoCursoId || null)
+            .input('EdificioId', dto.edificioId)
+            .input('TipoPersona', dto.tipoPersona)
+            .input('PersonaId', dto.personaId)
+            .input('NombrePersona', dto.nombrePersona)
+            .input('CedulaPersona', dto.cedulaPersona || null)
+            .input('EmpresaPersona', dto.empresaPersona || null)
+            .input('FotoUrl', fotoUrl)
+            .input('UsuarioRegistra', usuario)
+            .execute('sp_Acceso_RegistrarEntrada');
+        return result.recordset[0];
     }
     async registrarSalida(id) {
         const pool = await this.db.getPool();
-        const result = await pool.request()
-            .input('id', sql.Int, id)
-            .query(`
-        UPDATE dbo.tblRegistroAcceso
-        SET FechaSalida = GETDATE()
-        OUTPUT INSERTED.*
-        WHERE Id = @id AND FechaSalida IS NULL
-      `);
-        if (!result.recordset[0])
-            throw new common_1.NotFoundException('Registro no encontrado o ya tiene salida registrada.');
-        const r = result.recordset[0];
-        return { id: r.Id, fechaSalida: r.FechaSalida };
+        try {
+            const result = await pool.request()
+                .input('Id', id)
+                .execute('sp_Acceso_RegistrarSalida');
+            return result.recordset[0];
+        }
+        catch (err) {
+            if (err.message?.includes('51000'))
+                throw new common_1.NotFoundException(err.message);
+            throw err;
+        }
     }
     async accesosHoy(edificioId) {
         const pool = await this.db.getPool();
-        let where = 'WHERE CAST(FechaEntrada AS DATE) = CAST(GETDATE() AS DATE)';
-        if (edificioId) {
-            where += ' AND EdificioId = @edificioId';
-        }
         const request = pool.request();
-        if (edificioId)
-            request.input('edificioId', sql.Int, edificioId);
-        const result = await request.query(`
-      SELECT r.*, e.Nombre AS EdificioNombre
-      FROM dbo.tblRegistroAcceso r
-      INNER JOIN dbo.tblEdificios e ON r.EdificioId = e.Id
-      ${where}
-      ORDER BY r.FechaEntrada DESC
-    `);
+        request.input('EdificioId', edificioId || null);
+        const result = await request.execute('sp_Acceso_Hoy');
         return result.recordset.map(r => ({
             id: r.Id, tipoPersona: r.TipoPersona, personaId: r.PersonaId,
             nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
@@ -101,40 +67,19 @@ let AccesoService = class AccesoService {
             usuarioRegistra: r.UsuarioRegistra,
         }));
     }
-    async reporte(eventoId, edificioId, tipoPersona, desde, hasta, pagina = 1, porPagina = 50) {
+    async reporte(edificioId, tipoPersona, desde, hasta, pagina = 1, porPagina = 50) {
         const pool = await this.db.getPool();
-        const conditions = [];
-        const request = pool.request();
-        if (edificioId) {
-            conditions.push('r.EdificioId = @edificioId');
-            request.input('edificioId', sql.Int, edificioId);
-        }
-        if (tipoPersona) {
-            conditions.push('r.TipoPersona = @tipoPersona');
-            request.input('tipoPersona', sql.VarChar(30), tipoPersona);
-        }
-        if (desde) {
-            conditions.push('r.FechaEntrada >= @desde');
-            request.input('desde', sql.DateTime2(0), new Date(desde));
-        }
-        if (hasta) {
-            conditions.push('r.FechaEntrada <= @hasta');
-            request.input('hasta', sql.DateTime2(0), new Date(hasta));
-        }
-        const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
-        const offset = (pagina - 1) * porPagina;
-        const countResult = await request.query(`SELECT COUNT(*) AS total FROM dbo.tblRegistroAcceso r ${where}`);
-        const total = countResult.recordset[0]?.total || 0;
-        const dataResult = await request.query(`
-      SELECT r.*, e.Nombre AS EdificioNombre
-      FROM dbo.tblRegistroAcceso r
-      INNER JOIN dbo.tblEdificios e ON r.EdificioId = e.Id
-      ${where}
-      ORDER BY r.FechaEntrada DESC
-      OFFSET ${offset} ROWS FETCH NEXT ${porPagina} ROWS ONLY
-    `);
+        const result = await pool.request()
+            .input('Pagina', pagina)
+            .input('PorPagina', porPagina)
+            .input('EdificioId', edificioId || null)
+            .input('TipoPersona', tipoPersona || null)
+            .input('Desde', desde ? new Date(desde) : null)
+            .input('Hasta', hasta ? new Date(hasta) : null)
+            .execute('sp_Acceso_Reporte');
+        const total = result.recordsets[0][0]?.Total || 0;
         return {
-            data: dataResult.recordset.map(r => ({
+            data: result.recordsets[1].map(r => ({
                 id: r.Id, tipoPersona: r.TipoPersona, personaId: r.PersonaId,
                 nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
                 edificio: r.EdificioNombre, fotoUrl: r.FotoUrl,

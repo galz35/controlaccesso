@@ -33,7 +33,7 @@ let AccesoController = class AccesoController {
         return this.acceso.accesosHoy(edificioId ? parseInt(edificioId) : undefined);
     }
     async reporte(edificioId, tipoPersona, desde, hasta, pagina, porPagina) {
-        return this.acceso.reporte(undefined, edificioId ? parseInt(edificioId) : undefined, tipoPersona, desde, hasta, pagina ? parseInt(pagina) : 1, porPagina ? parseInt(porPagina) : 50);
+        return this.acceso.reporte(edificioId ? parseInt(edificioId) : undefined, tipoPersona, desde, hasta, pagina ? parseInt(pagina) : 1, porPagina ? parseInt(porPagina) : 50);
     }
 };
 exports.AccesoController = AccesoController;

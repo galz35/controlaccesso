@@ -12,69 +12,41 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EventosCursoService = void 0;
 const common_1 = require("@nestjs/common");
 const database_service_1 = require("../database/database.service");
-const sql = require("mssql");
 let EventosCursoService = class EventosCursoService {
     constructor(db) {
         this.db = db;
     }
     async getAll() {
         const pool = await this.db.getPool();
-        const result = await pool.request().query(`
-      SELECT e.*, c.Nombre AS CursoNombre, ed.Nombre AS EdificioNombre
-      FROM dbo.tblEventosCurso e
-      INNER JOIN dbo.tblCursos c ON e.CursoId = c.Id
-      INNER JOIN dbo.tblEdificios ed ON e.EdificioId = ed.Id
-      WHERE e.Activo = 1
-      ORDER BY e.FechaInicio DESC
-    `);
+        const result = await pool.request().execute('sp_EventosCurso_Listar');
         return result.recordset;
     }
     async create(dto) {
         const pool = await this.db.getPool();
         const request = pool.request();
-        request.input('CursoId', sql.Int, dto.cursoId);
-        request.input('EdificioId', sql.Int, dto.edificioId);
-        request.input('FechaInicio', sql.DateTime2(0), new Date(dto.fechaInicio));
-        request.input('FechaFin', sql.DateTime2(0), dto.fechaFin ? new Date(dto.fechaFin) : null);
-        request.input('Observaciones', sql.VarChar(500), dto.observaciones || null);
-        const result = await request.query(`
-      INSERT INTO dbo.tblEventosCurso (CursoId, EdificioId, FechaInicio, FechaFin, Observaciones)
-      OUTPUT INSERTED.*
-      VALUES (@CursoId, @EdificioId, @FechaInicio, @FechaFin, @Observaciones)
-    `);
+        request.input('CursoId', dto.cursoId);
+        request.input('EdificioId', dto.edificioId);
+        request.input('FechaInicio', new Date(dto.fechaInicio));
+        request.input('FechaFin', dto.fechaFin ? new Date(dto.fechaFin) : null);
+        request.input('Observaciones', dto.observaciones || null);
+        const result = await request.execute('sp_EventosCurso_Crear');
         return result.recordset[0];
     }
     async update(id, dto) {
         const pool = await this.db.getPool();
         const request = pool.request();
-        request.input('id', sql.Int, id);
-        if (dto.cursoId !== undefined) {
-            request.input('CursoId', sql.Int, dto.cursoId);
-        }
-        if (dto.edificioId !== undefined) {
-            request.input('EdificioId', sql.Int, dto.edificioId);
-        }
-        if (dto.fechaInicio !== undefined) {
-            request.input('FechaInicio', sql.DateTime2(0), new Date(dto.fechaInicio));
-        }
-        if (dto.fechaFin !== undefined) {
-            request.input('FechaFin', sql.DateTime2(0), new Date(dto.fechaFin));
-        }
-        if (dto.observaciones !== undefined) {
-            request.input('Observaciones', sql.VarChar(500), dto.observaciones);
-        }
-        const sets = [];
+        request.input('Id', id);
         if (dto.cursoId !== undefined)
-            sets.push('CursoId = @CursoId');
+            request.input('CursoId', dto.cursoId);
         if (dto.edificioId !== undefined)
-            sets.push('EdificioId = @EdificioId');
+            request.input('EdificioId', dto.edificioId);
         if (dto.fechaInicio !== undefined)
-            sets.push('FechaInicio = @FechaInicio');
+            request.input('FechaInicio', new Date(dto.fechaInicio));
         if (dto.fechaFin !== undefined)
-            sets.push('FechaFin = @FechaFin');
+            request.input('FechaFin', new Date(dto.fechaFin));
         if (dto.observaciones !== undefined)
-            sets.push('Observaciones = @Observaciones');
-        const result = await request.query(`UPDATE dbo.tblEventosCurso SET ${sets.join(', ')} OUTPUT INSERTED.* WHERE Id = @id`);
+            request.input('Observaciones', dto.observaciones);
+        const result = await request.execute('sp_EventosCurso_Actualizar');
         if (!result.recordset[0])
             throw new common_1.NotFoundException('Registro no encontrado.');
         return result.recordset[0];

@@ -7,9 +7,9 @@ export declare class AuthService {
     devLogin(carnet: string): Promise<{
         access_token: string;
         user: {
-            carnet: string;
+            carnet: any;
             nombre: any;
-            rol: string;
+            rol: any;
         };
     }>;
     me(carnet: string): Promise<{

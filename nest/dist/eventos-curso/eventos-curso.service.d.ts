@@ -1,9 +1,8 @@
 import { DatabaseService } from '../database/database.service';
-import * as sql from 'mssql';
 export declare class EventosCursoService {
     private db;
     constructor(db: DatabaseService);
-    getAll(): Promise<sql.IRecordSet<any>>;
+    getAll(): Promise<any[]>;
     create(dto: any): Promise<any>;
     update(id: number, dto: any): Promise<any>;
 }

@@ -40,7 +40,6 @@ export class AccesoController {
     @Query('porPagina') porPagina?: string,
   ) {
     return this.acceso.reporte(
-      undefined,
       edificioId ? parseInt(edificioId) : undefined,
       tipoPersona, desde, hasta,
       pagina ? parseInt(pagina) : 1,

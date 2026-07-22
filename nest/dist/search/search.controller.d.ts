@@ -5,7 +5,5 @@ export declare class SearchController {
     empleado(q: string): Promise<import("mssql").IRecordSet<any>>;
     proveedor(q: string): Promise<import("mssql").IRecordSet<any>>;
     instructor(q: string): Promise<import("mssql").IRecordSet<any>>;
-    ubicaciones(): Promise<{
-        nombre: any;
-    }[]>;
+    ubicaciones(): Promise<import("mssql").IRecordSet<any>>;
 }

@@ -13,6 +13,8 @@ const passport_1 = require("@nestjs/passport");
 const config_1 = require("@nestjs/config");
 const auth_controller_1 = require("./auth.controller");
 const auth_service_1 = require("./auth.service");
+const sso_auth_service_1 = require("./sso-auth.service");
+const cpf_auth_service_1 = require("./cpf-auth.service");
 const jwt_strategy_1 = require("../common/jwt.strategy");
 let AuthModule = class AuthModule {
 };
@@ -31,7 +33,7 @@ exports.AuthModule = AuthModule = __decorate([
             }),
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],
+        providers: [auth_service_1.AuthService, sso_auth_service_1.SsoAuthService, cpf_auth_service_1.CpfAuthService, jwt_strategy_1.JwtStrategy],
         exports: [jwt_1.JwtModule, passport_1.PassportModule],
     })
 ], AuthModule);

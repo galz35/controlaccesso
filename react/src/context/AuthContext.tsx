@@ -2,15 +2,17 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import api from '../services/api';
 
 interface User {
-  carnet: string;
+  carnet?: string;
+  username?: string;
   nombre: string;
   rol: string;
+  tipo?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (carnet: string) => Promise<void>;
+  login: (credential: string, password?: string, isCpf?: boolean) => Promise<void>;
   logout: () => void;
 }
 
@@ -26,8 +28,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (carnet: string) => {
-    const { data } = await api.post('/auth/dev-login', { carnet });
+  const login = async (credential: string, password?: string, isCpf = false) => {
+    let data: any;
+
+    if (isCpf) {
+      // CPF login with username + password
+      const res = await api.post('/auth/cpf-login', { username: credential, password });
+      data = res.data;
+    } else if (password) {
+      // SSO login (from Portal)
+      const res = await api.post('/auth/sso-login', { token: credential });
+      data = res.data;
+    } else {
+      // Dev login (only carnet, temporary)
+      const res = await api.post('/auth/dev-login', { carnet: credential });
+      data = res.data;
+    }
+
     localStorage.setItem('token', data.access_token);
     localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);

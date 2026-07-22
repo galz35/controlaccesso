@@ -1,0 +1,802 @@
+ANÁLISIS PROFUNDO Y PLAN DE TRABAJO
+SISTEMA CONTROL DE ACCESO A EDIFICIOS
+
+Fecha del análisis: 2026-07-22 (UTC)
+Proyecto: /opt/apps/control-acceso
+Documento base: /opt/apps/control-acceso/README.md (1,091 líneas)
+Tipo de revisión: código, configuración, base de datos, despliegue, seguridad,
+operación, pruebas, experiencia de usuario y coherencia documental.
+
+======================================================================
+1. RESUMEN EJECUTIVO
+======================================================================
+
+Conclusión principal
+--------------------
+
+El sistema es un prototipo funcional recién desplegado, pero NO debe considerarse
+listo para producción ni un verdadero mecanismo de control de acceso todavía.
+Actualmente registra movimientos; no decide ni hace cumplir quién puede entrar.
+
+La aplicación web y la API responden por HTTPS, el backend conecta a SQL Server,
+el frontend compila y el backend pasa el chequeo TypeScript. Sin embargo, existen
+tres riesgos críticos P0 que deben corregirse antes de permitir uso real:
+
+1. Cualquier persona que conozca el carnet de un empleado activo puede iniciar
+   sesión como ese empleado. No hay contraseña, SSO, OTP ni prueba de identidad.
+2. El archivo nest/.env está versionado, tiene permisos 0644 e incluye secretos
+   reales. Por tanto, deben considerarse comprometidos y rotarse; eliminarlos del
+   último commit no basta porque permanecen en el historial de Git.
+3. Cuatro servicios CRUD forman nombres de columnas SQL desde claves JSON no
+   validadas. Una cuenta admin puede alcanzar SQL dinámico no seguro. La conexión
+   de la API usa la cuenta sa con privilegio sysadmin, por lo que el impacto
+   potencial alcanza todo el servidor SQL, no solo la base ControlAcceso.
+
+Valoración orientativa de madurez: 2.5/10.
+Clasificación recomendada: prototipo técnico / piloto bloqueado por seguridad.
+
+Fortalezas comprobadas
+----------------------
+
+- Separación básica frontend React, API NestJS y SQL Server.
+- Consultas de búsqueda y registro usan parámetros para los valores.
+- JWT y guards de roles están presentes en las rutas de negocio.
+- Nginx entrega el SPA y enruta la API correctamente.
+- HTTPS y cabeceras HSTS, nosniff, SAMEORIGIN y Referrer-Policy están activas.
+- El health check respondió 200 con base conectada.
+- Los esquemas tienen claves primarias y relaciones principales por FK.
+- Hay índices iniciales para fecha, persona, edificio y eventos.
+- Backend y frontend pasan chequeo TypeScript cuando no se intenta emitir archivos.
+
+Estado real observado el 2026-07-22
+-----------------------------------
+
+- Frontend: HTTP 200 en /control-acceso/.
+- API directa y vía Nginx: HTTP 200 en /api/health y
+  /control-acceso-api/health.
+- Backend: proceso Node escuchando en puerto 3001.
+- Base ControlAcceso: 8 tablas creadas.
+- Datos: 119 edificios, 1 usuario y 0 filas en proveedores, instructores,
+  cursos, eventos, visitantes y registros de acceso.
+- Esto significa que el flujo principal todavía no tiene evidencia de uso real.
+- Tests unitarios: ninguno.
+- Tests E2E: la única suite no inicia por incompatibilidad Jest/uuid.
+- Lint backend: 316 problemas (300 errores, 16 advertencias).
+- Lint frontend: finaliza con 2 advertencias.
+- Git: 40,127 archivos de node_modules y 97 archivos de dist están versionados.
+
+======================================================================
+2. ALCANCE, MÉTODO Y LÍMITES
+======================================================================
+
+Se revisaron:
+
+- README.md completo y ejemplos para Flutter.
+- Scripts SQL 001, 002 y 003.
+- Todo el código fuente de NestJS y React.
+- package.json, TypeScript, Jest, ESLint/Oxlint y Vite.
+- Estado y contenido rastreado por Git.
+- Variables del .env por nombre y longitud, sin copiar valores secretos.
+- Configuración efectiva de Nginx para las tres rutas del sistema.
+- Proceso, puerto, logs de arranque y respuestas HTTP locales.
+- Metadatos de la base real: tablas, conteos, restricciones, índices y privilegios.
+- Compilación TypeScript, lint y pruebas existentes.
+
+No se ejecutaron ataques, cambios de datos, creación de usuarios, entradas/salidas
+de prueba ni modificaciones al código productivo. Tampoco se verificó recuperación
+desde backup porque no hay procedimiento de backup/restore documentado.
+
+Escala usada:
+
+- P0 CRÍTICO: exposición o compromiso posible; bloquear producción.
+- P1 ALTO: puede causar corrupción, fuga de datos o fallo operativo importante.
+- P2 MEDIO: deuda que afecta confiabilidad, mantenibilidad o experiencia.
+- P3 BAJO: mejora conveniente sin impacto inmediato alto.
+
+======================================================================
+3. HALLAZGOS CRÍTICOS P0
+======================================================================
+
+P0-01. Autenticación por carnet permite suplantación directa
+------------------------------------------------------------
+
+Evidencia:
+
+- nest/src/auth/auth.controller.ts:9-12 expone POST /auth/dev-login.
+- nest/src/auth/auth.service.ts:13-51 solo recibe un carnet, comprueba que exista
+  y esté activo en bdplaner, crea usuario local y entrega JWT.
+- react/src/pages/LoginPage.tsx solicita únicamente el carnet.
+- README.md:147-193 documenta este flujo como autenticación normal.
+
+Impacto:
+
+- Conocer o adivinar un carnet activo permite impersonar al empleado.
+- El atacante obtiene rol registrador automáticamente si aún no existe localmente.
+- Puede buscar datos personales, consultar presencia y registrar entradas/salidas.
+- Si obtiene el carnet del admin configurado, accede a CRUD con riesgo SQL crítico.
+- No hay rate limiting, bloqueo, auditoría de intentos ni alerta de anomalías.
+
+Corrección requerida:
+
+- Deshabilitar dev-login en producción.
+- Integrar SSO corporativo real (OIDC/SAML o flujo existente) y verificar issuer,
+  audience, expiración, nonce/state y firma.
+- Como contención temporal, restringir login/API por VPN o red corporativa y usar
+  una segunda prueba de identidad; esto no reemplaza el SSO definitivo.
+- No autoaprovisionar permisos operativos sin política y aprobación.
+- Registrar login exitoso/fallido con IP, usuario, fecha y correlation ID.
+- Aplicar rate limit por IP y carnet, con alertas por abuso.
+
+Criterio de aceptación:
+
+- Introducir solo un carnet nunca produce un token.
+- Un token solo se emite después de autenticación verificada por el IdP.
+- Pruebas E2E cubren token válido, inválido, expirado, usuario inactivo y abuso.
+
+P0-02. Secretos reales versionados y legibles por otros usuarios del host
+--------------------------------------------------------------------------
+
+Evidencia:
+
+- nest/.env forma parte de Git desde el commit inicial del sistema.
+- No existe nest/.gitignore que excluya .env, node_modules y dist.
+- El archivo tiene permisos 0644.
+- Contiene contraseña SQL, secreto JWT y credenciales/secretos SSO/HCM.
+- README.md:192 y 999-1009 publica además un secreto JWT por defecto conocido.
+
+Impacto:
+
+- Cualquier copia del repositorio o acceso de lectura al host expone credenciales.
+- Si el JWT de producción coincide o derivó del valor documentado, pueden firmarse
+  tokens arbitrarios.
+- La contraseña SQL expuesta corresponde a una cuenta sa/sysadmin.
+- Borrar el archivo del branch actual no elimina secretos del historial.
+
+Corrección requerida:
+
+- Rotar inmediatamente DB_PASSWORD, JWT_SECRET, SSO_SECRET, HCM_USERNAME y
+  HCM_PASSWORD; invalidar todos los JWT existentes.
+- Sacar .env del repositorio y reescribir el historial si el remoto ya recibió el
+  commit. Coordinar el cambio porque reescribir historial afecta clones existentes.
+- Crear .env.example solo con nombres y valores ficticios.
+- Añadir .gitignore raíz para .env*, node_modules, dist, coverage, uploads y logs.
+- Usar un almacén de secretos o, como mínimo, archivo 0600 fuera del repositorio.
+- Activar escaneo de secretos en CI y pre-commit.
+
+Criterio de aceptación:
+
+- git grep y un escáner de secretos no encuentran credenciales vigentes ni en HEAD
+  ni en historial.
+- La aplicación inicia con secretos inyectados externamente.
+- Los secretos antiguos dejan de autenticar o conectar.
+
+P0-03. SQL dinámico por claves JSON más conexión sa/sysadmin
+-----------------------------------------------------------
+
+Evidencia:
+
+- edificios.service.ts, proveedores.service.ts, instructores.service.ts y
+  cursos.service.ts usan Object.keys(dto) para formar columnas y SET SQL.
+- Los valores sí se parametrizan, pero los identificadores provienen directamente
+  de la petición.
+- Los controladores reciben dto:any; no hay clases DTO con decoradores.
+- El ValidationPipe global no puede aplicar whitelist útil a metatype Object/any.
+- La consulta de metadatos confirmó SYSTEM_USER=sa y es_sysadmin=1.
+
+Impacto:
+
+- Un admin puede enviar nombres de propiedades manipulados que alteren la consulta.
+- Un error o explotación puede leer, modificar o eliminar datos fuera de
+  ControlAcceso debido a sysadmin.
+- Incluso sin explotación, claves no esperadas producen SQL inválido y errores 500.
+
+Corrección requerida:
+
+- Eliminar la construcción genérica por Object.keys.
+- Crear DTO explícito por operación y catálogo.
+- Escribir columnas SQL como lista fija en el código.
+- Asignar tipos SQL correctos: Int, Bit, DateTime2, VarChar/NVarChar, etc.
+- Crear login SQL exclusivo para la aplicación con mínimo privilegio solamente en
+  ControlAcceso; sin sa, sysadmin, db_owner ni acceso innecesario a otras bases.
+- Para consultar bdplaner, otorgar SELECT solo a tablas/vistas estrictamente
+  necesarias, idealmente mediante vistas o procedimientos controlados.
+- Añadir pruebas negativas con propiedades inesperadas y payloads maliciosos.
+
+Criterio de aceptación:
+
+- Ningún identificador SQL depende de texto enviado por el cliente.
+- La cuenta de la API no es sysadmin y no puede crear/eliminar bases o consultar
+  tablas ajenas a la lista aprobada.
+- Las propiedades no permitidas devuelven 400, nunca llegan a SQL.
+
+======================================================================
+4. HALLAZGOS ALTOS P1
+======================================================================
+
+P1-01. Validación de entrada prácticamente inexistente
+------------------------------------------------------
+
+- Todos los cuerpos relevantes usan any y no hay DTOs.
+- No se valida required, longitud, enum, formato de correo, fechas o números.
+- parseInt en query strings puede producir NaN; pagina y porPagina no tienen límite.
+- Se puede registrar visitante con nombre vacío o tipos de persona arbitrarios.
+- Para empleado no encontrado, el backend acepta el nombre suministrado por cliente.
+- Un proveedor/instructor no seleccionado termina como personaId="manual".
+
+Acción:
+
+- DTOs con class-validator/class-transformer.
+- Enum único TipoPersona compartido por dominio.
+- Límites estrictos iguales o menores que columnas SQL.
+- ParseIntPipe/DefaultValuePipe y validación de fechas ISO.
+- Errores 400 estructurados con código, campo y mensaje.
+
+P1-02. Reglas de negocio de entrada/salida incompletas
+-----------------------------------------------------
+
+- Se permiten múltiples entradas abiertas simultáneas para la misma persona.
+- No se verifica que edificio, curso o evento estén activos.
+- No se verifica que el evento pertenezca al edificio seleccionado.
+- No se verifica que la fecha actual esté dentro del evento.
+- No hay transacción para validación + inserción.
+- Cualquier registrador puede cerrar cualquier acceso de cualquier edificio.
+- La salida no guarda usuario, dispositivo, puesto, motivo ni fecha de corrección.
+- No existe flujo de corrección/anulación con trazabilidad.
+- No se registran accesos denegados, autorizaciones ni lista de restricción.
+
+Acción:
+
+- Definir formalmente reglas con negocio y convertirlas en servicio transaccional.
+- Crear índice único filtrado para la política de "una entrada abierta" que se acuerde.
+- Añadir UsuarioSalida, FechaModificacion, Estado, MotivoCorreccion y auditoría.
+- Restringir operaciones por edificio/puesto asignado al usuario.
+
+P1-03. El producto registra presencia, pero no controla autorización
+-------------------------------------------------------------------
+
+- No existe permiso persona-edificio, horario, vigencia, lista de bloqueo,
+  autorización de anfitrión, credencial, QR, puerta o dispositivo.
+- Un empleado activo en Portal puede ser registrado en cualquier edificio.
+- El nombre "Control de Acceso" crea una expectativa funcional superior a lo real.
+
+Decisión requerida:
+
+- Si el alcance es bitácora, renombrarlo y documentarlo como Registro de Acceso.
+- Si debe controlar acceso, diseñar el motor de autorización y su integración con
+  puertas/guardas/dispositivos antes de ampliar el frontend.
+
+P1-04. Modelo de datos sin restricciones de dominio suficientes
+---------------------------------------------------------------
+
+- No hay CHECK para TipoPersona ni Rol.
+- No hay CHECK FechaSalida >= FechaEntrada.
+- No hay CHECK FechaFin >= FechaInicio ni DuracionHoras > 0.
+- Proveedores, instructores y cursos admiten duplicados.
+- PersonaId no tiene integridad referencial por tipo.
+- VARCHAR puede perder fidelidad de caracteres según collation/code page; valorar
+  NVARCHAR para nombres y observaciones.
+- tblPersonasTemp existe pero nunca se usa; contradice README.md:116 y 136.
+
+Acción:
+
+- Agregar restricciones y claves/índices únicos acordados.
+- Decidir entre modelo supertipo Persona + subtipos o snapshots explícitos y
+  referencias por origen.
+- Implementar visitantes realmente o retirar tabla/documentación engañosa.
+
+P1-05. Fotos no están servidas por el backend y la carga es insegura
+-------------------------------------------------------------------
+
+- AccesoService guarda el WebP y retorna /control-acceso-uploads/...
+- Nginx reenvía esa URL al puerto 3001.
+- NestJS no registra ServeStaticModule ni controlador para esa ruta.
+- No hay evidencia de directorio uploads ni fotos creadas en la instancia.
+- No se limitan tamaño, tipo MIME, dimensiones ni cantidad en Multer.
+- El archivo se procesa en memoria y Sharp puede recibir una imagen maliciosa o muy
+  costosa; el límite Nginx de 20 MB no es una validación suficiente.
+- La foto se guarda antes del INSERT y queda huérfana si SQL falla.
+- No hay política de retención, acceso privado, consentimiento ni eliminación.
+- Cache-Control immutable 30 días es inapropiado si se requiere revocar PII.
+
+Acción:
+
+- Servir desde Nginx con alias seguro o módulo estático autenticado según privacidad.
+- Límite Multer pequeño, allowlist MIME, verificación real de formato/píxeles y
+  timeout/recursos de Sharp.
+- Escribir archivo temporal, completar transacción y mover; limpiar al fallar.
+- Definir retención y autorización de lectura antes de activar fotos.
+
+P1-06. Autorización y sesión incompletas
+---------------------------------------
+
+- JwtStrategy confía en rol/estado del payload durante hasta 8 horas.
+- Desactivar usuario o cambiar rol en BD no revoca el token actual.
+- /auth/me consulta la BD, pero el frontend no lo usa al iniciar.
+- El frontend considera autenticado a quien tenga un objeto user en localStorage,
+  aunque no exista token válido.
+- Catálogos se muestran a registradores; los botones fallan con 403 en backend.
+- No hay asignación de usuario a edificios ni principio de mínimo acceso a PII.
+
+Acción:
+
+- Token corto + refresh seguro o revalidación de sesión/usuario.
+- Verificar estado y permisos vigentes en guard central con cache breve.
+- En startup llamar /auth/me y limpiar estado si no coincide.
+- Ocultar/deshabilitar acciones por permiso, manteniendo backend como autoridad.
+
+P1-07. Exposición excesiva de datos personales
+----------------------------------------------
+
+- Registradores pueden buscar todos los empleados y ver carnet, cédula, ubicación
+  y gerencia.
+- Pueden consultar registros con cédula, presencia, edificio y usuario registrador.
+- q vacío devuelve hasta 20 empleados/proveedores/instructores.
+- No hay mínimo de caracteres, rate limit, trazabilidad de consulta ni scope.
+- Fotos serían públicas por una URL predecible por ruta aunque el nombre sea UUID.
+
+Acción:
+
+- Minimizar campos según función; no devolver cédula/gerencia si no son necesarias.
+- Exigir longitud mínima, paginar, limitar tasa y auditar búsquedas sensibles.
+- Scope por edificio/rol y revisión legal de retención/consentimiento.
+
+P1-08. Reportes tienen errores de contrato, fechas y rendimiento
+---------------------------------------------------------------
+
+- reporte(eventoId) recibe parámetro, pero nunca lo aplica; el controlador siempre
+  pasa undefined y la API no expone eventoId.
+- hasta=2026-07-22 se convierte a medianoche y excluye casi todo ese día.
+- OFFSET y FETCH se interpolan sin límites; números negativos o enormes fallan o
+  degradan el servicio.
+- accesosHoy usa CAST(FechaEntrada AS DATE), impidiendo un seek eficiente por índice.
+- GET /acceso/hoy devuelve toda la jornada sin paginación.
+- El frontend no tiene página de histórico, filtros ni exportación.
+
+Acción:
+
+- Usar rangos [desde, hastaExclusivo), fechas con zona horaria definida y parámetros
+  SQL para paginación validada.
+- Consulta sargable: FechaEntrada >= inicio AND FechaEntrada < fin.
+- Implementar eventoId o retirar el parámetro muerto.
+- Definir límites, exportación asíncrona y pruebas de volumen.
+
+P1-09. Configuración de base inconsistente e insegura
+---------------------------------------------------
+
+- nest/.env define DB_DATABASE=Asistencia, no ControlAcceso.
+- DatabaseService ignora DB_DATABASE y fuerza "ControlAcceso".
+- También ignora DB_ENCRYPT y DB_TRUST_SERVER_CERTIFICATE; fuerza encrypt:false y
+  trustServerCertificate:true.
+- DB_SERVER y el contenedor SQL escuchan en 0.0.0.0:1433; la API escucha en *:3001.
+- Nginx solo necesita conectar por loopback al backend.
+
+Acción:
+
+- Validar configuración al inicio con esquema (Joi/Zod o equivalente) y fallar
+  rápido ante valores ausentes/incoherentes.
+- Usar DB_DATABASE real desde configuración.
+- Cifrar conexiones según topología y validar certificado donde corresponda.
+- Hacer bind del backend a 127.0.0.1 y restringir SQL por firewall/red Docker.
+
+P1-10. Sin suite de pruebas funcional ni barrera CI
+--------------------------------------------------
+
+- npm test no encuentra pruebas unitarias.
+- La única prueba E2E espera GET / => "Hello World!", contrato ya inexistente.
+- E2E falla antes de ejecutar por uuid ESM con configuración Jest actual.
+- No hay CI, cobertura, pruebas de migración, contrato, seguridad o concurrencia.
+- 316 problemas de ESLint están presentes en backend.
+
+Acción:
+
+- Corregir Jest/uuid y reemplazar el scaffold.
+- Unit tests de auth, roles, entrada/salida, fechas, archivos y reportes.
+- Integration tests con SQL Server aislado y datos reproducibles.
+- E2E para contratos principales y permisos.
+- CI obligatorio: install reproducible, typecheck, lint, tests, cobertura, build,
+  auditoría de dependencias y escaneo de secretos.
+
+======================================================================
+5. HALLAZGOS MEDIOS P2 Y BAJOS P3
+======================================================================
+
+P2-01. Repositorio inflado y no reproducible
+-------------------------------------------
+
+- 40,127 archivos de nest/node_modules están rastreados.
+- 97 archivos de nest/dist están rastreados.
+- El repositorio ocupa 567 MB y el pack Git alrededor de 51 MB.
+- Artefactos y dependencias mezclan fuente con resultado de build.
+- Solo hay dos commits; no hay tags, releases ni changelog.
+
+Acción: .gitignore raíz, retirar artefactos del índice, conservar lockfiles y usar
+npm ci. Si ya se publicó, decidir si se limpia historial para reducir el repositorio.
+
+P2-02. Scripts SQL no constituyen un sistema de migraciones confiable
+-------------------------------------------------------------------
+
+- 001 y 002 verifican existencia, pero 003 intenta crear índices sin IF NOT EXISTS;
+  ejecutarlo dos veces falla.
+- No hay tabla de versión, rollback, transacción de migración ni orden automatizado.
+- El README afirma 119 edificios seed, pero no hay script seed en el repositorio.
+- No hay backup previo, restore test ni política de cambios de esquema.
+
+Acción: adoptar migraciones versionadas idempotentes, seed explícito y pipeline de
+aplicación/rollback probado en una base temporal.
+
+P2-03. Respuestas y errores no están normalizados
+------------------------------------------------
+
+- Catálogos devuelven columnas PascalCase de SQL y acceso devuelve camelCase.
+- El frontend contiene fallbacks para ambos formatos.
+- Errores SQL llegan como 500 sin código de negocio amigable.
+- Health devuelve HTTP 200 aun cuando captura base desconectada y responde
+  status="error"; un balanceador puede considerar sana una instancia rota.
+- X-Powered-By: Express está expuesto.
+
+Acción: mappers/serializadores, filtro global de excepciones, request ID, códigos
+estables y health con HTTP 503 cuando una dependencia crítica falla.
+
+P2-04. Observabilidad y auditoría insuficientes
+----------------------------------------------
+
+- Solo hay logs de arranque estándar de Nest.
+- No hay logging estructurado, correlation ID, latencias, métricas o alertas.
+- No existe tabla de auditoría para login, cambios CRUD, salida o correcciones.
+- UsuarioRegistra solo cubre la entrada.
+- No hay runbook de incidentes ni SLO.
+
+Acción: logs JSON sin PII/secrets, métricas RED, alertas, auditoría append-only,
+retención definida y runbook de diagnóstico/rollback.
+
+P2-05. Seguridad HTTP incompleta
+-------------------------------
+
+- CORS está abierto a cualquier origen.
+- No hay Helmet/CSP/Permissions-Policy ni rate limiting.
+- Tokens se almacenan en localStorage y un XSS podría robarlos.
+- server_tokens de Nginx no está desactivado; se revela Nginx 1.18.0.
+- No hay revisión de versiones/vulnerabilidades documentada.
+
+Acción: allowlist CORS, Helmet/CSP, rate limit, ocultar firmas, revisar estrategia de
+sesión (cookie HttpOnly/SameSite si aplica) y ejecutar auditoría de dependencias.
+
+P2-06. Frontend incompleto y con errores silenciosos
+---------------------------------------------------
+
+- Muchos catch {} ocultan fallos y muestran listas vacías como si fueran reales.
+- Registrar salida no pide confirmación ni informa error.
+- Solo se valida edificio al registrar entrada.
+- No existe UI para eventos, usuarios/roles, reportes, auditoría o correcciones.
+- No se puede desactivar catálogo desde la UI.
+- La lista de eventos incluye pasados y edificios no seleccionados.
+- Dashboard y salida cargan solo una vez; no hay polling ni actualización en tiempo
+  real, por lo que varios puestos pueden ver información obsoleta.
+- Navegación usa <a> y recarga toda la aplicación.
+- Clases w-4, h-4 y animate-spin parecen asumir Tailwind, pero no hay CSS/Tailwind;
+  animaciones y tamaños esperados no se aplican.
+
+P2-07. Diseño móvil, accesibilidad y operación en portería no resueltos
+------------------------------------------------------------------------
+
+- Grid fijo de 2 columnas y KPIs de 3 columnas sin breakpoints.
+- No hay labels asociadas, foco visible consistente, ARIA, validación accesible ni
+  prueba de teclado/lector de pantalla.
+- No hay modo kiosco, escáner, cámara directa, offline/cola, impresión de gafete ni
+  recuperación ante conectividad intermitente.
+- No hay protección contra doble clic o idempotency key.
+
+P2-08. README es amplio, pero mezcla documentación con supuestos no implementados
+-------------------------------------------------------------------------------
+
+Contradicciones/faltantes principales:
+
+- Dice que visitantes se crean en tblPersonasTemp; el código nunca lo hace.
+- Dice que fotos se sirven por una ruta que el backend no implementa.
+- Llama autenticación a un endpoint expresamente llamado dev-login.
+- Documenta .env dentro de la estructura y publica un secreto JWT por defecto.
+- Declara PM2, pero no incluye ecosystem.config, startup systemd ni runbook.
+- Muestra deploy/nginx.conf, pero ese directorio no existe en el repositorio.
+- No documenta que solo admin puede POST/PUT en cada catálogo de forma clara junto
+  a cada endpoint.
+- No documenta validaciones porque no existen.
+- No hay OpenAPI/Swagger generado; los ejemplos pueden divergir sin detección.
+- La respuesta documentada de proveedores/instructores usa camelCase, mientras SQL
+  devuelve varios campos en PascalCase.
+- La guía Flutter perpetúa el login inseguro y por ello no debe implementarse aún.
+- Falta privacidad, retención, backup, restauración, monitoreo, rollback, pruebas,
+  troubleshooting, zonas horarias, ownership y criterios de soporte.
+
+P3-01. Deuda de mantenibilidad
+------------------------------
+
+- strict=false, noImplicitAny=false y uso abundante de any.
+- CRUD duplicado en cuatro servicios.
+- BadRequestException importado y no usado.
+- Dependencias declaradas aparentemente no usadas: axios Nest, xlsx y varias
+  variables HCM/SSO; deben verificarse y retirarse o implementarse.
+- Sin licencia, responsables, ADRs ni convenciones de arquitectura.
+
+======================================================================
+6. DECISIONES DE NEGOCIO QUE BLOQUEAN UN DISEÑO CORRECTO
+======================================================================
+
+Estas decisiones deben resolverse en un taller corto antes de desarrollar fases 2
+y 3. No conviene adivinarlas en código.
+
+D-01. ¿El producto solo registra o también autoriza/deniega el acceso?
+D-02. ¿Cuál IdP/SSO corporativo es la fuente oficial de identidad?
+D-03. ¿Quién puede convertirse en registrador o admin y quién lo aprueba?
+D-04. ¿Cada registrador opera uno o varios edificios?
+D-05. ¿Se permite una persona dentro de varios edificios simultáneamente?
+D-06. ¿Cómo se corrige una entrada/salida equivocada sin borrar evidencia?
+D-07. ¿Qué datos son obligatorios por tipo de persona?
+D-08. ¿Quién autoriza visitantes y proveedores, y por cuánto tiempo?
+D-09. ¿Qué significa un evento de curso para la autorización?
+D-10. ¿Fotos son necesarias? ¿Consentimiento, acceso y retención?
+D-11. ¿Zona horaria oficial? Se recomienda America/Managua en presentación y UTC
+      para persistencia, documentando conversiones.
+D-12. ¿Cuánto tiempo se retienen movimientos, búsquedas y auditoría?
+D-13. ¿Debe operar sin Internet/red? ¿Cuál es la reconciliación de duplicados?
+D-14. ¿Qué reportes, exportaciones y métricas exige Seguridad/RRHH/Auditoría?
+D-15. ¿Cuántos edificios, puestos concurrentes y accesos diarios se esperan?
+
+======================================================================
+7. PLAN DE TRABAJO PRIORIZADO
+======================================================================
+
+Principio de secuencia
+---------------------
+
+No desarrollar Flutter ni nuevas pantallas sobre el contrato actual. Primero se
+contiene el riesgo, luego se estabiliza el dominio/API, después se construyen clientes.
+
+FASE 0. CONTENCIÓN INMEDIATA (0.5 a 2 días)
+------------------------------------------------
+
+Objetivo: reducir exposición mientras se corrige el diseño.
+
+T-001 P0 Bloquear dev-login en producción o restringir temporalmente API y frontend
+     a VPN/red corporativa.
+     Responsable sugerido: Backend + Infra.
+     Aceptación: desde Internet no se obtiene token introduciendo un carnet.
+
+T-002 P0 Rotar contraseña sa, JWT_SECRET y todas las credenciales SSO/HCM presentes.
+     Forzar invalidez de tokens anteriores.
+     Responsable: DBA + Seguridad + Infra.
+     Aceptación: secretos antiguos fallan; nuevos no están en Git.
+
+T-003 P0 Crear cuenta SQL de mínimo privilegio para la API y cambiar configuración.
+     Responsable: DBA.
+     Aceptación: IS_SRVROLEMEMBER('sysadmin')=0 y operaciones no autorizadas fallan.
+
+T-004 P0 Crear .gitignore, retirar .env/node_modules/dist del índice y preparar
+     limpieza coordinada del historial.
+     Responsable: Tech Lead.
+     Aceptación: clon limpio + npm ci + build reproducible.
+
+T-005 P1 Restringir bind del backend a 127.0.0.1 y revisar exposición 1433/firewall.
+     Responsable: Infra/DBA.
+     Aceptación: 3001 no escucha externamente; 1433 solo desde redes autorizadas.
+
+T-006 P1 Tomar backup verificable antes de migraciones y probar restauración.
+     Responsable: DBA.
+     Aceptación: evidencia de restore en instancia temporal.
+
+Salida de fase: ningún P0 explotable permanece expuesto.
+
+FASE 1. IDENTIDAD Y ENDURECIMIENTO DEL BACKEND (3 a 6 días)
+----------------------------------------------------------
+
+T-101 Integrar SSO real y retirar dev-login del build de producción.
+T-102 Implementar DTOs para todos los endpoints y error 400 normalizado.
+T-103 Reescribir CRUD con columnas fijas y tipos SQL correctos.
+T-104 Revalidar usuario, activo, rol y scope por edificio en un guard central.
+T-105 Añadir rate limiting, CORS allowlist, Helmet/CSP y ocultar X-Powered-By.
+T-106 Validar configuración al arranque; eliminar defaults inseguros y respetar
+      DB_DATABASE/DB_ENCRYPT de forma controlada.
+T-107 Añadir correlation ID, filtro de excepciones y logs estructurados sin PII.
+T-108 Corregir health para retornar 503 cuando SQL o dependencia crítica falla.
+
+Salida de fase:
+
+- Autenticación fuerte, mínimo privilegio y payloads estrictos.
+- Tests negativos demuestran que claves desconocidas, tipos inválidos y tokens
+  revocados son rechazados.
+
+FASE 2. DOMINIO, INTEGRIDAD Y AUDITORÍA (4 a 8 días)
+---------------------------------------------------
+
+T-201 Taller y documento de reglas D-01 a D-15.
+T-202 Diseñar migraciones versionadas, transaccionales e idempotentes.
+T-203 Añadir CHECK, UNIQUE e índices filtrados según reglas aprobadas.
+T-204 Implementar transacción de entrada y salida, control de concurrencia e
+      idempotency key.
+T-205 Validar persona, edificio, evento, vigencia y correspondencia entre entidades.
+T-206 Implementar visitantes de forma consistente o retirar tblPersonasTemp.
+T-207 Crear auditoría append-only para login, CRUD, entrada, salida, corrección,
+      autorización/denegación y cambios de rol.
+T-208 Guardar actor de salida y flujo de corrección sin UPDATE destructivo del hecho.
+T-209 Definir UTC/presentación America/Managua y migrar consultas de fechas.
+
+Salida de fase:
+
+- Reglas centrales protegidas tanto en servicio como en base.
+- Dos peticiones concurrentes no producen doble entrada abierta.
+- Toda corrección conserva actor, motivo, antes/después y fecha.
+
+FASE 3. COMPLETAR CONTRATO Y FUNCIONALIDAD (4 a 8 días)
+------------------------------------------------------
+
+T-301 Definir OpenAPI como contrato y generar ejemplos/cliente.
+T-302 Normalizar respuestas camelCase y paginación.
+T-303 Corregir reportes: fechas inclusivas/exclusivas, evento, límites y rendimiento.
+T-304 Implementar gestión de usuarios, roles y scope de edificios.
+T-305 Implementar eventos de curso en UI y filtrar por fecha/edificio.
+T-306 Resolver fotos de extremo a extremo con privacidad y retención aprobadas.
+T-307 Implementar histórico, filtros, exportación segura y auditoría visible.
+T-308 Añadir flujo de autorización/denegación si D-01 confirma control real.
+
+Salida de fase: contrato estable y funcionalidades administrativas operables sin
+consultas SQL manuales.
+
+FASE 4. CALIDAD AUTOMATIZADA Y CI/CD (4 a 7 días)
+-------------------------------------------------
+
+T-401 Corregir configuración Jest/uuid y eliminar prueba scaffold obsoleta.
+T-402 Unit tests de servicios/guards/DTOs; objetivo inicial >=80% en dominio crítico.
+T-403 Integration tests contra SQL Server efímero con migraciones reales.
+T-404 E2E por rol para auth, búsqueda, catálogos, entrada, salida, reportes y errores.
+T-405 Pruebas de concurrencia, límites de archivo, fechas, zona horaria y seguridad.
+T-406 CI: npm ci, typecheck, lint sin errores, tests, cobertura, builds, auditoría de
+      dependencias, secret scan y validación OpenAPI.
+T-407 Separar ambientes dev/test/prod y datos seed sintéticos.
+
+Salida de fase: ningún merge/deploy ocurre si falla una barrera.
+
+FASE 5. FRONTEND WEB PARA OPERACIÓN REAL (4 a 8 días)
+----------------------------------------------------
+
+T-501 Revalidar sesión con /me y manejar expiración sin estados falsos.
+T-502 Aplicar permisos a navegación/acciones y scope por edificio.
+T-503 Validación completa, mensajes de error, confirmación de salida y prevención
+      de doble envío.
+T-504 Actualización periódica o tiempo real para varios puestos.
+T-505 Diseño responsive para tablet/móvil y accesibilidad WCAG 2.1 AA esencial.
+T-506 Sustituir errores silenciosos por estados loading/error/empty diferenciados.
+T-507 Pantallas faltantes: eventos, reportes, usuarios/roles, auditoría y corrección.
+T-508 Pruebas de componentes y flujos críticos en navegador.
+
+FASE 6. OPERACIÓN Y DESPLIEGUE CONFIABLE (3 a 5 días)
+----------------------------------------------------
+
+T-601 ecosystem.config o unidad systemd reproducible, con usuario sin privilegios
+      root, working directory, env y política de restart explícitos.
+T-602 Pipeline de despliegue atómico con release versionado, smoke test y rollback.
+T-603 Monitoreo de disponibilidad, errores, latencia, pool SQL, disco de uploads y
+      tasa de login/registro; alertas con responsables.
+T-604 Backup programado, cifrado, retención y simulacro periódico de restore.
+T-605 Runbooks: caída SQL, JWT/SSO, Nginx, espacio, rollback, incidente de PII.
+T-606 Política de logs, auditoría, fotos y datos conforme a privacidad.
+T-607 Prueba de carga con volumen esperado y SLO acordado.
+
+FASE 7. FLUTTER / DISPOSITIVOS (solo después de contrato estable; 6 a 12 días)
+----------------------------------------------------------------------------
+
+T-701 Regenerar guía Flutter desde OpenAPI; eliminar dev-login.
+T-702 Secure storage, SSO, renovación/revocación y pinning si Seguridad lo requiere.
+T-703 Cámara, compresión y upload según límites del servidor.
+T-704 Estrategia offline/idempotencia si negocio la exige.
+T-705 Pruebas en dispositivos, redes lentas y reintentos.
+T-706 Distribución, versionado mínimo soportado, telemetría y soporte.
+
+Estimación global inicial
+-------------------------
+
+- Sin motor de autorización físico y sin offline: 22 a 44 días-persona.
+- Con control real, integración de puertas/QR, offline y Flutter: agregar análisis
+  e implementación específica; no es responsable estimarlo sin decisiones D-01,
+  D-08, D-13 y volumen D-15.
+- Las fases pueden solaparse parcialmente, pero Fase 0 precede todo uso real y
+  Fases 1-3 preceden Flutter.
+
+======================================================================
+8. MATRIZ DE PRIORIDAD RESUMIDA
+======================================================================
+
+ID      Prioridad  Esfuerzo  Riesgo que reduce                         Dependencia
+P0-01   P0         Alto      Suplantación total                        IdP/SSO
+P0-02   P0         Medio     Robo de DB/JWT/servicios                   DBA/Seguridad
+P0-03   P0         Medio     Compromiso SQL Server                     DTO + cuenta DB
+P1-01   P1         Medio     Datos inválidos/errores                    P0-03
+P1-02   P1         Alto      Corrupción lógica/doble registro           Reglas negocio
+P1-04   P1         Medio     Integridad histórica                       Migraciones
+P1-05   P1         Medio     Fallo/fuga por fotos                       Privacidad
+P1-07   P1         Medio     Exposición de PII                          Roles/scope
+P1-08   P1         Medio     Reportes incorrectos/lentos                Fechas/contrato
+P1-10   P1         Alto      Regresiones sin detectar                   CI/test DB
+P2-01   P2         Bajo      Repositorio pesado/no reproducible         Ninguna
+P2-04   P2         Medio     Incidentes invisibles                      Logging/monitor
+P2-06   P2         Alto      Errores operativos y UX                    API estable
+
+======================================================================
+9. CRITERIOS DE SALIDA A PRODUCCIÓN
+======================================================================
+
+No aprobar producción hasta cumplir todos los siguientes gates:
+
+GATE SEGURIDAD
+
+- Cero P0 abiertos.
+- SSO real; dev-login ausente o imposible en producción.
+- Secretos rotados, fuera de Git y escaneo limpio.
+- Cuenta SQL de mínimo privilegio y puertos restringidos.
+- DTOs, columnas SQL fijas, rate limit y CORS allowlist.
+- Revisión de PII/fotos/retención aprobada.
+
+GATE INTEGRIDAD
+
+- Reglas de entrada/salida aprobadas y protegidas ante concurrencia.
+- Constraints y migraciones aplicadas desde una base vacía y una base anterior.
+- Auditoría de actor para cada operación sensible.
+- Zona horaria y semántica de reportes verificadas.
+
+GATE CALIDAD
+
+- Lint y typecheck sin errores.
+- Unit/integration/E2E verdes en CI.
+- Cobertura acordada del dominio crítico y pruebas por rol.
+- Prueba de carga con volumen esperado y sin degradación crítica.
+- OpenAPI coincide con respuestas reales.
+
+GATE OPERACIÓN
+
+- Deploy y rollback reproducibles.
+- Backup restaurado exitosamente en simulacro.
+- Health 503 ante dependencia caída, monitoreo y alertas activos.
+- Runbooks y responsables de soporte definidos.
+- Prueba piloto controlada con usuarios reales y acta de aceptación.
+
+======================================================================
+10. ORDEN RECOMENDADO PARA LA PRÓXIMA ITERACIÓN
+======================================================================
+
+Semana/iteración inmediata sugerida:
+
+1. Contener dev-login y restringir exposición.
+2. Rotar secretos y reemplazar sa por cuenta limitada.
+3. Limpiar .env del repositorio y preparar historial seguro.
+4. Crear DTOs y reescribir los cuatro CRUD vulnerables.
+5. Corregir Jest y añadir pruebas de seguridad mínimas.
+6. Acordar reglas D-01 a D-15.
+7. Diseñar migración de integridad y auditoría.
+
+No priorizar todavía:
+
+- App Flutter.
+- Estética adicional.
+- Nuevos catálogos.
+- Exportaciones complejas.
+- Integración de fotos.
+
+Estas tareas aumentarían superficie y costo de retrabajo antes de estabilizar
+identidad, seguridad, reglas y contrato.
+
+======================================================================
+11. RESULTADO FINAL DEL ANÁLISIS
+======================================================================
+
+El proyecto tiene una base técnica comprensible y puede evolucionar, pero la palabra
+"completo" del commit/documentación no refleja el estado real. Hoy existe una demo
+operativa de registro con datos casi vacíos, sin autenticación real, sin pruebas y
+con una cadena de impacto especialmente peligrosa:
+
+  carnet conocido -> token registrador/admin -> endpoint CRUD dinámico
+  -> conexión sa/sysadmin -> posible compromiso amplio de SQL Server.
+
+La prioridad correcta no es agregar funciones; es romper esa cadena, definir las
+reglas del negocio y construir evidencia automatizada de que el sistema protege
+identidad, integridad y datos personales. Después de completar Fases 0 a 4, el
+frontend web y Flutter podrán apoyarse en un contrato estable y seguro.
+
+FIN DEL DOCUMENTO
