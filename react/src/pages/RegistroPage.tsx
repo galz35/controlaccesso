@@ -194,7 +194,7 @@ function SalidaPanel() {
         {apiError ? (
           <div className="alert alert--error" role="alert">
             <p>No pudimos consultar los accesos activos.</p>
-            <button onClick={load} className="btn btn--primary btn--sm" style={{ marginTop: 8 }}>Reintentar</button>
+            <button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button>
           </div>
         ) : loading ? (
           <div className="empty-state empty-state--compact"><div className="spinner mx-auto" /></div>

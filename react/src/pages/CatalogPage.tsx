@@ -65,7 +65,7 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
       {apiError ? (
         <div className="alert alert--error" role="alert">
           <p>Error al cargar los datos.</p>
-          <button onClick={load} className="btn btn--primary btn--sm" style={{ marginTop: 8 }}>Reintentar</button>
+          <button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button>
         </div>
       ) : showForm && isAdmin ? (
         <form onSubmit={save} className="card mb-3">
@@ -89,6 +89,7 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
       <div className="card">
         <div className="table-wrapper">
           <table className="table">
+                <caption className="hidden">Listado de registros</caption>
             <thead><tr>
               {cfg.fields.map(fld => <th key={fld.key} scope="col">{fld.label}</th>)}
               {isAdmin && <th scope="col" className="text-center">Acción</th>}

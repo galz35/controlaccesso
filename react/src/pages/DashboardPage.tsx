@@ -56,7 +56,7 @@ export default function DashboardPage() {
           {apiError ? (
             <div className="empty-state">
               <p className="empty-state__desc">No pudimos consultar los accesos.</p>
-              <button onClick={load} className="btn btn--primary btn--sm" style={{ marginTop: 8 }}>Reintentar</button>
+              <button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button>
             </div>
           ) : loading ? (
             <div className="empty-state"><div className="spinner mx-auto" /></div>
@@ -65,6 +65,7 @@ export default function DashboardPage() {
           ) : (
             <div className="table-wrapper">
               <table className="table">
+                <caption className="hidden">Accesos registrados hoy</caption>
                 <thead><tr>
                   <th scope="col">Tipo</th><th scope="col">Nombre</th><th scope="col">Cédula</th><th scope="col">Edificio</th>
                   <th scope="col" className="text-center">Entrada</th><th scope="col" className="text-center">Salida</th><th scope="col" className="text-center">Acción</th>

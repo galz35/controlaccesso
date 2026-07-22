@@ -176,6 +176,14 @@
 .v-middle { vertical-align: middle; }
 .m-auto { margin: 0 auto; }
 .mx-auto { margin-left: auto; margin-right: auto; }
+.mt-2 { margin-top: var(--space-2); }
+.mb-2 { margin-bottom: var(--space-2); }
+.mt-4 { margin-top: var(--space-4); }
+.mb-4 { margin-bottom: var(--space-4); }
+
+/* === RESTRICTED PAGE === */
+.restricted-page { padding-top: 60px; text-align: center; }
+.restricted-page h2 { color: var(--gray-600); margin-bottom: var(--space-2); }
 
 /* === RESPONSIVE === */
 @media (max-width: 1023px) { .registro-grid { grid-template-columns: 1fr; } }

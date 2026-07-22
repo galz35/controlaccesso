@@ -40,14 +40,14 @@ export default function AdminCpfPage() {
     try { await api.put('/auth/cpf-password', { username, oldPassword: '', newPassword: newPwd }); showSuccess('Contraseña cambiada'); } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
   };
 
-  if (!isAdmin) return <div className="empty-state" style={{ paddingTop: 60 }}><h2 style={{ color: 'var(--gray-600)' }}>Acceso restringido</h2><p className="empty-state__desc">No tenés permisos para administrar usuarios CPF.</p></div>;
+  if (!isAdmin) return <div className="restricted-page"><h2>Acceso restringido</h2><p className="empty-state__desc">No tenés permisos para administrar usuarios CPF.</p></div>;
 
   return (
     <div>
       <div className="page-header">
         <div>
           <h1 className="page-header__title"><KeyRound className="icon" /> Usuarios Externos (CPF)</h1>
-          <p className="page-header__subtitle"><Shield className="icon icon--sm" style={{ color: 'var(--brand-red)', verticalAlign: 'middle' }} /> Administración de cuentas para proveedores e instructores</p>
+          <p className="page-header__subtitle"><Shield className="icon icon--sm v-middle" style={{ color: 'var(--brand-red)' }} /> Administración de cuentas para proveedores e instructores</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn btn--primary"><Plus className="icon icon--sm" /> Nuevo Usuario CPF</button>
       </div>
@@ -73,12 +73,13 @@ export default function AdminCpfPage() {
 
       <div className="card">
         {apiError ? (
-          <div className="empty-state"><p className="empty-state__desc">Error al cargar usuarios.</p><button onClick={load} className="btn btn--primary btn--sm" style={{ marginTop: 8 }}>Reintentar</button></div>
+          <div className="empty-state"><p className="empty-state__desc">Error al cargar usuarios.</p><button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button></div>
         ) : loading ? (
           <div className="empty-state"><div className="spinner mx-auto" /></div>
         ) : (
           <div className="table-wrapper">
             <table className="table">
+                <caption className="hidden">Usuarios CPF registrados</caption>
               <thead><tr><th scope="col">Usuario</th><th scope="col">Nombre</th><th scope="col" className="text-center">Tipo</th><th scope="col" className="text-center">Rol</th><th scope="col" className="text-center">Activo</th><th scope="col" className="text-center">Acción</th></tr></thead>
               <tbody>
                 {users.map((u: any) => (
