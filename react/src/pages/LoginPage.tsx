@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { DoorOpen, User, KeyRound, Loader2 } from 'lucide-react';
+import { DoorOpen, User, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -10,8 +10,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
 
-  const handleLogin = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
     setLoading(true);
     try {
@@ -30,59 +32,104 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f3f4f6' }}>
-      <div style={{ background: 'white', borderRadius: 16, padding: 40, width: '100%', maxWidth: 380, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <DoorOpen className="w-10 h-10" style={{ color: '#da121a', margin: '0 auto 12px' }} />
-          <h1 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, margin: 0 }}>Control Acceso</h1>
-          <p style={{ color: '#6b7280', fontSize: 13, margin: '4px 0 0' }}>Registro de Entrada a Edificios</p>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-brand">
+          <div className="login-icon">
+            <DoorOpen className="icon--lg" />
+          </div>
+          <h1 className="login-title">Control de Acceso</h1>
+          <p className="login-subtitle">Registro de entrada a edificios</p>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 20, border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-          <button onClick={() => { setMode('empleado'); setError(''); }}
-            style={{ flex: 1, padding: '10px 14px', border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              ...(mode === 'empleado' ? { background: '#da121a', color: 'white' } : { background: '#f9fafb', color: '#6b7280' }) }}>
-            <User className="w-4 h-4" /> Empleado
-          </button>
-          <button onClick={() => { setMode('externo'); setError(''); }}
-            style={{ flex: 1, padding: '10px 14px', border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              ...(mode === 'externo' ? { background: '#da121a', color: 'white' } : { background: '#f9fafb', color: '#6b7280' }) }}>
-            <KeyRound className="w-4 h-4" /> Externo
-          </button>
-        </div>
-
-        {mode === 'empleado' ? (
-          <div>
-            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Ingrese su carnet de empleado</p>
-            <input type="text" value={carnet} onChange={e => setCarnet(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="Carnet"
-              autoFocus
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="login-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'empleado'}
+              className={`login-tab ${mode === 'empleado' ? 'login-tab--active' : ''}`}
+              onClick={() => { setMode('empleado'); setError(''); }}
+            >
+              <User className="icon icon--sm" /> Empleado
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'externo'}
+              className={`login-tab ${mode === 'externo' ? 'login-tab--active' : ''}`}
+              onClick={() => { setMode('externo'); setError(''); }}
+            >
+              <KeyRound className="icon icon--sm" /> Externo
+            </button>
           </div>
-        ) : (
-          <div>
-            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Ingrese su usuario y contraseña</p>
-            <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="Usuario"
-              autoFocus
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 10 }} />
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="Contraseña"
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
-          </div>
-        )}
 
-        {error && <p style={{ color: '#dc2626', fontSize: 12, margin: '0 0 12px' }}>{error}</p>}
+          {mode === 'empleado' ? (
+            <div className="form-group">
+              <label htmlFor="carnet" className="form-label">Carnet de empleado</label>
+              <input
+                id="carnet"
+                type="text"
+                className="form-control"
+                value={carnet}
+                onChange={e => setCarnet(e.target.value)}
+                placeholder="Ej: 500708"
+                autoFocus
+                autoComplete="username"
+              />
+            </div>
+          ) : (
+            <>
+              <div className="form-group">
+                <label htmlFor="username" className="form-label">Usuario</label>
+                <input
+                  id="username"
+                  type="text"
+                  className="form-control"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="Nombre de usuario"
+                  autoFocus
+                  autoComplete="username"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">Contraseña</label>
+                <div className="password-field">
+                  <input
+                    id="password"
+                    type={showPwd ? 'text' : 'password'}
+                    className="form-control"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPwd(!showPwd)}
+                    aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    aria-pressed={showPwd}
+                  >
+                    {showPwd ? <EyeOff className="icon icon--sm" /> : <Eye className="icon icon--sm" />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
-        <button onClick={handleLogin} disabled={loading}
-          style={{ width: '100%', padding: 12, background: '#da121a', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <DoorOpen className="w-4 h-4" />}
-          Ingresar
-        </button>
+          {error && (
+            <div className="alert alert--error" role="alert">
+              {error}
+            </div>
+          )}
+
+          <button type="submit" className="btn btn--primary login-btn" disabled={loading}>
+            {loading ? <span className="spinner spinner--white" /> : <DoorOpen className="icon icon--sm" />}
+            {loading ? 'Ingresando…' : 'Ingresar'}
+          </button>
+        </form>
       </div>
     </div>
   );

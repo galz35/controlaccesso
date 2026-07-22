@@ -1,59 +1,129 @@
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Building2, Users, BookOpen, DoorOpen, LayoutDashboard, Menu, KeyRound } from 'lucide-react';
-import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, DoorOpen, Building2, Users, BookOpen, KeyRound, LogOut, Menu, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/control-acceso/' },
-  { label: 'Registro', icon: DoorOpen, to: '/control-acceso/registro' },
-  { label: 'Edificios', icon: Building2, to: '/control-acceso/edificios' },
-  { label: 'Proveedores', icon: Users, to: '/control-acceso/proveedores' },
-  { label: 'Instructores', icon: Users, to: '/control-acceso/instructores' },
-  { label: 'Cursos', icon: BookOpen, to: '/control-acceso/cursos' },
-  { label: 'Usuarios CPF', icon: KeyRound, to: '/control-acceso/admin-cpf' },
+const navSections = [
+  {
+    label: 'Operación',
+    items: [
+      { label: 'Dashboard', icon: LayoutDashboard, to: '/control-acceso/' },
+      { label: 'Registro', icon: DoorOpen, to: '/control-acceso/registro' },
+    ],
+  },
+  {
+    label: 'Catálogos',
+    items: [
+      { label: 'Edificios', icon: Building2, to: '/control-acceso/edificios' },
+      { label: 'Proveedores', icon: Users, to: '/control-acceso/proveedores' },
+      { label: 'Instructores', icon: Users, to: '/control-acceso/instructores' },
+      { label: 'Cursos', icon: BookOpen, to: '/control-acceso/cursos' },
+    ],
+  },
+  {
+    label: 'Administración',
+    items: [
+      { label: 'Usuarios CPF', icon: KeyRound, to: '/control-acceso/admin-cpf' },
+    ],
+  },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) setOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    if (open) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f3f4f6' }}>
-      {open && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 40 }} onClick={() => setOpen(false)} />}
-      <aside style={{
-        width: 260, background: '#1e1e1e', color: 'white', display: 'flex', flexDirection: 'column',
-        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50,
-        transform: open ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.2s',
-      }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Control Acceso</div>
-          <div style={{ fontSize: 11, opacity: 0.6 }}>Registro de Entrada</div>
+    <div className="app-layout">
+      {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} aria-hidden="true" />}
+
+      <aside className={`sidebar ${open ? 'sidebar--open' : ''}`} aria-label="Menú principal">
+        <div className="sidebar__brand">
+          <div className="sidebar__logo">
+            <DoorOpen className="sidebar__logo-icon" />
+          </div>
+          <div className="sidebar__brand-text">
+            <span className="sidebar__title">Control Acceso</span>
+            <span className="sidebar__subtitle">Claro Nicaragua</span>
+          </div>
+          <button className="sidebar__close btn btn--ghost btn--icon" onClick={() => setOpen(false)} aria-label="Cerrar menú">
+            <X className="icon" />
+          </button>
         </div>
-        <nav style={{ flex: 1, padding: 8 }}>
-          {navItems.map(item => (
-            <a key={item.to} href={item.to}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}
-              onClick={() => setOpen(false)}>
-              <item.icon className="w-4 h-4" /> {item.label}
-            </a>
+
+        <nav className="sidebar__nav" aria-label="Navegación">
+          {navSections.map((section) => (
+            <div key={section.label} className="sidebar__section">
+              <span className="sidebar__section-label">{section.label}</span>
+              {section.items.map((item) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
+                    onClick={() => setOpen(false)}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <item.icon className="sidebar__link-icon" aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
           ))}
         </nav>
-        <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: 12, opacity: 0.6 }}>{user?.nombre}</div>
-          <div style={{ fontSize: 11, opacity: 0.4 }}>{user?.rol}</div>
+
+        <div className="sidebar__footer">
+          <div className="sidebar__user">
+            <div className="sidebar__avatar">{user?.nombre?.charAt(0) || 'U'}</div>
+            <div className="sidebar__user-info">
+              <span className="sidebar__user-name">{user?.nombre || 'Usuario'}</span>
+              <span className="sidebar__user-role">{user?.rol || '-'}</span>
+            </div>
+            <button onClick={logout} className="btn btn--ghost btn--icon" aria-label="Cerrar sesión" title="Cerrar sesión">
+              <LogOut className="icon" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
-          <button onClick={() => setOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', padding: 4 }}><Menu className="w-5 h-5" /></button>
-          <span style={{ fontWeight: 700, color: '#1f2937', fontSize: 16 }}>Control Acceso</span>
-          <div style={{ flex: 1 }} />
-          <button onClick={logout} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <LogOut className="w-4 h-4" /> Salir
+      <div className="app-main">
+        <header className="topbar">
+          <button
+            className="btn btn--ghost btn--icon topbar__menu-btn"
+            onClick={() => setOpen(true)}
+            aria-label="Abrir menú"
+            aria-expanded={open}
+            aria-controls="sidebar"
+          >
+            <Menu className="icon" />
+          </button>
+          <span className="topbar__title">Control Acceso</span>
+          <div className="topbar__spacer" />
+          <span className="topbar__user">{user?.nombre}</span>
+          <button onClick={logout} className="btn btn--ghost btn--sm topbar__logout" aria-label="Cerrar sesión">
+            <LogOut className="icon icon--sm" />
+            <span className="topbar__logout-text">Salir</span>
           </button>
         </header>
-        <main style={{ padding: 24, maxWidth: 1200, width: '100%', margin: '0 auto' }}>{children}</main>
+
+        <main id="main-content" className="main-content">
+          {children}
+        </main>
       </div>
     </div>
   );

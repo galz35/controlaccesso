@@ -1,0 +1,1292 @@
+DIAGNÓSTICO Y ARQUITECTURA PARA EL REDISEÑO TOTAL DEL FRONTEND REACT
+Sistema: Control de Acceso a Edificios
+Repositorio: /opt/apps/control-acceso
+Frontend auditado: /opt/apps/control-acceso/react
+Referencia visual estudiada: /opt/apps/asistencia/registro/react
+Fecha del diagnóstico: 22 de julio de 2026
+Tipo de documento: especificación de trabajo para otro agente de IA/desarrollador
+
+===============================================================================
+0. MANDATO DEL PROYECTO
+===============================================================================
+
+Remodelar por completo la presentación del frontend React de Control Acceso para
+que tenga una identidad corporativa coherente con Claro y una calidad visual igual
+o superior al sistema Asistencia usado como referencia.
+
+Este trabajo es un REDISEÑO VISUAL Y DE EXPERIENCIA, no una reescritura funcional.
+Se deben conservar:
+
+- React, Vite y React Router.
+- Las rutas públicas y protegidas actuales.
+- La autenticación actual por empleado, usuario/contraseña CPF y SSO.
+- AuthContext, almacenamiento de sesión y contratos existentes.
+- Los endpoints y estructuras de respuesta del backend.
+- El registro de entrada, salida, foto, catálogos y administración CPF.
+- La base pública /control-acceso/.
+- La API /control-acceso-api.
+
+No cambiar backend, base de datos, permisos ni contratos API como parte de este
+rediseño, salvo que se documente un defecto funcional separado y sea aprobado.
+
+REGLA CORPORATIVA NO NEGOCIABLE:
+
+- Colores principales: rojo y blanco.
+- Colores auxiliares permitidos: gris, negro y verde solo para éxito/estado válido.
+- Azul: PROHIBIDO en cualquier tono y en cualquier elemento.
+- La prohibición incluye CSS propio, librerías, enlaces por defecto, outline de foco,
+  gráficos, badges, modales SweetAlert, SVG, estados hover y componentes nativos.
+
+===============================================================================
+1. RESUMEN EJECUTIVO DEL DIAGNÓSTICO
+===============================================================================
+
+El frontend actual funciona como una primera interfaz operativa, pero no posee un
+sistema visual real. La causa principal de que se vea notablemente inferior a
+Asistencia no es solo la elección de colores: es la ausencia de una arquitectura
+CSS compartida.
+
+Hallazgos críticos comprobados:
+
+1. react/src/main.tsx no importa ninguna hoja de estilos global.
+2. No existe ningún archivo .css, .scss o CSS Module dentro de react/src.
+3. El build de producción contiene un único archivo JavaScript y ningún CSS.
+4. Hay 181 bloques style={{...}} repartidos entre siete componentes/páginas.
+5. Hay 30 className con utilidades como w-4, h-4 y animate-spin, pero Tailwind no
+   está instalado/configurado ni existe CSS que defina esas clases.
+6. Como consecuencia, varias medidas de iconos y animaciones no se aplican.
+7. El color azul prohibido está usado explícitamente en salida y dashboard:
+   #1e40af y #dbeafe.
+8. El layout usa columnas rígidas sin media queries. No es responsive de verdad.
+9. El sidebar siempre nace fuera de pantalla, incluso en escritorio.
+10. La tipografía Outfit se solicita mediante inline style, pero nunca se importa.
+11. Al no existir reset CSS, el body conserva estilos predeterminados del navegador,
+    incluida normalmente una separación exterior de 8 px.
+12. index.html aún dice lang="en" y title="react".
+13. La navegación usa <a href> en vez de NavLink/Link, provoca recarga completa y no
+    muestra la sección activa.
+14. No hay una jerarquía consistente de encabezados, espaciado, botones, formularios,
+    tablas, estados vacíos, errores, foco, hover o disabled.
+15. SweetAlert2 no tiene un tema global; sus botones por defecto pueden introducir
+    azul aunque el CSS propio ya no lo use.
+
+Valoración heurística actual, donde 10 significa nivel listo para producto:
+
+- Identidad corporativa: 3/10.
+- Consistencia visual: 2/10.
+- Arquitectura CSS: 1/10.
+- Responsive: 2/10.
+- Accesibilidad visual/HTML: 3/10.
+- Claridad de navegación: 3/10.
+- Estados e interacción: 3/10.
+- Mantenibilidad del diseño: 2/10.
+
+Conclusión: no se recomienda “arreglar algunos colores”. Se debe instalar una base
+visual centralizada y migrar todas las pantallas a componentes reutilizables. La
+lógica existente puede conservarse casi íntegra.
+
+===============================================================================
+2. ALCANCE REAL AUDITADO
+===============================================================================
+
+Archivos principales de Control Acceso revisados:
+
+- react/index.html
+- react/src/main.tsx
+- react/src/App.tsx
+- react/src/components/Shell.tsx
+- react/src/pages/LoginPage.tsx
+- react/src/pages/SsoHandlerPage.tsx
+- react/src/pages/DashboardPage.tsx
+- react/src/pages/RegistroPage.tsx
+- react/src/pages/CatalogPage.tsx
+- react/src/pages/AdminCpfPage.tsx
+- react/src/context/AuthContext.tsx
+- react/src/services/api.ts
+- react/package.json
+- react/vite.config.ts
+- react/dist/index.html y sus assets
+- /var/www/control-acceso/index.html y sus assets desplegados
+
+Referencia revisada:
+
+- /opt/apps/asistencia/registro/react/src/index.css
+- /opt/apps/asistencia/registro/react/src/components/Shell.tsx
+- /opt/apps/asistencia/registro/react/src/pages/LoginPage.tsx
+- Entrada HTML y configuración de estilos de Asistencia.
+
+La auditoría fue de código fuente y artefactos desplegados. En el servidor no hay
+un navegador gráfico disponible para una revisión pixel a pixel. Sin embargo, los
+defectos estructurales están confirmados directamente en fuente y build.
+
+===============================================================================
+3. COMPARACIÓN: CONTROL ACCESO CONTRA ASISTENCIA
+===============================================================================
+
+ASPECTO                 CONTROL ACCESO                  ASISTENCIA
+---------------------   -----------------------------   ---------------------------
+CSS global              No existe                      index.css de 859 líneas
+Tokens de diseño        No existen                     Variables para color/radio
+Reset CSS               No                             Sí
+Tipografía              Declarada pero no cargada      Inter + Outfit importadas
+Componentes visuales    Estilos repetidos inline       Clases card, btn, badge, etc.
+Responsive              Columnas rígidas               Breakpoints 720/1024
+Sidebar escritorio      Siempre oculto                 Visible/sticky en desktop
+Navegación activa       No                             Sí
+SPA links               <a href>                       React Router Link
+Página/contenedor       Parcial y rígido               Sistema de page wrappers
+Estados de foco         No                             Rojo con halo suave
+Tablas                   Inline en cada página          Reglas compartidas
+Animaciones spinner     Inconsistentes/inoperantes     @keyframes spin
+Build CSS               No genera CSS                  Sí genera CSS
+
+Qué sí debe heredarse conceptualmente de Asistencia:
+
+- Variables CSS para decisiones visuales centrales.
+- Reset y estilos base.
+- Escala común para cards, botones, inputs, tablas y badges.
+- Sidebar visible en escritorio y drawer en móvil.
+- Estado activo claro en navegación.
+- Contenedores y breakpoints responsive.
+- Encabezados con identidad roja/negra y contenido blanco.
+- Consistencia entre todas las páginas.
+
+Qué NO debe copiarse ciegamente de Asistencia:
+
+- El token azul --info: #3b82f6.
+- Cualquier badge, icono, gráfico o estado azul.
+- La dependencia obligatoria de Google Fonts remotas sin validar CSP/conectividad.
+- El exceso de inline styles que todavía queda en algunas páginas.
+- Su index.html de plantilla, que también conserva lang="en" y title="react".
+- Cualquier texto, iconografía o modelo de negocio exclusivo de Asistencia.
+- La mezcla parcial entre CSS propio y utilidades Tailwind sin una estrategia clara.
+
+Asistencia es una referencia de coherencia y estructura, no una plantilla para
+copiar sin depuración.
+
+===============================================================================
+4. DIAGNÓSTICO DETALLADO DEL CSS ACTUAL
+===============================================================================
+
+4.1 Ausencia de hoja global
+---------------------------
+
+react/src/main.tsx solo importa App. No importa index.css. Tampoco existen hojas
+CSS en src. Esto deja sin definir:
+
+- box-sizing universal;
+- margen del body;
+- fondo general;
+- familia tipográfica real;
+- escala de títulos y texto;
+- enlaces;
+- foco de teclado;
+- selección de texto;
+- controles de formulario;
+- tablas;
+- scrollbars;
+- animaciones;
+- media queries;
+- estilos de impresión.
+
+4.2 Estilos inline excesivos
+----------------------------
+
+Conteo comprobado de bloques style={{...}}:
+
+- Shell.tsx: 18.
+- LoginPage.tsx: 16.
+- SsoHandlerPage.tsx: 6.
+- DashboardPage.tsx: 31.
+- RegistroPage.tsx: 48.
+- CatalogPage.tsx: 22.
+- AdminCpfPage.tsx: 40.
+- Total: 181.
+
+Impacto:
+
+- Repite colores, padding, fuentes, radios y sombras.
+- No permite hover/focus/media queries cómodamente.
+- Hace difícil cambiar la marca en un solo lugar.
+- Genera pequeñas diferencias entre elementos equivalentes.
+- Obliga al agente a tocar JSX para cada ajuste visual.
+- Incrementa el riesgo de que reaparezca azul u otro color no autorizado.
+
+Regla de remodelación: eliminar la gran mayoría de inline styles. Solo se acepta
+inline style para un valor genuinamente calculado en tiempo de ejecución que no se
+pueda representar con una clase/atributo. Los estados conocidos deben mapearse a
+clases, no a objetos de estilo construidos dentro del render.
+
+4.3 Clases utilitarias inexistentes
+-----------------------------------
+
+El código usa clases como:
+
+- w-3, h-3;
+- w-4, h-4;
+- w-5, h-5;
+- w-6, h-6;
+- w-8, h-8;
+- w-10, h-10;
+- animate-spin.
+
+Pero package.json/Vite no configuran Tailwind y no hay CSS que las implemente.
+Lucide usa por defecto dimensiones que pueden diferir del diseño esperado, y
+animate-spin no funciona por esa vía.
+
+Decisión recomendada: no instalar Tailwind solo para solucionar 30 clases. Usar
+componentes Icon y Spinner con tamaños propios, o clases simples .icon--sm,
+.icon--md y .spinner definidas en el sistema CSS. Si el agente decide Tailwind,
+debe migrar todo de manera coherente y justificar la nueva dependencia; no dejar
+una estrategia híbrida accidental.
+
+4.4 Paleta fragmentada e incorrecta
+-----------------------------------
+
+Actualmente aparecen, entre otros:
+
+- Rojo: #da121a y #dc2626.
+- Verde: #10b981, #065f46, #d1fae5.
+- Azul prohibido: #1e40af y #dbeafe.
+- Ámbar/marrón: #92400e y #fef3c7.
+- Grises de familias distintas: gray y slate mezclados.
+
+El azul está en:
+
+- RegistroPage.tsx, encabezado Registrar Salida.
+- RegistroPage.tsx, botón individual Salida.
+- DashboardPage.tsx, tarjeta KPI Salidas.
+
+Además quedan assets genéricos de React/Vite con azul/celeste. Aunque hoy no se
+rendericen, deben retirarse si no se usan para impedir una futura reaparición.
+
+4.5 Tipografía falsa
+--------------------
+
+Algunos títulos piden "Outfit", sans-serif, pero Outfit no está cargada. Por tanto,
+el navegador utiliza un fallback. El cuerpo tampoco tiene una fuente corporativa
+global. Esto cambia según sistema operativo y resta identidad.
+
+4.6 Sin comportamiento responsive
+----------------------------------
+
+- Dashboard fuerza tres columnas.
+- Registro fuerza dos columnas 1fr 1fr.
+- Formularios de catálogos fuerzan tres columnas.
+- Formulario CPF fuerza tres columnas.
+- La tabla CPF no está dentro de un contenedor con overflow horizontal.
+- Los botones de encabezado no tienen estrategia para pantallas angostas.
+- El main conserva padding 24 sin adaptación móvil.
+
+El resultado probable es compresión, desbordamiento o controles demasiado pequeños
+en teléfono/tablet.
+
+4.7 Estados interactivos incompletos
+------------------------------------
+
+No hay un sistema común para:
+
+- hover;
+- focus-visible;
+- active;
+- disabled;
+- loading;
+- success/error;
+- skeleton;
+- empty state;
+- selected;
+- expanded/collapsed.
+
+Muchos botones disabled conservan cursor pointer y el mismo contraste. Un usuario
+no puede distinguir claramente si una operación está bloqueada o procesándose.
+
+===============================================================================
+5. DIAGNÓSTICO DETALLADO DEL HTML/JSX
+===============================================================================
+
+5.1 Documento HTML
+------------------
+
+Defectos de react/index.html y del index desplegado:
+
+- <html lang="en"> es incorrecto; la interfaz está en español.
+- <title>react</title> es texto de scaffolding y no identifica el producto.
+- No existe meta description.
+- No existe meta theme-color con el rojo de marca.
+- El favicon es genérico y debe validarse contra activos aprobados.
+
+Configuración objetivo mínima:
+
+- lang="es".
+- title="Control de Acceso | Claro".
+- description breve del sistema.
+- theme-color con el rojo canónico.
+- favicon/logo corporativo solo si existe un activo autorizado.
+- No inventar ni dibujar una versión no aprobada del logotipo Claro.
+
+5.2 Navegación
+--------------
+
+Shell.tsx usa <a href> aunque React Router ya está instalado. Esto recarga el
+documento y pierde la transición SPA. Tampoco calcula la ruta activa.
+
+Remodelación obligatoria:
+
+- NavLink para cada sección.
+- aria-current="page" gestionado por NavLink.
+- indicador activo rojo: fondo rojo muy suave, texto rojo oscuro y barra lateral.
+- categorías de navegación si ayuda a separar Operación, Catálogos y Administración.
+- menú Usuarios CPF visible solo para rol autorizado.
+- ruta protegida también validada por rol; esconder el enlace no sustituye seguridad.
+
+5.3 Formularios
+---------------
+
+Problemas comunes:
+
+- Inputs sin id y labels sin htmlFor.
+- En login hay párrafos descriptivos en vez de labels asociados.
+- Se manejan Enter manualmente en inputs en vez de usar <form onSubmit>.
+- Los campos de visitante dependen de placeholder como etiqueta.
+- El selector de tipo de persona es un grupo lógico sin fieldset/legend o semántica
+  de tabs/radio group.
+- Falta aria-describedby para ayuda/error.
+- Errores no tienen aria-live.
+- No hay marcación visual y semántica consistente de requerido.
+- Botones no declaran type; al migrarlos a form podrían enviar accidentalmente.
+
+Objetivo:
+
+- Usar <form> y submit real.
+- Cada control tiene id, name, label y autocomplete apropiado.
+- Errores junto al campo, role="alert" o aria-live="polite".
+- Placeholder es ejemplo, nunca sustituto de label.
+- Botones auxiliares type="button".
+- Botón principal type="submit".
+
+5.4 Botones e iconos
+--------------------
+
+- Botones solo con icono carecen a veces de aria-label.
+- El botón mostrar contraseña no tiene nombre accesible ni estado aria-pressed.
+- El botón editar del catálogo no tiene texto accesible.
+- La X para quitar seleccionado usa un carácter y no anuncia qué remueve.
+- Los tamaños visibles son pequeños: varios botones usan fuente 10 u 11 px.
+- Objetivos táctiles quedan por debajo de 40-44 px.
+
+Objetivo:
+
+- Toda acción icon-only debe tener aria-label y title opcional.
+- Área interactiva mínima 40x40 px; preferible 44x44 en móvil.
+- Iconos decorativos aria-hidden="true".
+- No depender solo de color/icono para comunicar estado.
+
+5.5 Tablas
+----------
+
+- Encabezado de columna de acciones vacío en Dashboard.
+- Texto de 10-12 px reduce lectura.
+- No hay caption accesible.
+- No hay ordenación, densidad o patrón móvil.
+- Admin CPF puede desbordarse horizontalmente.
+- Fechas se formatean con locale implícito, no de forma consistente.
+
+Objetivo:
+
+- th con scope="col".
+- caption visualmente oculto o visible según pantalla.
+- columna “Acciones” nombrada.
+- texto de celdas 13-14 px mínimo.
+- wrapper overflow-x en tablet.
+- en móvil, convertir registros operativos a tarjetas o lista semántica; no reducir
+  toda la tabla hasta hacerla ilegible.
+- Definir formato horario es-NI o el locale acordado.
+
+5.6 Sidebar/drawer
+------------------
+
+El sidebar actual siempre tiene transform translateX(-100%) cuando open=false. No
+existe media query que lo deje fijo en desktop. Así, escritorio recibe una barra
+superior pobre y un menú que se abre como móvil.
+
+El overlay tampoco implementa:
+
+- cierre con Escape;
+- bloqueo del scroll del body;
+- retorno de foco al botón menú;
+- focus trap;
+- aria-expanded/aria-controls;
+- botón explícito de cierre dentro del drawer.
+
+5.7 Estados de carga y error
+----------------------------
+
+- Algunos catch están vacíos y visualmente parecen “sin datos”.
+- Spinner depende en varios lugares de animate-spin inexistente.
+- SSO usa un layout mínimo sin card ni identidad suficiente.
+- No existe una pantalla de error recuperable consistente.
+- Emojis como ❌ y ✅ mezclan estilo de sistema con iconografía Lucide.
+
+La remodelación no tiene que cambiar el manejo de API, pero sí debe representar
+loading, error, vacío y éxito de forma diferenciada y accesible.
+
+===============================================================================
+6. SISTEMA VISUAL CORPORATIVO OBLIGATORIO
+===============================================================================
+
+6.1 Principio de marca
+----------------------
+
+La interfaz debe sentirse sobria, operativa y corporativa. El rojo identifica la
+marca y la acción principal; el blanco brinda limpieza; negro/gris organizan y el
+verde solo confirma éxito o presencia válida. Evitar una interfaz multicolor.
+
+6.2 Color canónico
+------------------
+
+Actualmente se mezclan #da121a y otros rojos. La referencia Asistencia usa #da121a,
+pero también aparece #DA291C en criterios visuales previos. El agente debe definir
+UN SOLO rojo canónico aprobado y usar tokens derivados. Propuesta inicial:
+
+--brand-red:             #DA291C;
+--brand-red-hover:       #B82318;
+--brand-red-active:      #991B1B;
+--brand-red-soft:        #FFF1F0;
+--brand-red-border:      #F5B8B3;
+
+Si el dueño confirma que el valor corporativo local es #DA121A, reemplazar el token
+central, no mezclar ambos en componentes.
+
+Neutrales propuestos:
+
+--white:                 #FFFFFF;
+--black:                 #171717;
+--gray-950:              #1C1C1C;
+--gray-900:              #262626;
+--gray-800:              #333333;
+--gray-700:              #4B4B4B;
+--gray-600:              #666666;
+--gray-500:              #808080;
+--gray-400:              #A3A3A3;
+--gray-300:              #D1D1D1;
+--gray-200:              #E5E5E5;
+--gray-100:              #F2F2F2;
+--gray-50:               #F8F8F8;
+
+Verde permitido solo para éxito/estado:
+
+--success:               #15803D;
+--success-hover:         #166534;
+--success-soft:          #DCFCE7;
+--success-border:        #86EFAC;
+
+Error usa rojo de la misma familia de marca. Información neutral usa gris/negro,
+nunca azul. Pendiente o advertencia debe resolverse con rojo suave, gris oscuro,
+icono y texto; no introducir azul, celeste, violeta, turquesa ni cian.
+
+6.3 Lista de colores prohibidos
+-------------------------------
+
+Prohibir cualquier nombre CSS o hexadecimal equivalente a:
+
+- blue, dodgerblue, royalblue, navy, cyan, aqua, teal, indigo, violet, purple.
+- #1e40af, #dbeafe, #3b82f6, #2563eb, #0ea5e9, #00d8ff.
+- Gradientes que terminen o atraviesen esos tonos.
+- Sombras o transparencias basadas en RGB azul.
+
+Revisar también assets SVG, estilos inyectados por dependencias y botones de
+confirmación de SweetAlert.
+
+6.4 Uso semántico del color
+---------------------------
+
+- Botón primario: rojo sólido.
+- Botón secundario: blanco, borde gris, texto negro/gris oscuro.
+- Botón terciario: transparente, texto gris oscuro.
+- Acción de salida: negro/carbón, no azul. Tras confirmar salida, usar éxito verde.
+- Guardar: rojo como acción principal. Verde debe representar resultado exitoso,
+  no ser el color universal de todos los botones Guardar.
+- Entrada activa/dentro: verde solo como badge o indicador puntual.
+- Error/destructivo: rojo oscuro con texto explícito.
+- Navegación activa: rojo suave + rojo oscuro.
+- KPI: tarjetas blancas. Diferenciar por icono/texto y bordes discretos, no por
+  fondos saturados de distintos colores.
+
+6.5 Tipografía
+--------------
+
+Propuesta:
+
+- Inter para texto y controles.
+- Outfit para títulos y cifras KPI.
+- Fallback: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif.
+
+Preferir fuentes autoalojadas si existen activos/licencias. Si se usa Google Fonts,
+verificar conectividad, CSP y comportamiento sin red. La UI no debe romperse si la
+fuente remota falla.
+
+Escala mínima sugerida:
+
+- Display/KPI: 32 px / 800.
+- H1 de página: 26-28 px / 700-800.
+- H2 de sección: 20 px / 700.
+- H3/card title: 16 px / 700.
+- Body: 14-16 px / 400-500.
+- Label: 13 px / 600-700.
+- Metadata: 12 px / 500.
+- No usar 10 px para información operativa importante.
+
+6.6 Espaciado, bordes y sombras
+--------------------------------
+
+Usar una escala de 4 px:
+
+- space-1 4px; space-2 8px; space-3 12px; space-4 16px;
+- space-5 20px; space-6 24px; space-8 32px; space-10 40px.
+
+Radios:
+
+- controles 8 px;
+- cards 12 px;
+- paneles destacados 16 px;
+- badges 999 px solo cuando sean píldoras reales.
+
+Sombras sobrias, nunca enormes:
+
+- sm para cards normales;
+- md para drawer/modal;
+- el borde gris debe seguir siendo visible incluso sin sombra.
+
+===============================================================================
+7. ARQUITECTURA CSS PROPUESTA
+===============================================================================
+
+Estructura sugerida:
+
+react/src/styles/
+  tokens.css          colores, tipografía, spacing, radios, sombras, z-index
+  reset.css           box-sizing, margin, body, botones, imágenes
+  base.css            body, headings, enlaces, focus-visible, selección
+  layout.css          shell, sidebar, topbar, page, grids y breakpoints
+  components.css      card, button, form, badge, table, alert, modal, toast
+  utilities.css       solo utilidades pequeñas y justificadas
+  index.css           importa las anteriores en orden
+
+react/src/components/ui/
+  Button.tsx
+  Card.tsx
+  FormField.tsx
+  Input.tsx
+  Select.tsx
+  Badge.tsx
+  Spinner.tsx
+  Alert.tsx
+  EmptyState.tsx
+  PageHeader.tsx
+  DataTable.tsx o primitivas de tabla
+
+react/src/components/layout/
+  AppShell.tsx
+  Sidebar.tsx
+  Topbar.tsx
+  PageContainer.tsx
+
+Alternativa aceptable: CSS Modules por componente más tokens/base globales. No es
+aceptable volver a concentrar cientos de reglas sin orden ni mantener 181 estilos
+inline.
+
+Importar react/src/styles/index.css una sola vez desde main.tsx.
+
+Nombres de clase sugeridos:
+
+- app-shell, app-sidebar, app-topbar, app-main.
+- page, page__header, page__body, page__actions.
+- card, card__header, card__body.
+- button button--primary button--secondary button--danger button--icon.
+- field, field__label, field__control, field__hint, field__error.
+- badge badge--success badge--neutral badge--danger.
+- data-table, data-table__wrapper.
+
+No codificar colores dentro de componentes. Todo color debe provenir de tokens.
+
+===============================================================================
+8. ARQUITECTURA DEL SHELL Y NAVEGACIÓN
+===============================================================================
+
+8.1 Escritorio, ancho >= 1024 px
+---------------------------------
+
+- Sidebar blanco de 264-280 px, sticky y alto 100vh.
+- Borde derecho gris y sombra mínima.
+- Encabezado de marca con bloque/ícono rojo autorizado y texto Control Acceso.
+- Navegación siempre visible.
+- Área principal gris muy claro.
+- Topbar interna opcional con breadcrumb/título y usuario, no duplicar títulos.
+- Contenido con max-width 1280-1440 px y padding 24-32 px.
+- Sidebar no debe requerir botón hamburguesa en escritorio.
+
+8.2 Tablet/móvil, ancho < 1024 px
+---------------------------------
+
+- Topbar fija o sticky de 56-64 px.
+- Marca compacta, título y botón menú.
+- Sidebar se convierte en drawer.
+- Overlay negro con transparencia.
+- Cierre por X, click en overlay y Escape.
+- aria-expanded y aria-controls en botón menú.
+- bloquear scroll de fondo y manejar foco.
+
+8.3 Navegación propuesta
+------------------------
+
+OPERACIÓN
+- Dashboard.
+- Registro.
+
+CATÁLOGOS
+- Edificios.
+- Proveedores.
+- Instructores.
+- Cursos.
+
+ADMINISTRACIÓN
+- Usuarios CPF, solo rol autorizado.
+
+Pie del sidebar:
+
+- Avatar con inicial.
+- Nombre truncado de forma accesible.
+- Rol.
+- Botón Salir con icono y texto.
+
+El estado activo debe ser evidente sin depender únicamente de color: usar barra
+vertical, fondo suave, peso y aria-current.
+
+===============================================================================
+9. REMODELACIÓN POR PANTALLA
+===============================================================================
+
+9.1 Login /control-acceso/login
+--------------------------------
+
+Objetivo visual: una entrada corporativa clara, sobria y confiable.
+
+Desktop:
+
+- Fondo gris muy claro.
+- Contenedor centrado, max-width aproximado 960-1040 px.
+- Panel de identidad rojo a negro o rojo sólido en 40% del ancho.
+- Panel blanco de acceso en 60%.
+- El gradiente permitido es exclusivamente rojo -> negro, nunca azul.
+- Título Control de Acceso, subtítulo y breve explicación.
+- Usar logo oficial solo si existe activo aprobado; de lo contrario, wordmark de
+  texto e icono DoorOpen dentro de un bloque rojo, sin imitar el logo.
+
+Móvil:
+
+- Una sola card blanca.
+- Banda superior roja.
+- Padding 20-24 px.
+- Sin ilustraciones grandes que roben espacio al formulario.
+
+Modos de ingreso:
+
+- Selector segmentado Empleado / Externo con semántica de tabs o radio group.
+- Activo rojo sólido; inactivo blanco/gris.
+- Empleado: label “Carnet de empleado”, autocomplete apropiado.
+- Externo: “Usuario” y “Contraseña”, botón mostrar/ocultar accesible.
+- Botón “Ingresar” rojo y de ancho completo.
+- Estado loading conserva ancho, muestra spinner blanco y “Ingresando…”.
+- Mensaje de error en alert rojo suave, no como línea flotante mínima.
+- Si existe entrada SSO desde Portal, explicar de forma breve sin agregar un flujo
+  falso que el backend no soporte.
+
+No cambiar la lógica login(carnet) / login(usuario, contraseña, true).
+
+9.2 SSO /control-acceso/auth/sso
+---------------------------------
+
+- Usar el mismo fondo y marca del login.
+- Card compacta con tres estados: validando, éxito/redirección y error.
+- Spinner rojo implementado con CSS real.
+- Texto “Validando acceso seguro…” y no depender solo de animación.
+- Error con icono Lucide, explicación y botón rojo “Volver al inicio de sesión”.
+- Enlace interno debe usar Link si aplica; conservar procesamiento del token.
+- aria-live para cambios de estado.
+
+9.3 Dashboard /
+---------------
+
+Encabezado:
+
+- H1 “Resumen de accesos”.
+- Subtítulo con fecha actual en español.
+- Acción primaria “Registrar acceso” que navega a Registro.
+
+KPIs:
+
+- Grid responsive: 3 columnas desktop, 2 tablet, 1 móvil.
+- Cards blancas con borde gris, sombra sm y acento superior/lateral.
+- Entradas hoy: acento rojo.
+- Salidas: acento carbón/negro, nunca azul.
+- Dentro del edificio: badge/indicador verde porque representa estado vigente.
+- Cifra grande Outfit, etiqueta legible y pequeño icono.
+- No llenar toda la card con verde/azul/amarillo.
+
+Listado Accesos de hoy:
+
+- Card con header, contador y posible filtro rápido.
+- Columnas actuales preservadas.
+- Badge de “Dentro” verde, “Salió” gris.
+- Botón Salida carbón o rojo outline con texto, no botón diminuto de 10 px.
+- Confirmación opcional para evitar click accidental, sin alterar endpoint.
+- Skeleton mientras carga.
+- Alert recuperable si falla API; no confundir error con lista vacía.
+- EmptyState con icono gris, título y acción Registrar acceso.
+- En móvil renderizar AccessRecordCard con nombre, tipo, edificio, horas y acción.
+
+9.4 Registro /control-acceso/registro
+-------------------------------------
+
+Esta es la pantalla operativa principal y debe tener la máxima claridad.
+
+Layout desktop:
+
+- Encabezado de página único.
+- Grid de 7/5 o 3/2: formulario de entrada más ancho y personas dentro a la derecha.
+- Cards con alturas independientes; no forzar simetría vacía.
+- Panel derecho puede ser sticky dentro del viewport si no rompe accesibilidad.
+
+Layout tablet/móvil:
+
+- Una sola columna.
+- Orden: Registrar entrada primero, Personas dentro/Registrar salida después.
+- Controles a ancho completo.
+- Selector de tipo permite scroll horizontal accesible o grid de 2 columnas.
+
+Flujo visual de entrada:
+
+1. Elegir tipo de persona.
+2. Buscar/identificar persona o capturar visitante.
+3. Confirmar persona seleccionada.
+4. Elegir edificio.
+5. Elegir curso opcional.
+6. Adjuntar/tomar foto opcional.
+7. Registrar entrada.
+
+Mostrar estos pasos mediante agrupación y títulos, no necesariamente un stepper
+complejo. Evitar que el usuario se pregunte qué sigue.
+
+Selector de tipo:
+
+- Chips/segmented buttons con área táctil suficiente.
+- Estado activo rojo; inactivos grises.
+- No usar cinco botones minúsculos de 11 px.
+
+Búsqueda:
+
+- Input con icono Search y botón rojo “Buscar”, no botón solo icono sin etiqueta en
+  móvil/desktop cuando haya espacio.
+- Lista de resultados con hover/focus y datos secundarios.
+- Mensaje explícito sin resultados.
+- Persona seleccionada en card verde suave con nombre, identificador y botón Quitar.
+
+Visitante manual:
+
+- Labels permanentes: nombre completo, cédula, empresa/motivo.
+- Validación visible antes de enviar.
+- No depender de placeholders.
+
+Edificio/curso:
+
+- Selects consistentes y con opción inicial descriptiva.
+- Indicar requerido con texto, no solo asterisco.
+
+Foto:
+
+- Dropzone/botón secundario con borde gris discontinuo.
+- Icono Camera gris/rojo.
+- Nombre de archivo, opción quitar y preview si es razonablemente simple.
+- Aceptar image/* como hoy; no inventar restricciones no impuestas por backend.
+
+Acción Registrar Entrada:
+
+- Botón principal rojo. El éxito posterior se comunica verde.
+- Disabled real si datos obligatorios faltan o envío en curso.
+- Spinner blanco y texto “Registrando…”.
+
+Panel Registrar Salida:
+
+- Encabezado carbón/negro o blanco con acento rojo; eliminar #1e40af.
+- Input Buscar persona dentro.
+- Contador visible de personas dentro.
+- Cada fila: nombre destacado, edificio/tipo/hora como metadata y acción “Registrar
+  salida” carbón/rojo outline.
+- La confirmación exitosa usa toast verde.
+- Si no hay personas, EmptyState “No hay personas pendientes de salida”.
+- Botón suficientemente grande; no 11 px.
+
+9.5 Catálogos: edificios, proveedores, instructores y cursos
+------------------------------------------------------------
+
+Problema actual: una misma página genérica resuelve CRUD, lo cual es bueno, pero el
+diseño se arma con objetos inline y formulario rígido de tres columnas.
+
+Objetivo:
+
+- Mantener el componente genérico y su configuración funcional.
+- PageHeader con icono, título, descripción y botón rojo “Nuevo …”.
+- Toolbar con búsqueda/filtros si ya existe soporte local; no inventar endpoint.
+- Abrir alta/edición en modal o drawer responsive, o usar card expandible muy clara.
+- Form grid: 2-3 columnas desktop según campo, 2 tablet, 1 móvil.
+- Acciones al pie alineadas: Cancelar secundaria, Guardar primaria roja.
+- Tabla con header gris claro, hover sutil, acciones accesibles.
+- Botón editar con icono + tooltip/aria-label; en móvil mostrar texto.
+- EmptyState específico: “No hay edificios registrados”, etc.
+- Loading skeleton de filas.
+- Error con reintentar.
+
+La acción Guardar no debe ser verde por defecto; el resultado exitoso sí puede
+mostrar toast verde.
+
+9.6 Usuarios CPF /control-acceso/admin-cpf
+-------------------------------------------
+
+Objetivo: diferenciar que es un área administrativa sensible.
+
+- PageHeader “Usuarios externos (CPF)” con subtítulo explicativo.
+- Badge neutral/rojo “Administración”.
+- Acción roja “Nuevo usuario”.
+- Formulario en modal/drawer para no empujar la tabla.
+- Agrupar Identidad, Tipo de usuario y Credenciales.
+- Password con botón mostrar/ocultar de 44 px, aria-label dinámico y aria-pressed.
+- Indicar mínimo 6 caracteres visualmente.
+- ID referencia señalado como opcional y explicado.
+- Tabla dentro de wrapper responsive.
+- Badge Activo: verde; Inactivo: gris o rojo suave según semántica acordada.
+- Tipos/roles en badges neutros, no en colores múltiples.
+- Acción “Cambiar contraseña” con icono y texto; no una palabra inglesa “Password”.
+- SweetAlert de cambio de contraseña debe heredar tema corporativo y foco rojo.
+- No mostrar este módulo a roles sin autorización.
+
+===============================================================================
+10. COMPONENTES VISUALES MÍNIMOS
+===============================================================================
+
+Button
+
+- variantes: primary, secondary, ghost, danger/critical, dark.
+- tamaños: sm, md, lg; icon-only.
+- loading integrado.
+- disabled con opacity, cursor y contraste correctos.
+- focus-visible rojo de 3 px con separación.
+
+FormField
+
+- label, requerido/opcional, control, hint y error.
+- ids generados o explícitos.
+- aria-describedby combinado.
+
+Card
+
+- default, elevated y section.
+- header/body/footer.
+- no repetir sombras/radios en páginas.
+
+Badge
+
+- neutral, success, danger.
+- no variante info azul.
+
+Spinner/Skeleton
+
+- animación CSS real.
+- respetar prefers-reduced-motion.
+- no depender de Tailwind inexistente.
+
+Alert/Toast
+
+- success verde.
+- error rojo.
+- neutral gris/negro.
+- jamás info azul.
+- icono + texto; no solo color.
+
+EmptyState
+
+- icono gris.
+- título, explicación y acción opcional.
+
+DataTable/ResponsiveList
+
+- wrapper overflow.
+- headers y caption accesibles.
+- representación móvil decidida por pantalla.
+
+Modal/Drawer
+
+- focus trap, Escape, overlay, título y descripción.
+- focus inicial y retorno de foco.
+- no cerrar accidentalmente durante envío crítico.
+
+===============================================================================
+11. RESPONSIVE Y BREAKPOINTS
+===============================================================================
+
+Usar enfoque mobile-first. Valores sugeridos:
+
+- base: 320-479 px.
+- sm: 480 px.
+- md: 768 px.
+- lg: 1024 px.
+- xl: 1280 px.
+
+Reglas obligatorias:
+
+- No scroll horizontal de la página a 320 px.
+- Sidebar drawer debajo de 1024 px y sticky visible desde 1024 px.
+- Main padding: 16 móvil, 20 tablet, 24-32 desktop.
+- KPI: 1 / 2 / 3 columnas.
+- Registro: 1 columna hasta desktop; 2 columnas desde 1024 px.
+- Formularios: 1 móvil, máximo 2-3 desktop según contenido.
+- Encabezados y acciones se apilan en móvil.
+- Tablas complejas tienen wrapper o variante cards.
+- Objetivos táctiles de 44 px en móvil.
+- Probar zoom al 200% sin pérdida de operación.
+
+===============================================================================
+12. ACCESIBILIDAD Y SEMÁNTICA: CRITERIOS OBLIGATORIOS
+===============================================================================
+
+- WCAG AA como objetivo mínimo de contraste.
+- lang="es".
+- Un solo h1 por pantalla y jerarquía sin saltos arbitrarios.
+- <header>, <nav>, <aside>, <main> y secciones con nombres útiles.
+- Enlace “Saltar al contenido” visible al foco.
+- focus-visible rojo, nunca outline azul del navegador como única solución.
+- No eliminar outline sin reemplazo visible.
+- Labels asociados mediante for/id.
+- Errores con aria-live y relación al control.
+- Icon-only buttons con aria-label.
+- Drawer/modal con gestión de foco y Escape.
+- Estado activo no comunicado solo por color.
+- Badges con texto Sí/No, Dentro/Salió, no solo puntos.
+- Spinner con texto accesible o aria-label.
+- prefers-reduced-motion reduce/cancela animaciones no esenciales.
+- prefers-contrast puede reforzar bordes si se implementa.
+- Contraste de texto secundario revisado, especialmente sobre rojo/negro.
+
+===============================================================================
+13. MOVIMIENTO Y MICROINTERACCIONES
+===============================================================================
+
+- Duración base 140-200 ms.
+- Hover: cambio sutil de fondo/borde/sombra.
+- Active: desplazamiento máximo 1 px o escala muy leve.
+- Drawer: transform, no animar propiedades costosas.
+- Spinner: rotación continua, desactivable con reduced motion.
+- No usar rebotes, grandes zooms ni animaciones decorativas largas.
+- Toast 3-5 segundos, pausado al hover/foco y accesible.
+- Conservar dimensiones del botón durante loading para evitar saltos.
+
+===============================================================================
+14. TEMA DE SWEETALERT2
+===============================================================================
+
+SweetAlert2 puede introducir azul por defecto. Crear una configuración/helper único:
+
+- confirmButtonColor = token rojo canónico.
+- cancelButtonColor = gris oscuro.
+- icon success = verde.
+- icon error = rojo.
+- focus ring rojo.
+- botones con la misma altura, radio y tipografía del sistema.
+- usar customClass para popup, title, htmlContainer, actions y buttons.
+- no repetir configuración en cada página.
+- no usar icon "info" azul; representar mensajes neutrales con estilo gris.
+
+Buscar en DOM/CSS compilado cualquier azul inyectado por SweetAlert después del
+build, no limitar la revisión a src.
+
+===============================================================================
+15. PLAN DE IMPLEMENTACIÓN PARA EL AGENTE
+===============================================================================
+
+FASE 0. PROTECCIÓN DE FUNCIONALIDAD
+
+1. Leer README.md y los componentes actuales completos.
+2. Registrar rutas, payloads y endpoints usados.
+3. No modificar AuthContext/services/api salvo necesidad visual demostrable.
+4. Ejecutar build base antes de cambiar y guardar resultado.
+5. Si es posible, tomar capturas de cada ruta en desktop y móvil como baseline.
+
+FASE 1. FUNDACIÓN VISUAL
+
+1. Crear styles/tokens.css.
+2. Crear reset.css, base.css y layout.css.
+3. Crear components.css o CSS Modules equivalentes.
+4. Importar styles/index.css desde main.tsx.
+5. Corregir index.html: español, título, description y theme-color.
+6. Definir fuente con fallback robusto.
+7. Crear focus-visible rojo y estilos globales de links.
+8. Crear keyframes spinner y reduced motion.
+
+FASE 2. PRIMITIVAS UI
+
+1. Button.
+2. FormField/Input/Select.
+3. Card.
+4. Badge.
+5. Spinner/Skeleton.
+6. Alert/EmptyState.
+7. Tema SweetAlert.
+
+FASE 3. SHELL
+
+1. Sustituir Shell inline por AppShell con clases.
+2. NavLink y ruta activa.
+3. Sidebar sticky desktop.
+4. Drawer móvil accesible.
+5. Secciones de menú y filtro por rol.
+6. Usuario/salir en pie.
+7. Skip link y main con id.
+
+FASE 4. AUTENTICACIÓN
+
+1. Remodelar Login sin cambiar firmas de login.
+2. Usar form onSubmit.
+3. Asociar labels/errores.
+4. Remodelar SSO con estados claros.
+
+FASE 5. OPERACIÓN
+
+1. Dashboard y KPIs.
+2. Tabla/lista responsive de accesos.
+3. Registro de entrada por grupos de flujo.
+4. Panel de salida carbón/rojo sin azul.
+5. Loading/error/empty/success en ambos.
+
+FASE 6. CATÁLOGOS Y ADMINISTRACIÓN
+
+1. Migrar CatalogPage manteniendo configuración genérica.
+2. Formularios responsive en modal/drawer o card.
+3. Migrar AdminCpfPage.
+4. Tema corporativo para reset de contraseña.
+
+FASE 7. QA
+
+1. Build TypeScript/Vite.
+2. Lint si existe.
+3. Pruebas manuales de rutas y acciones.
+4. Pruebas responsive 320, 375, 768, 1024, 1366 y 1920 px.
+5. Teclado completo y focus.
+6. Auditoría de contraste.
+7. Búsqueda automática de azul en fuente y build.
+8. Comprobar que no reapareció margen del body.
+9. Verificar que sidebar es visible desktop y drawer móvil.
+10. Comprobar API/base paths en producción.
+
+===============================================================================
+16. MATRIZ DE RUTAS Y RESULTADO ESPERADO
+===============================================================================
+
+/control-acceso/login
+- Pública.
+- Login Empleado/Externo.
+- Card/panel corporativo rojo-blanco.
+
+/control-acceso/auth/sso
+- Pública durante intercambio.
+- Estado validando/error con identidad consistente.
+
+/control-acceso/
+- Protegida.
+- Dashboard y accesos de hoy.
+
+/control-acceso/registro
+- Protegida.
+- Entrada y salida responsive.
+
+/control-acceso/edificios
+/control-acceso/proveedores
+/control-acceso/instructores
+/control-acceso/cursos
+- Protegidas.
+- Catálogos con encabezado, formulario y tabla consistentes.
+
+/control-acceso/admin-cpf
+- Protegida y visualmente restringida a administración.
+- Usuarios externos, alta y cambio de contraseña.
+
+No cambiar estas URLs durante el rediseño.
+
+===============================================================================
+17. CRITERIOS DE ACEPTACIÓN VISUAL Y TÉCNICA
+===============================================================================
+
+El trabajo no está terminado hasta cumplir TODOS:
+
+[ ] Existe y se importa un sistema CSS centralizado.
+[ ] El build genera CSS o estilos equivalentes correctamente empaquetados.
+[ ] No queda azul en UI, fuente, build, SVG usado ni componentes de terceros.
+[ ] Se eliminaron #1e40af y #dbeafe.
+[ ] Salida usa carbón/negro/rojo permitido.
+[ ] Rojo y blanco dominan la identidad.
+[ ] Verde se limita a éxito/estado válido.
+[ ] Un solo token define el rojo canónico.
+[ ] No hay estilos inline repetitivos en páginas.
+[ ] Clases w-*/h-*/animate-spin tienen implementación real o fueron eliminadas.
+[ ] Outfit/Inter se cargan realmente o usan fallback definido.
+[ ] body no tiene margen por defecto y usa box-sizing border-box.
+[ ] index.html está en español y no dice “react”.
+[ ] Sidebar es persistente en escritorio.
+[ ] Sidebar es drawer accesible en móvil.
+[ ] Navegación usa NavLink/Link y marca ruta activa.
+[ ] Dashboard responde 3/2/1 columnas.
+[ ] Registro responde 2/1 columnas sin overflow.
+[ ] Formularios responden y mantienen labels visibles.
+[ ] Tablas son legibles en móvil mediante wrapper o cards.
+[ ] Controles principales tienen 40-44 px de alto mínimo.
+[ ] No hay texto operativo crítico de 10 px.
+[ ] Focus de teclado es visible y rojo.
+[ ] Icon-only buttons tienen aria-label.
+[ ] Loading, error, empty y success son visualmente distintos.
+[ ] SweetAlert tiene tema corporativo y no muestra botones azules.
+[ ] Login, CPF y SSO conservan el comportamiento actual.
+[ ] Endpoints y payloads no se cambiaron.
+[ ] npm run build finaliza sin error.
+[ ] La versión desplegada conserva base /control-acceso/.
+
+===============================================================================
+18. COMANDOS DE AUDITORÍA SUGERIDOS
+===============================================================================
+
+Desde /opt/apps/control-acceso/react:
+
+1. Detectar colores/nombres prohibidos en fuente:
+
+rg -ni 'blue|cyan|aqua|teal|indigo|violet|purple|#1e40af|#dbeafe|#3b82f6|#2563eb|#0ea5e9|#00d8ff' src index.html public
+
+2. Detectar estilos inline restantes:
+
+rg -n 'style=\{\{' src
+
+3. Detectar utilidades Tailwind accidentales si no se adoptó Tailwind:
+
+rg -n 'className="[^"]*(w-|h-|grid-cols-|animate-|text-|bg-)' src
+
+4. Build:
+
+npm run build
+
+5. Repetir auditoría de azul en el build:
+
+rg -ni 'blue|cyan|aqua|teal|indigo|violet|purple|#1e40af|#dbeafe|#3b82f6|#2563eb|#0ea5e9|#00d8ff' dist
+
+La búsqueda literal no reemplaza inspección visual: colores minificados pueden
+aparecer como rgb(), hsl() o valores abreviados. Revisar computed styles y DOM.
+
+===============================================================================
+19. ARCHIVOS A MODIFICAR/CREAR
+===============================================================================
+
+Modificar probablemente:
+
+- react/index.html
+- react/src/main.tsx
+- react/src/components/Shell.tsx o reemplazarlo por layout modular
+- react/src/pages/LoginPage.tsx
+- react/src/pages/SsoHandlerPage.tsx
+- react/src/pages/DashboardPage.tsx
+- react/src/pages/RegistroPage.tsx
+- react/src/pages/CatalogPage.tsx
+- react/src/pages/AdminCpfPage.tsx
+
+Crear probablemente:
+
+- react/src/styles/index.css
+- react/src/styles/tokens.css
+- react/src/styles/reset.css
+- react/src/styles/base.css
+- react/src/styles/layout.css
+- react/src/styles/components.css
+- react/src/components/ui/*
+- react/src/components/layout/* si se divide el shell
+- react/src/lib/swal.ts o ubicación equivalente para tema SweetAlert
+
+Eliminar solo si están realmente sin uso:
+
+- react/src/assets/react.svg
+- public/vite.svg u otros assets genéricos azules.
+
+No eliminar activos ni archivos por suposición; confirmar referencias con rg.
+
+===============================================================================
+20. RIESGOS Y PRECAUCIONES
+===============================================================================
+
+- No romper rutas usando paths relativos incorrectos con base Vite.
+- No sustituir window.location del SSO sin comprender el refresh de AuthContext.
+- No cambiar nombres de propiedades con mayúsculas/minúsculas en respuestas API.
+- No esconder módulos por rol sin conservar protección del backend.
+- No hacer que una card móvil dependa de hover.
+- No reducir tablas completas con transform/zoom.
+- No usar verde para toda acción positiva: reservarlo para estado/resultado.
+- No usar rojo sólido en superficies demasiado grandes; mantener balance blanco.
+- No descargar o inventar un logo corporativo sin autorización.
+- No depender de una CDN para que el diseño básico funcione.
+- No copiar la variable azul --info de Asistencia.
+- No desplegar automáticamente sin build, revisión y autorización operacional.
+
+===============================================================================
+21. DEFINICIÓN DE “REMODELACIÓN TERMINADA”
+===============================================================================
+
+La remodelación está terminada cuando una persona puede recorrer login, dashboard,
+registro, catálogos y administración y percibir una sola aplicación corporativa,
+no siete pantallas con estilos independientes.
+
+Debe sentirse:
+
+- Claro: predominio rojo/blanco, uso sobrio de negro/gris y verde semántico.
+- Operativa: acciones principales evidentes y flujo de entrada/salida inmediato.
+- Responsive: usable desde un teléfono de 320 px hasta escritorio amplio.
+- Accesible: teclado, foco, labels, contraste y estados entendibles.
+- Mantenible: cambiar el rojo o radio en tokens modifica toda la aplicación.
+- Segura funcionalmente: autenticación, SSO, CPF y APIs permanecen intactos.
+
+No se acepta como terminado un cambio que solo agregue un index.css encima de los
+181 inline styles. Es necesario migrar componentes y eliminar la fuente de la
+inconsistencia.
+
+===============================================================================
+22. PROMPT OPERATIVO PARA EL SIGUIENTE AGENTE
+===============================================================================
+
+Actúa como diseñador de producto senior y desarrollador frontend React. Remodela
+el frontend de /opt/apps/control-acceso/react siguiendo íntegramente este documento.
+Usa /opt/apps/asistencia/registro/react solo como referencia de madurez visual y
+estructura CSS; no copies sus defectos ni su color azul.
+
+Prioridades, en orden:
+
+1. No romper lógica, rutas, SSO, CPF, payloads ni API.
+2. Crear un sistema visual centralizado y mantenible.
+3. Cumplir estrictamente la paleta Claro: rojo/blanco; gris/negro auxiliares; verde
+   solo para éxito; absolutamente ningún azul.
+4. Resolver responsive, navegación y accesibilidad.
+5. Remodelar todas las rutas, no únicamente login/dashboard.
+6. Validar build y auditar fuente + dist contra azul.
+
+Antes de editar, lee todos los archivos listados en la sección 2 y confirma el
+estado de git. Conserva cambios ajenos. Implementa por fases pequeñas y verificables.
+Al finalizar entrega:
+
+- resumen de archivos cambiados;
+- decisiones visuales principales;
+- resultado de build/lint;
+- resultado de auditoría de azul;
+- rutas verificadas en desktop/móvil;
+- asuntos pendientes reales, sin ocultarlos.
+
+FIN DEL DOCUMENTO
