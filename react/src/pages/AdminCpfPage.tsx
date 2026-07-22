@@ -12,10 +12,7 @@ export default function AdminCpfPage() {
 
   const load = async () => {
     setLoading(true);
-    try {
-      const res = await api.get('/admin/cpf-users');
-      setUsers(res.data || []);
-    } catch { setUsers([]); }
+    try { const r = await api.get('/admin/cpf-users'); setUsers(r.data || []); } catch { setUsers([]); }
     setLoading(false);
   };
 
@@ -23,20 +20,15 @@ export default function AdminCpfPage() {
 
   const crear = async () => {
     if (!form.username || !form.password || !form.nombre) {
-      Swal.fire({ icon: 'error', title: 'Campos requeridos', text: 'Complete todos los campos.' });
-      return;
+      Swal.fire({ icon: 'error', title: 'Campos requeridos', text: 'Complete todos los campos.' }); return;
     }
     if (form.password.length < 6) {
-      Swal.fire({ icon: 'error', title: 'Contraseña muy corta', text: 'Mínimo 6 caracteres.' });
-      return;
+      Swal.fire({ icon: 'error', title: 'Contraseña muy corta', text: 'Mínimo 6 caracteres.' }); return;
     }
     try {
       await api.post('/auth/cpf-register', {
-        username: form.username,
-        password: form.password,
-        nombre: form.nombre,
-        tipo: form.tipo,
-        referenciaId: form.referenciaId ? parseInt(form.referenciaId) : undefined,
+        username: form.username, password: form.password, nombre: form.nombre,
+        tipo: form.tipo, referenciaId: form.referenciaId ? parseInt(form.referenciaId) : undefined,
       });
       Swal.fire({ icon: 'success', title: 'Usuario CPF creado', timer: 2000, showConfirmButton: false });
       setShowForm(false);
@@ -51,36 +43,24 @@ export default function AdminCpfPage() {
     const { value: newPwd } = await Swal.fire({
       title: 'Nueva contraseña',
       text: `Para: ${username}`,
-      input: 'password',
-      inputPlaceholder: 'Nueva contraseña (mín. 6 caracteres)',
-      showCancelButton: true,
-      confirmButtonText: 'Cambiar',
-      confirmButtonColor: '#DA291C',
+      input: 'password', inputPlaceholder: 'Nueva contraseña (mín. 6 caracteres)',
+      showCancelButton: true, confirmButtonText: 'Cambiar', confirmButtonColor: '#DA291C',
     });
     if (!newPwd || newPwd.length < 6) return;
     try {
       await api.put('/auth/cpf-password', { username, oldPassword: '', newPassword: newPwd });
       Swal.fire({ icon: 'success', title: 'Contraseña cambiada', timer: 2000, showConfirmButton: false });
-    } catch (err: any) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err?.response?.data?.message || 'Error' });
-    }
+    } catch (err: any) { Swal.fire({ icon: 'error', title: 'Error', text: err?.response?.data?.message || 'Error' }); }
   };
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-header__title">
-            <KeyRound className="icon" style={{ verticalAlign: 'middle', marginRight: 8 }} /> Usuarios Externos (CPF)
-          </h1>
-          <p className="page-header__subtitle">
-            <Shield className="icon icon--sm" style={{ verticalAlign: 'middle', marginRight: 4, color: 'var(--brand-red)' }} />
-            Administración de cuentas para proveedores e instructores externos
-          </p>
+          <h1 className="page-header__title"><KeyRound className="icon" /> Usuarios Externos (CPF)</h1>
+          <p className="page-header__subtitle"><Shield className="icon icon--sm" style={{ verticalAlign: 'middle', color: 'var(--brand-red)' }} /> Administración de cuentas para proveedores e instructores</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn btn--primary">
-          <Plus className="icon icon--sm" /> Nuevo Usuario CPF
-        </button>
+        <button onClick={() => setShowForm(true)} className="btn btn--primary"><Plus className="icon icon--sm" /> Nuevo Usuario CPF</button>
       </div>
 
       {showForm && (
@@ -92,7 +72,7 @@ export default function AdminCpfPage() {
                 <input type="text" className="form-control" value={form.username} onChange={e => setForm({...form, username: e.target.value})} />
               </div>
               <div className="form-group">
-                <label className="form-label form-label--required">Contraseña <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(mín. 6 caracteres)</span></label>
+                <label className="form-label form-label--required">Contraseña <span className="form-hint">(mín. 6 carac.)</span></label>
                 <div className="password-field">
                   <input type={showPwd ? 'text' : 'password'} className="form-control" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
                   <button type="button" className="password-toggle" onClick={() => setShowPwd(!showPwd)} aria-label={showPwd ? 'Ocultar' : 'Mostrar'}>
@@ -112,11 +92,11 @@ export default function AdminCpfPage() {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">ID Referencia <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(opcional)</span></label>
+                <label className="form-label">ID Referencia <span className="form-hint">(opcional)</span></label>
                 <input type="number" className="form-control" value={form.referenciaId} onChange={e => setForm({...form, referenciaId: e.target.value})} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 'var(--space-3)' }}>
+            <div className="form-actions">
               <button onClick={crear} className="btn btn--primary">Guardar</button>
               <button onClick={() => setShowForm(false)} className="btn btn--secondary">Cancelar</button>
             </div>
@@ -126,7 +106,7 @@ export default function AdminCpfPage() {
 
       <div className="card">
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+          <div className="empty-state"><div className="spinner sso-section__spinner" /></div>
         ) : (
           <div className="table-wrapper">
             <table className="table">
@@ -134,34 +114,30 @@ export default function AdminCpfPage() {
                 <tr>
                   <th scope="col">Usuario</th>
                   <th scope="col">Nombre</th>
-                  <th scope="col" style={{ textAlign: 'center' }}>Tipo</th>
-                  <th scope="col" style={{ textAlign: 'center' }}>Rol</th>
-                  <th scope="col" style={{ textAlign: 'center' }}>Activo</th>
-                  <th scope="col" style={{ textAlign: 'center' }}>Acción</th>
+                  <th scope="col" className="table td--center">Tipo</th>
+                  <th scope="col" className="table td--center">Rol</th>
+                  <th scope="col" className="table td--center">Activo</th>
+                  <th scope="col" className="table td--center">Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((u: any) => (
                   <tr key={u.Id}>
-                    <td style={{ fontWeight: 600 }}>{u.Username}</td>
+                    <td className="table td--bold">{u.Username}</td>
                     <td>{u.Nombre}</td>
-                    <td style={{ textAlign: 'center' }}><span className="badge badge--neutral">{u.Tipo}</span></td>
-                    <td style={{ textAlign: 'center' }}>{u.Rol}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className={`badge ${u.Activo ? 'badge--success' : 'badge--danger'}`}>
-                        {u.Activo ? 'Sí' : 'No'}
-                      </span>
+                    <td className="table td--center"><span className="badge badge--neutral">{u.Tipo}</span></td>
+                    <td className="table td--center">{u.Rol}</td>
+                    <td className="table td--center">
+                      <span className={`badge ${u.Activo ? 'badge--success' : 'badge--danger'}`}>{u.Activo ? 'Sí' : 'No'}</span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td className="table td--center">
                       <button onClick={() => resetPassword(u.Username)} className="btn btn--ghost btn--sm">
-                        <KeyRound className="icon icon--sm" style={{ marginRight: 4 }} /> Cambiar contraseña
+                        <KeyRound className="icon icon--sm" /> Cambiar contraseña
                       </button>
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-500)' }}>Sin usuarios CPF registrados</td></tr>
-                )}
+                {users.length === 0 && <tr className="catalog-empty"><td colSpan={6}>Sin usuarios CPF registrados</td></tr>}
               </tbody>
             </table>
           </div>
