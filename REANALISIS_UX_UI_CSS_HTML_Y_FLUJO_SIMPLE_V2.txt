@@ -1,0 +1,1683 @@
+REANÁLISIS UX/UI, CSS, HTML Y FLUJO OPERATIVO SIMPLE — VERSIÓN 2
+Sistema: Control de Acceso a Edificios
+Frontend: /opt/apps/control-acceso/react
+Sistema comparado: /opt/apps/asistencia/registro/react
+Fecha: 22 de julio de 2026
+Destino: agente de IA o desarrollador que realizará la segunda etapa del rediseño
+
+===============================================================================
+0. IMPORTANTE: ESTE DOCUMENTO ANALIZA LA VERSIÓN NUEVA
+===============================================================================
+
+Este diagnóstico fue rehecho después de los commits de rediseño:
+
+- 6b60a904: sistema CSS centralizado.
+- 74b3fae2: rediseño de Dashboard, Registro, Catálogos y Admin CPF.
+- 442d8bc6: reducción inicial de estilos inline y auditoría de azul.
+- 33a2ac21: reducción final declarada de 181 a 4 inline styles.
+
+Por eso no debe tratarse la aplicación como la versión antigua. La base visual ya
+mejoró de forma importante. El trabajo pendiente es una SEGUNDA ETAPA enfocada en:
+
+- facilidad para personas no técnicas;
+- reducción de errores operativos;
+- flujo de entrada/salida más claro y rápido;
+- permisos y navegación por rol;
+- mensajes comprensibles;
+- accesibilidad y controles táctiles;
+- pulido visual consistente;
+- responsive realmente usable, no solo “sin romperse”.
+
+No reescribir desde cero lo que ya quedó bien. Mejorar sobre la arquitectura nueva.
+
+===============================================================================
+1. VEREDICTO EJECUTIVO ACTUAL
+===============================================================================
+
+La versión actual ya no es una interfaz “sin CSS”. Ahora tiene una base correcta:
+
+- seis archivos CSS organizados;
+- 677 líneas de estilos;
+- tokens corporativos;
+- reset y foco visible;
+- sidebar responsive;
+- componentes visuales comunes;
+- HTML en español;
+- rojo #DA291C como token central;
+- cero azul en los estilos activos revisados;
+- cuatro inline styles en lugar de 181;
+- build con CSS real;
+- dist local y despliegue con el mismo index.html.
+
+Sin embargo, todavía no es “el mejor diseño posible” para una persona no técnica.
+Visualmente puede verse correcto, pero el sistema aún obliga al usuario a entender
+conceptos internos, permite acciones ambiguas y oculta fallos de red como si fueran
+listas vacías.
+
+Puntuación heurística de la versión actual:
+
+- Identidad Claro: 8/10.
+- Arquitectura CSS: 8/10.
+- Consistencia visual: 7/10.
+- Responsive estructural: 6/10.
+- Facilidad para usuario no técnico: 5/10.
+- Prevención de errores: 4/10.
+- Mensajes y recuperación de fallos: 3/10.
+- Accesibilidad HTML: 6/10.
+- Navegación/permisos por rol: 4/10.
+- Pulido visual final: 6/10.
+
+Diagnóstico final:
+
+La remodelación inicial resolvió la “ropa” del sistema. La segunda etapa debe
+resolver la manera en que una persona piensa y trabaja. La pantalla principal no
+debe parecer un formulario administrativo; debe comportarse como una estación de
+recepción guiada.
+
+===============================================================================
+2. EVIDENCIA TÉCNICA COMPROBADA
+===============================================================================
+
+Control Acceso actual:
+
+- Archivos CSS: 6.
+- Líneas CSS: 677.
+- Inline styles: 4.
+- Componentes/páginas TSX: 10.
+- Elementos <label>: 18.
+- Labels con htmlFor: 8.
+- Formularios <form>: 1, solamente Login.
+- Tablas: 3.
+- Captions de tabla: 0.
+- Lint: finaliza, pero reporta 2 warnings.
+
+Warnings actuales:
+
+1. AuthContext.tsx: Fast Refresh recomienda separar exportaciones auxiliares.
+2. CatalogPage.tsx: useEffect tiene dependencia faltante de load.
+
+Asistencia, como comparación estructural:
+
+- CSS global: 859 líneas.
+- Inline styles encontrados: 799.
+- Labels: 20.
+- htmlFor encontrados: 0.
+- Conserva token azul --info #3b82f6.
+- Tiene una apariencia rica y varios patrones responsive, pero es mucho menos
+  mantenible que el nuevo Control Acceso.
+
+Conclusión comparativa:
+
+- Control Acceso actual ya es mejor base técnica que Asistencia.
+- Asistencia todavía transmite mayor sensación de producto en algunas pantallas
+  por sus encabezados, densidad, composición y estados visuales.
+- No se debe copiar su deuda de 799 inline styles ni su azul.
+- La meta debe ser combinar la limpieza técnica de Control Acceso con la claridad
+  visual que el usuario percibe en Asistencia.
+
+===============================================================================
+3. COMPARACIÓN ACTUAL DETALLADA
+===============================================================================
+
+ASPECTO                    CONTROL ACTUAL             ASISTENCIA
+------------------------   -------------------------  ---------------------------
+Tokens corporativos        Sí, bien separados         Sí, menos estrictos
+Azul en CSS                No                         Sí, token info
+CSS mantenible             Sí, 6 capas                Parcial, un archivo grande
+Inline styles              4                          Aproximadamente 799
+HTML en español            Sí                         No en index.html
+Labels asociados           Parcial, 8 de 18           Prácticamente ninguno
+Sidebar desktop            Sí                         Sí
+Drawer móvil               Sí                         Sí
+Ruta activa                Sí                         Sí
+Flujo operativo guiado     Todavía no                 Parcial
+Errores API visibles       Muy incompleto             Variable
+Tablas móviles             Solo scroll horizontal     Variable
+Pulido de encabezados      Sobrio                     Más rico visualmente
+Permisos visuales por rol  No                         No suficientemente claro
+Facilidad para novato      Media                      Media
+
+Lo mejor de Control actual:
+
+- Paleta correcta rojo/blanco/negro/gris/verde.
+- Tokens claros.
+- CSS dividido por responsabilidad.
+- Focus visible rojo.
+- Reduced motion.
+- Botones y cards reutilizables.
+- Sidebar persistente en escritorio.
+- Login ya usa form y labels.
+- NavLink y ruta activa.
+- KPIs sin azul.
+- Salida en negro/carbón.
+
+Lo mejor visual de Asistencia que puede inspirar:
+
+- Jerarquía de secciones más evidente.
+- Encabezados con más presencia.
+- Cards y estados más expresivos.
+- Mejor sensación de profundidad/composición.
+- Más patrones específicos por pantalla.
+
+Lo que NO debe copiarse de Asistencia:
+
+- azul, celeste, índigo, violeta o púrpura;
+- 799 inline styles;
+- labels sin asociación;
+- token info azul;
+- HTML genérico de Vite;
+- mezcla innecesaria de Tailwind y CSS manual;
+- componentes demasiado específicos y difíciles de mantener.
+
+===============================================================================
+4. PROBLEMAS ACTUALES PRIORITARIOS
+===============================================================================
+
+4.1 P0 — Se puede intentar registrar una persona inexistente
+-------------------------------------------------------------
+
+En RegistroPage.tsx, registrarEntrada solo bloquea si no hay edificio. Para un
+colaborador, proveedor o instructor, si no se seleccionó un resultado, el código
+entra en la rama manual y puede enviar:
+
+- personaId = manual;
+- nombrePersona vacío;
+- cédula vacía;
+- empresa vacía.
+
+Para VISITANTE tampoco se valida nombre antes de enviar.
+
+Esto es un defecto grave de experiencia y prevención de errores.
+
+Regla requerida:
+
+- EMPLEADO/PROVEEDOR/INSTRUCTOR: selected es obligatorio.
+- VISITANTE: nombreManual es obligatorio.
+- edificioId siempre obligatorio.
+- El botón Registrar Entrada debe estar deshabilitado hasta cumplir condiciones.
+- Debe mostrarse qué falta junto al paso correspondiente.
+- No usar solamente un SweetAlert después del click.
+
+4.2 P0 — Los errores de red desaparecen
+----------------------------------------
+
+Hay al menos seis catch vacíos en Dashboard, Registro, SalidaPanel y Catálogos.
+Cuando falla la API, el usuario puede ver “sin registros” y creer que no hay nadie
+dentro, lo cual es peligroso para control de acceso.
+
+Regla requerida:
+
+- Nunca representar error como cero registros.
+- Mantener estados separados: idle, loading, success, empty, error.
+- Mostrar “No pudimos consultar los accesos” + botón Reintentar.
+- En salida, si no carga la lista, no mostrar “No hay personas pendientes”.
+- Registrar errores técnicos en consola/log, pero dar texto simple al usuario.
+
+4.3 P0 — Menú y rutas no se adaptan al rol
+-------------------------------------------
+
+README/backend define:
+
+- admin: CRUD, registro, catálogos y administración.
+- registrador: entradas/salidas y lectura de catálogos.
+
+Pero el frontend:
+
+- muestra Usuarios CPF a todos;
+- permite navegar a admin-cpf solo por estar autenticado;
+- muestra Nuevo/Editar catálogos a registrador aunque backend devolverá 403;
+- ProtectedRoute valida autenticación, no rol.
+
+Diseño requerido:
+
+- admin ve toda la navegación.
+- registrador ve Registro y, si es útil, consultas de catálogos sin botones de alta
+  o edición.
+- Usuarios CPF solo aparece para admin.
+- La ruta admin-cpf debe usar RoleRoute/RequireRole.
+- Si alguien abre una URL no autorizada, mostrar página 403 simple y útil.
+
+4.4 P0 — Spinners aplicados incorrectamente a iconos SVG
+---------------------------------------------------------
+
+La clase .spinner dibuja un círculo con border. Se aplica también a Loader2 y
+RefreshCw, por ejemplo:
+
+- <Loader2 className="icon icon--sm spinner" />
+- <RefreshCw className="... spinner" />
+
+Esto combina el dibujo Lucide con bordes de spinner y puede verse deformado.
+
+Solución:
+
+- .spinner se usa en un span/div vacío.
+- .icon--spin solo aplica animation: spin.
+- Nunca poner ambas clases en el mismo SVG.
+
+4.5 P0 — Iconos pueden apilarse sobre el texto
+-----------------------------------------------
+
+reset.css define img, svg { display: block }. Varios títulos insertan un SVG dentro
+de un span/h1 sin display flex:
+
+- Accesos de hoy.
+- Registrar Entrada.
+- Registrar Salida.
+- Usuarios Externos.
+- Catálogos.
+
+La utilidad vertical-align no corrige un SVG display:block. El resultado puede ser
+icono arriba y texto abajo o alineación irregular.
+
+Solución:
+
+- Crear .heading-with-icon o .card-title con inline-flex.
+- Hacer .page-header__title inline-flex.
+- Aplicar gap y align-items:center.
+- No depender de vertical-align.
+
+4.6 P1 — aria-controls apunta a un id inexistente
+-------------------------------------------------
+
+El botón menú declara aria-controls="sidebar", pero <aside> no tiene id="sidebar".
+Debe corregirse. También faltan focus trap y retorno de foco al cerrar drawer.
+
+4.7 P1 — Solo Login es un formulario real
+-------------------------------------------
+
+Registro, Catálogos y Admin CPF usan div + botones onClick. Esto produce:
+
+- Enter inconsistente;
+- validación nativa desaprovechada;
+- botones sin type;
+- semántica débil;
+- mayor dificultad para lectores de pantalla.
+
+Todos los bloques de alta/edición/registro deben ser <form onSubmit>.
+
+4.8 P1 — 10 labels no están asociados
+---------------------------------------
+
+Existen 18 labels, pero solo 8 tienen htmlFor. Los faltantes se concentran en:
+
+- Admin CPF;
+- campos dinámicos de Catálogos;
+- tipo/búsqueda/foto en Registro.
+
+Todo campo debe tener id estable y label asociado. Para tipo de persona usar
+fieldset + legend, no label suelto sobre un grupo de botones.
+
+4.9 P1 — Pestañas de Login con semántica incompleta
+----------------------------------------------------
+
+Se usa role="tablist" y role="tab", pero no hay:
+
+- id de cada tab;
+- aria-controls;
+- tabpanel;
+- navegación con flechas.
+
+Para este caso sencillo es preferible un fieldset con dos opciones segmentadas o
+botones con aria-pressed. Evita fingir un patrón ARIA incompleto.
+
+4.10 P1 — Tablas móviles solo tienen scroll horizontal
+--------------------------------------------------------
+
+El wrapper evita romper el layout, pero un recepcionista en teléfono debe deslizar
+para descubrir nombre, hora y acción. La acción Salida puede quedar fuera de vista.
+
+Solución recomendada:
+
+- Tabla en desktop/tablet ancha.
+- Lista de cards operativas en móvil.
+- Cada card muestra nombre, tipo, edificio, entrada, estado y acción visible.
+- No comprimir todo a texto de 10-11 px.
+
+4.11 P1 — Acción de salida sin confirmación ni estado propio
+------------------------------------------------------------
+
+Un click registra la salida inmediatamente. En una lista densa es fácil equivocarse.
+
+Requerido:
+
+- Botón “Registrar salida”.
+- Confirmación clara: “¿Registrar salida de María López?”
+- Mostrar edificio y hora de entrada.
+- Durante envío deshabilitar solo esa fila.
+- Éxito verde con nombre y hora.
+- Error mantiene la persona en la lista y ofrece Reintentar.
+
+4.12 P1 — Texto y objetivos táctiles pequeños
+----------------------------------------------
+
+- .btn--sm puede quedar en 34 px.
+- algunos textos usan 11 px.
+- KPI labels usan 11 px.
+- acciones de tabla son pequeñas para teléfono.
+
+Para usuarios no técnicos y pantallas táctiles:
+
+- acciones principales mínimo 44 px;
+- icon-only mínimo 44x44 móvil;
+- texto operativo mínimo 13-14 px;
+- 11-12 px solo metadata no crítica.
+
+4.13 P1 — SweetAlert no tiene tema central
+------------------------------------------
+
+Admin CPF fija rojo solo en un diálogo. Otros SweetAlert pueden usar colores por
+defecto. Crear helper/mixin único para confirmar rojo, cancelar gris y éxito verde.
+
+4.14 P2 — Assets prohibidos aunque estén sin uso
+-------------------------------------------------
+
+No hay referencias a estos archivos, pero siguen en src/public:
+
+- react.svg con #00D8FF azul.
+- vite.svg con identidad violeta/azulada.
+- hero.png con base púrpura/violeta.
+- icons.svg contiene un símbolo llamado bluesky, aunque el path visible es negro.
+
+La regla corporativa prohíbe azul y púrpura. Después de confirmar que no se usan,
+eliminarlos del proyecto/build o reemplazarlos por activos autorizados rojo/blanco.
+
+4.15 P2 — Dependencia remota de Google Fonts
+--------------------------------------------
+
+index.html carga Inter/Outfit desde Google. Hay fallbacks correctos, pero una red
+corporativa o CSP puede bloquearlas. Para máxima consistencia, autoalojar WOFF2 si
+licencia/política lo permite. No es un bloqueo funcional.
+
+4.16 P2 — Detalles CSS/HTML adicionales
+----------------------------------------
+
+- .table td--muted, td--center, td--bold y td--small son selectores incorrectos si
+  la intención era una clase; debería ser td.td--muted o .td--muted.
+- topbar y sidebar duplican marca/usuario/logout en escritorio.
+- Dashboard usa <a href> a Registro en vez de Link/NavLink.
+- SSO combina login-form y sso-section; .sso-section sobrescribe padding horizontal
+  y puede dejar el contenido demasiado pegado.
+- No hay captions en tres tablas.
+- Catálogo marca todos los campos como requeridos aunque no valida ninguno.
+- El tipo “ID Referencia” es lenguaje técnico para usuario no informático.
+- “Usuarios CPF” puede ser una sigla desconocida; agregar explicación visible.
+- Contador “persona(s) dentro del edificio” es poco natural y puede ser incorrecto
+  si lista varias sedes. Usar pluralización real y “en las instalaciones” o filtrar
+  por edificio seleccionado.
+
+===============================================================================
+5. PERSONAS Y NECESIDADES DE USO
+===============================================================================
+
+5.1 Recepcionista/registrador
+-----------------------------
+
+Conocimiento técnico: bajo.
+Frecuencia: alta, muchas operaciones repetidas.
+Objetivo: registrar entrada/salida en menos de 20 segundos.
+Riesgos: elegir persona equivocada, edificio equivocado o salida accidental.
+
+Debe ver:
+
+- Registro como pantalla inicial.
+- Edificio actual claramente visible.
+- Entrada y salida, sin módulos administrativos.
+- Personas dentro y alertas operativas.
+
+No debe ver:
+
+- Usuarios CPF.
+- Botones Nuevo/Editar de catálogos.
+- IDs internos.
+- errores HTTP, JSON o mensajes técnicos.
+
+5.2 Administrador
+-----------------
+
+Conocimiento técnico: medio.
+Objetivo: supervisar, mantener catálogos y usuarios.
+
+Debe ver:
+
+- Dashboard.
+- Registro.
+- Catálogos completos.
+- Usuarios externos.
+- indicadores y errores de sincronización.
+
+5.3 Usuario externo CPF
+-----------------------
+
+Conocimiento técnico: bajo.
+Objetivo: iniciar sesión y realizar únicamente las acciones permitidas.
+
+La navegación debe derivarse de su rol efectivo. No asumir que todo CPF puede
+administrar o registrar.
+
+5.4 Persona que llega al edificio
+---------------------------------
+
+No interactúa siempre con la pantalla, pero espera un proceso rápido. El diseño
+debe permitir al recepcionista mantener contacto visual y evitar formularios largos.
+
+===============================================================================
+6. PRINCIPIOS DEL MEJOR DISEÑO PARA ESTE SISTEMA
+===============================================================================
+
+1. Una pantalla, una tarea principal.
+2. Mostrar solo lo necesario para el rol.
+3. Pedir primero la información que desbloquea la siguiente.
+4. No mostrar todos los campos al mismo tiempo si todavía no aplican.
+5. Prevenir el error antes del envío.
+6. Confirmar acciones irreversibles o fáciles de confundir.
+7. Explicar con palabras comunes, no siglas o nombres de base de datos.
+8. Nunca convertir un error de red en “no hay datos”.
+9. Mantener la acción principal siempre visible.
+10. Rojo para marca/acción primaria, carbón para salida, verde solo para resultado.
+11. No depender del color: incluir texto e icono.
+12. Optimizar velocidad repetitiva sin sacrificar seguridad.
+
+===============================================================================
+7. ARQUITECTURA DE INFORMACIÓN POR ROL
+===============================================================================
+
+ADMIN
+
+Inicio
+- Resumen.
+- Registro de acceso.
+
+Gestión
+- Edificios.
+- Proveedores.
+- Instructores.
+- Cursos.
+
+Administración
+- Usuarios externos.
+
+REGISTRADOR
+
+Operación
+- Registrar entrada/salida.
+- Personas dentro.
+
+Consulta opcional
+- Proveedores.
+- Instructores.
+- Cursos.
+
+Para registrador, la ruta inicial recomendada es /control-acceso/registro. Para
+admin, la ruta inicial puede seguir siendo Dashboard.
+
+Cambiar etiqueta visible “Usuarios CPF” por:
+
+- título de menú: “Usuarios externos”;
+- subtítulo en página: “Cuentas para proveedores y facilitadores (CPF)”.
+
+La sigla puede conservarse donde sea necesaria, pero no como único texto.
+
+===============================================================================
+8. CONTEXTO DE EDIFICIO: MEJORA CLAVE
+===============================================================================
+
+Si el registrador trabaja normalmente en una sede, pedir edificio en cada entrada
+es repetitivo y aumenta errores.
+
+Diseño propuesto:
+
+- Selector “Edificio actual” en la parte superior de Registro.
+- Selección obligatoria al comenzar turno/sesión.
+- Persistir en sessionStorage o preferencia local, no en backend sin aprobación.
+- Mostrarlo siempre en una píldora/bloque: “Registrando en: Edificio Central”.
+- Permitir cambiarlo con confirmación.
+- Todos los registros nuevos heredan ese edificio.
+- Si el sistema debe manejar múltiples edificios por operación, conservar select
+  por registro, pero preseleccionarlo con el contexto.
+
+Esto reduce un paso sin ocultar información crítica.
+
+===============================================================================
+9. FLUJO IDEAL DE LOGIN
+===============================================================================
+
+Entrada directa:
+
+1. Mostrar marca Control de Acceso.
+2. Preguntar con lenguaje claro:
+   - “Soy colaborador Claro”.
+   - “Soy proveedor o facilitador”.
+3. Mostrar únicamente los campos del modo elegido.
+4. Botón rojo “Ingresar”.
+5. Mientras valida: “Verificando acceso…”.
+6. Si falla: mensaje concreto y próximo paso.
+
+Mensajes recomendados:
+
+- Carnet vacío: “Escriba su número de carnet.”
+- Usuario vacío: “Escriba su usuario.”
+- Contraseña vacía: “Escriba su contraseña.”
+- Credenciales inválidas: “No reconocimos esos datos. Revise e intente nuevamente.”
+- Red: “No pudimos conectar con el sistema. Intente de nuevo.”
+
+SSO:
+
+1. “Validando acceso desde el Portal Claro”.
+2. Spinner y texto.
+3. Si funciona, redirigir.
+4. Si falla, explicar: “El enlace venció o no pudo validarse”.
+5. Botones: “Volver al Portal” si existe URL autorizada y “Usar otro método”.
+
+No mostrar “token”, “JWT”, “401” ni “SSO” sin explicación al usuario final.
+
+===============================================================================
+10. FLUJO IDEAL DE REGISTRO DE ENTRADA
+===============================================================================
+
+Objetivo de tiempo: 10-20 segundos para persona conocida.
+
+PASO 0 — Confirmar contexto
+
+- Mostrar edificio actual.
+- Si no existe, pedir seleccionarlo antes de continuar.
+
+PASO 1 — ¿Quién ingresa?
+
+Opciones grandes:
+
+- Colaborador.
+- Proveedor.
+- Facilitador externo.
+- Facilitador interno.
+- Visitante.
+
+No mostrar como cinco botones pequeños. Usar tarjetas segmentadas o grid 2/3 con
+texto de 14 px y área táctil 44 px.
+
+PASO 2A — Persona registrada
+
+- Campo “Nombre o carnet”.
+- Botón Buscar.
+- Permitir Enter.
+- Mostrar resultados con nombre grande y carnet/empresa debajo.
+- Al elegir, cerrar resultados y mostrar resumen verde suave.
+- Acción “Cambiar persona”.
+- Si no hay resultados: “No encontramos coincidencias” y orientación según tipo.
+
+PASO 2B — Visitante
+
+- Nombre completo obligatorio.
+- Cédula recomendada/obligatoria según política, no inventarla desde frontend.
+- Empresa o motivo.
+- Labels visibles.
+
+PASO 3 — Datos de la visita
+
+- Edificio preseleccionado por contexto.
+- Curso/capacitación opcional.
+- Foto opcional con preview y botón Quitar.
+
+PASO 4 — Confirmar
+
+Antes del botón, mostrar resumen compacto:
+
+Persona: Ana Pérez
+Tipo: Proveedor
+Edificio: Central
+Curso: No aplica
+Foto: Adjunta / Sin foto
+
+Botón rojo: “Registrar entrada”.
+Debe estar disabled mientras falte algo.
+
+PASO 5 — Resultado
+
+- Card/toast verde: “Entrada registrada”.
+- Mostrar nombre, edificio y hora.
+- Botón “Registrar otra persona”.
+- Limpiar persona/visitante/curso/foto.
+- Conservar edificio actual para rapidez.
+
+Wireframe conceptual desktop:
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Registro de acceso               Registrando en: [Edificio Central ▼]   │
+├───────────────────────────────────────┬──────────────────────────────────┤
+│ ENTRADA                               │ PERSONAS DENTRO                  │
+│                                       │                                  │
+│ 1. Tipo de persona                    │ [Buscar por nombre...]           │
+│ [Colaborador] [Proveedor] [...]       │ 14 personas dentro               │
+│                                       │                                  │
+│ 2. Nombre o carnet                    │ Ana Pérez       [Registrar salida]│
+│ [____________________] [Buscar]       │ Carlos Ruiz     [Registrar salida]│
+│                                       │                                  │
+│ Persona seleccionada: Ana Pérez       │                                  │
+│                                       │                                  │
+│ 3. Detalles                           │                                  │
+│ Curso [opcional]  Foto [Subir]        │                                  │
+│                                       │                                  │
+│ [        REGISTRAR ENTRADA        ]   │                                  │
+└───────────────────────────────────────┴──────────────────────────────────┘
+
+En móvil, Entrada y Salida deben ser pestañas/segmentos grandes con una tarea a la
+vez. No poner una tabla horizontal debajo de un formulario largo.
+
+===============================================================================
+11. FLUJO IDEAL DE SALIDA
+===============================================================================
+
+1. Abrir modo Salida.
+2. Mostrar cantidad dentro.
+3. Buscar por nombre/carnet/empresa si el backend lo permite.
+4. Cada resultado muestra:
+   - nombre;
+   - tipo;
+   - edificio;
+   - hora de entrada;
+   - botón “Registrar salida”.
+5. Click abre confirmación con nombre grande.
+6. Confirmar en botón carbón “Sí, registrar salida”.
+7. Éxito verde con hora de salida.
+8. Quitar de lista solamente cuando API confirma.
+
+No usar simplemente “Salida” en botones pequeños; es más claro “Registrar salida”.
+
+Si se necesita máxima rapidez, permitir confirmación configurable solo en desktop,
+pero el valor seguro por defecto debe confirmar.
+
+===============================================================================
+12. DISEÑO IDEAL POR PANTALLA
+===============================================================================
+
+12.1 Shell
+-----------
+
+- Sidebar blanca 270 px en desktop.
+- Logo/bloque rojo autorizado.
+- Ruta activa rojo suave con barra roja.
+- Agrupación por rol.
+- En desktop evitar duplicar nombre y logout en sidebar + topbar.
+- Recomendación: topbar móvil; en desktop usar una barra de contexto con breadcrumb,
+  edificio actual y usuario, no repetir “Control Acceso”.
+- Drawer móvil con id, aria, Escape, focus trap y retorno de foco.
+
+12.2 Login
+----------
+
+El card actual de 400 px es simple y correcto. Para mejorarlo sin complicarlo:
+
+- mantener una sola card;
+- fondo gris muy claro con patrón rojo muy sutil opcional;
+- banda superior rojo->negro;
+- texto más humano en selector de perfil;
+- altura de controles 46 px;
+- ayuda visible “¿Problemas para ingresar? Contacte al administrador” si existe canal;
+- no agregar ilustraciones decorativas moradas o azules.
+
+12.3 Dashboard
+--------------
+
+- Solo admin necesita Dashboard como inicio.
+- KPIs blancos, no grandes bloques de color.
+- Entradas rojo, salidas carbón, dentro verde.
+- Agregar indicador “Actualizado hace…” y estado de error.
+- Acción primaria Link, no <a href>.
+- Tabla desktop, cards móvil.
+- Confirmar salida.
+- Fecha en español con primera letra mayúscula mediante CSS/texto si se desea.
+
+12.4 Registro
+-------------
+
+- Es la pantalla principal de registrador.
+- Mostrar edificio actual.
+- Agrupar en pasos numerados.
+- Revelar detalles después de seleccionar persona.
+- Botón disabled hasta formulario válido.
+- Lista de salida con errores y estado por fila.
+- En móvil cambiar Entrada/Salida mediante segmento.
+
+12.5 Catálogos
+--------------
+
+- Admin: Nuevo/Editar.
+- Registrador: solo consultar, si realmente lo necesita.
+- PageHeader con título y descripción.
+- Buscador local para listas largas.
+- Alta/edición dentro de modal/drawer accesible o card claramente titulada.
+- Campos con id, labels y validación.
+- No marcar todo obligatorio si backend no lo exige.
+- Botones: Cancelar secundario, Guardar rojo.
+- Tabla con caption y cards móvil.
+
+12.6 Usuarios externos
+----------------------
+
+- Solo admin.
+- Cambiar lenguaje técnico.
+- “ID Referencia” debe ser un selector de proveedor/facilitador si API permite; si
+  no, explicar “Identificador del registro relacionado” con ejemplo.
+- Formulario real.
+- Password con requisitos visibles y medidor simple no cromático.
+- aria-label completo: “Mostrar contraseña de usuario nuevo”.
+- Cambiar contraseña en modal corporativo.
+- Estado Activo verde, Inactivo gris/rojo suave.
+
+12.7 SSO
+--------
+
+- Corregir padding horizontal.
+- Eliminar inline styles restantes mediante clases.
+- Enlace interno con Link si no requiere recarga completa.
+- Mensaje humano, no técnico.
+
+===============================================================================
+13. CSS CONCRETO SUGERIDO
+===============================================================================
+
+13.1 Corregir títulos con iconos
+--------------------------------
+
+.page-header__title,
+.card-title,
+.section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.page-header__subtitle--icon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.icon {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+En JSX usar:
+
+<h1 className="page-header__title">
+  <KeyRound className="icon" aria-hidden="true" />
+  Usuarios externos
+</h1>
+
+13.2 Separar spinner circular de icono giratorio
+-------------------------------------------------
+
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--gray-300);
+  border-top-color: var(--brand-red);
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+}
+
+.icon--spin {
+  animation: spin 700ms linear infinite;
+}
+
+Uso correcto:
+
+<RefreshCw className={loading ? 'icon icon--spin' : 'icon'} />
+
+o:
+
+<span className="spinner spinner--white" aria-hidden="true" />
+
+13.3 Aumentar controles táctiles
+--------------------------------
+
+.btn {
+  min-height: 44px;
+  padding-inline: 18px;
+}
+
+.btn--icon {
+  width: 44px;
+  height: 44px;
+}
+
+.form-control {
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+@media (pointer: coarse) {
+  .btn--sm {
+    min-height: 44px;
+  }
+}
+
+13.4 Botón principal siempre visible en móvil
+-----------------------------------------------
+
+@media (max-width: 600px) {
+  .registro-submit-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--white) 75%, transparent);
+  }
+}
+
+No cubrir campos ni mensajes. Probar con teclado virtual.
+
+13.5 Estados de error/éxito/neutro
+----------------------------------
+
+.alert--error {
+  background: var(--error-soft);
+  border: 1px solid var(--brand-red-border);
+  color: var(--brand-red-active);
+}
+
+.alert--success {
+  background: var(--success-soft);
+  border: 1px solid var(--success-border);
+  color: var(--success-hover);
+}
+
+.alert--neutral {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  color: var(--gray-800);
+}
+
+No crear alert--info azul.
+
+13.6 Pasos de Registro
+----------------------
+
+.flow-section {
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.flow-section:last-child {
+  border-bottom: 0;
+}
+
+.flow-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.flow-step {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand-red);
+  color: var(--white);
+  font-weight: 700;
+}
+
+13.7 Móvil: selector Entrada/Salida
+------------------------------------
+
+.operation-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  background: var(--gray-100);
+  border-radius: var(--radius-lg);
+}
+
+.operation-switch__button[aria-pressed="true"] {
+  background: var(--brand-red);
+  color: var(--white);
+}
+
+.operation-switch__button--exit[aria-pressed="true"] {
+  background: var(--brand-black);
+}
+
+13.8 Tabla desktop / cards móvil
+--------------------------------
+
+.access-list-mobile { display: none; }
+
+@media (max-width: 700px) {
+  .access-table-desktop { display: none; }
+  .access-list-mobile { display: grid; gap: var(--space-3); }
+}
+
+Preferir dos representaciones React con la misma fuente de datos. No destruir la
+semántica de tabla convirtiendo tr/td a display:block sin probar lectores de pantalla.
+
+13.9 Utilidad visually hidden y captions
+-----------------------------------------
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+13.10 Corregir selectores de celdas
+------------------------------------
+
+Cambiar:
+
+.table td--muted
+
+por:
+
+.table td.td--muted
+
+o preferiblemente mantener utilidades explícitas:
+
+.table .text-muted { color: var(--gray-500); }
+
+13.11 SSO sin inline styles
+---------------------------
+
+.sso-section {
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.spinner--lg {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+.icon--error-centered {
+  color: var(--error);
+  margin: 0 auto var(--space-3);
+}
+
+===============================================================================
+14. HTML/JSX CONCRETO SUGERIDO
+===============================================================================
+
+14.1 Formulario de Registro semántico
+--------------------------------------
+
+<form onSubmit={handleRegister} noValidate>
+  <fieldset className="flow-section">
+    <legend className="flow-section__header">
+      <span className="flow-step">1</span>
+      ¿Quién ingresa?
+    </legend>
+
+    <div className="person-type-grid">
+      <label>
+        <input
+          type="radio"
+          name="personType"
+          value="EMPLEADO"
+          checked={tipo === 'EMPLEADO'}
+          onChange={handleType}
+        />
+        <span>Colaborador</span>
+      </label>
+    </div>
+  </fieldset>
+
+  <div className="flow-section">
+    <label htmlFor="person-search" className="form-label">
+      Nombre o carnet
+    </label>
+    <div className="form-row">
+      <input
+        id="person-search"
+        name="personSearch"
+        className="form-control"
+        aria-describedby="person-search-hint person-search-error"
+      />
+      <button type="button" className="btn btn--primary">
+        Buscar
+      </button>
+    </div>
+    <p id="person-search-hint" className="form-hint">
+      Escriba al menos parte del nombre o el carnet.
+    </p>
+  </div>
+
+  <button type="submit" disabled={!canRegister || registrando}>
+    Registrar entrada
+  </button>
+</form>
+
+14.2 Validación visible
+-----------------------
+
+const canRegister = Boolean(
+  edificioId &&
+  (tipo === 'VISITANTE' ? nombreManual.trim() : selected)
+);
+
+No confiar únicamente en disabled. handleRegister debe volver a validar.
+
+14.3 Formulario dinámico de Catálogo
+-------------------------------------
+
+<label htmlFor={`${tipo}-${field.key}`} className="form-label">
+  {field.label}
+</label>
+<input
+  id={`${tipo}-${field.key}`}
+  name={field.key}
+  type={field.type ?? 'text'}
+  className="form-control"
+  required={field.required}
+/>
+
+Agregar required a la configuración; no asumir que todos los campos lo son.
+
+14.4 Caption de tabla
+---------------------
+
+<table className="table">
+  <caption className="visually-hidden">
+    Accesos registrados durante el día de hoy
+  </caption>
+  ...
+</table>
+
+14.5 Sidebar accesible
+----------------------
+
+<aside
+  id="sidebar"
+  className={...}
+  aria-label="Menú principal"
+  aria-hidden={isMobile ? !open : undefined}
+>
+
+El atributo aria-hidden no debe ocultar el sidebar visible en desktop. Usar media
+query JS fiable o preferir inert cuando esté cerrado en móvil.
+
+14.6 Navegación por rol
+-----------------------
+
+const visibleSections = navSections
+  .map(section => ({
+    ...section,
+    items: section.items.filter(item =>
+      !item.roles || item.roles.includes(user?.rol ?? '')
+    ),
+  }))
+  .filter(section => section.items.length > 0);
+
+La ruta también debe validarse; el filtro de menú no es seguridad.
+
+14.7 Link SPA
+-------------
+
+<Link to="/control-acceso/registro" className="btn btn--primary">
+  Registrar acceso
+</Link>
+
+Evitar <a href> para navegación interna.
+
+===============================================================================
+15. MENSAJES PARA PERSONAS NO TÉCNICAS
+===============================================================================
+
+No usar                          Usar
+------------------------------  -----------------------------------------------
+Error 401                       Su sesión venció. Ingrese nuevamente.
+Error 403                       No tiene permiso para realizar esta acción.
+Error 500                       El sistema no pudo completar la operación.
+Network Error                   No pudimos conectar. Revise e intente de nuevo.
+Token SSO no encontrado         El enlace de acceso no es válido o ya venció.
+ID Referencia                   Registro relacionado / Seleccione proveedor.
+CPF                             Usuario externo (CPF).
+persona(s)                      1 persona / 2 personas.
+Sin registros                  Aún no hay accesos registrados hoy.
+Error                           No se pudo registrar la entrada.
+
+Todo mensaje de error debe responder:
+
+1. Qué ocurrió.
+2. Qué información se conservó.
+3. Qué puede hacer ahora.
+
+Ejemplo:
+
+“No pudimos registrar la entrada. Sus datos siguen en pantalla. Intente nuevamente.”
+
+===============================================================================
+16. ESTADOS OBLIGATORIOS POR OPERACIÓN
+===============================================================================
+
+Cada carga/lista/formulario debe contemplar:
+
+- inicial;
+- cargando;
+- datos disponibles;
+- vacío real;
+- error de red/servidor;
+- enviando;
+- éxito;
+- error de validación;
+- sesión vencida;
+- sin permiso.
+
+Dashboard:
+
+- No mostrar KPIs 0 mientras carga; usar skeleton o guion.
+- Si falla, mostrar estado error, no cero.
+
+Registro:
+
+- Si catálogos no cargan, impedir registro y explicar.
+- Si búsqueda falla, conservar texto de búsqueda.
+- Si entrada falla, conservar formulario.
+
+Salida:
+
+- Estado sending por id, no loading global.
+- Mantener fila hasta confirmación del servidor.
+
+Catálogos:
+
+- Error separado de empty.
+- Guardar deshabilitado durante petición.
+- Evitar doble click.
+
+Admin:
+
+- Estado de creación.
+- Mostrar requisitos de contraseña antes del error.
+- No borrar formulario al fallar.
+
+===============================================================================
+17. PALETA CORPORATIVA CERRADA
+===============================================================================
+
+Mantener los tokens actuales:
+
+- brand red: #DA291C.
+- hover: #B82318.
+- active: #991B1B.
+- rojo suave: #FFF1F0.
+- blanco: #FFFFFF.
+- negros/grises actuales.
+- verde #15803D solo para éxito/estado válido.
+
+Prohibido:
+
+- azul;
+- celeste;
+- cian;
+- aqua;
+- teal;
+- índigo;
+- violeta;
+- púrpura.
+
+Uso:
+
+- Entrada/acción principal: rojo.
+- Salida: carbón/negro.
+- Éxito/dentro/activo: verde.
+- Cancelar/neutro: blanco/gris.
+- Error: rojo oscuro/suave.
+
+No usar fondos completos de colores distintos para KPIs. Cards blancas con acentos.
+
+===============================================================================
+18. RESPONSIVE ESPECÍFICO
+===============================================================================
+
+320-479 px:
+
+- una columna;
+- padding 16 px;
+- controles 44-48 px;
+- Entrada/Salida como selector;
+- tablas reemplazadas por cards;
+- encabezado y botón principal a ancho completo;
+- no texto menor de 12 px;
+- respetar safe-area inferior.
+
+480-767 px:
+
+- una columna;
+- KPI 1 o 2 según ancho real con minmax;
+- formularios una columna;
+- drawer de navegación.
+
+768-1023 px:
+
+- KPI 2 columnas;
+- Registro todavía una columna si no hay espacio operativo suficiente;
+- formularios 2 columnas;
+- tablas con scroll o cards según complejidad.
+
+>=1024 px:
+
+- sidebar sticky;
+- Registro 3fr/2fr;
+- formulario 2-3 columnas solo en catálogos;
+- salida visible a la derecha;
+- contenido máximo 1280-1440 px.
+
+Pruebas requeridas:
+
+- 320x568.
+- 375x667.
+- 390x844.
+- 768x1024.
+- 1024x768.
+- 1366x768.
+- 1920x1080.
+- Zoom 200%.
+- Teclado virtual móvil.
+
+===============================================================================
+19. ACCESIBILIDAD MÍNIMA
+===============================================================================
+
+- Un h1 por ruta.
+- Títulos de cards h2/h3, no span con font-bold.
+- Labels asociados.
+- fieldset/legend para opciones de persona y login.
+- caption en tablas.
+- botones con type.
+- iconos decorativos aria-hidden.
+- aria-live en resultados y mensajes.
+- focus visible rojo.
+- drawer con foco.
+- modal con focus trap y Escape.
+- texto alternativo si se agregan imágenes.
+- no depender solo de verde/rojo.
+- contrastes AA.
+- orden de tab lógico.
+- skip-link actual debe conservarse.
+
+===============================================================================
+20. ARQUITECTURA DE COMPONENTES RECOMENDADA
+===============================================================================
+
+Mantener styles actuales, pero agregar componentes reutilizables:
+
+components/ui/
+
+- Button.tsx.
+- Spinner.tsx.
+- Alert.tsx.
+- EmptyState.tsx.
+- FormField.tsx.
+- PageHeader.tsx.
+- ConfirmDialog.tsx.
+- StatusBadge.tsx.
+- LoadingSkeleton.tsx.
+
+components/access/
+
+- PersonTypeSelector.tsx.
+- PersonSearch.tsx.
+- SelectedPersonCard.tsx.
+- VisitDetailsForm.tsx.
+- EntrySummary.tsx.
+- InsidePersonCard.tsx.
+- ExitConfirmation.tsx.
+
+components/layout/
+
+- AppShell.tsx.
+- Sidebar.tsx.
+- MobileTopbar.tsx.
+- BuildingContext.tsx.
+
+No es obligatorio crear abstracciones para una sola línea. Priorizar componentes
+que encapsulan comportamiento repetido o estados complejos.
+
+===============================================================================
+21. PLAN DE TRABAJO PRIORIZADO
+===============================================================================
+
+FASE 1 — SEGURIDAD UX Y ESTADOS (P0)
+
+1. Validar persona/visitante/edificio antes de registrar.
+2. Crear canRegister y disabled real.
+3. Reemplazar catch vacíos por estado error.
+4. Separar empty de error.
+5. Agregar sending por fila para salidas.
+6. Confirmar salida.
+7. Corregir spinner SVG y alineación de iconos.
+
+FASE 2 — ROLES Y NAVEGACIÓN
+
+1. Definir roles en nav items.
+2. Ocultar Admin CPF a no-admin.
+3. RequireRole para rutas.
+4. Catálogos read-only para registrador.
+5. Landing registrador -> Registro.
+6. Página 403 humana.
+
+FASE 3 — FORMULARIOS/HTML
+
+1. Convertir Registro a form.
+2. Convertir Catálogo a form.
+3. Convertir Admin CPF a form.
+4. IDs/htmlFor.
+5. fieldset/legend.
+6. required configurable.
+7. captions y headings semánticos.
+8. eliminar cuatro inline styles.
+
+FASE 4 — FLUJO GUIADO
+
+1. Contexto de edificio.
+2. Secciones numeradas.
+3. Progressive disclosure.
+4. Resumen antes de entrada.
+5. Resultado de éxito completo.
+6. Modo Entrada/Salida móvil.
+
+FASE 5 — RESPONSIVE OPERATIVO
+
+1. Access cards móvil.
+2. Catalog cards o tabla adaptada.
+3. Admin cards móvil.
+4. objetivos táctiles 44 px.
+5. pruebas de teclado virtual/zoom.
+
+FASE 6 — PULIDO
+
+1. Tema SweetAlert central.
+2. limpiar assets azules/púrpuras sin uso.
+3. autoalojar fuentes si se aprueba.
+4. evitar duplicación topbar/sidebar desktop.
+5. microcopy/pluralización.
+6. skeletons y updated-at.
+
+FASE 7 — QA
+
+1. npm run lint sin warnings nuevos.
+2. npm run build.
+3. auditoría de azul en src/dist/public.
+4. prueba de roles admin/registrador/CPF.
+5. prueba de errores API.
+6. prueba de doble click.
+7. prueba de entrada inválida.
+8. prueba de salida accidental/cancelada.
+9. teclado y lector de pantalla básico.
+10. responsive en matriz indicada.
+
+===============================================================================
+22. CAMBIOS ARCHIVO POR ARCHIVO
+===============================================================================
+
+react/src/components/Shell.tsx
+
+- id="sidebar".
+- focus trap/retorno de foco.
+- items por rol.
+- no duplicar logout desktop.
+- topbar contextual.
+- extraer BuildingContext si se aprueba.
+
+react/src/App.tsx
+
+- RoleRoute/RequireRole.
+- landing por rol.
+- ruta 403.
+- conservar rutas existentes.
+
+react/src/pages/LoginPage.tsx
+
+- simplificar tab ARIA a radio/aria-pressed.
+- copy humano.
+- errores de red diferenciados.
+- no romper login actual.
+
+react/src/pages/SsoHandlerPage.tsx
+
+- clases en lugar de inline.
+- padding.
+- mensaje no técnico.
+- Link interno.
+
+react/src/pages/DashboardPage.tsx
+
+- Link SPA.
+- error state.
+- spinner correcto.
+- título con heading flex.
+- cards móvil.
+- confirmación de salida.
+
+react/src/pages/RegistroPage.tsx
+
+- prioridad máxima.
+- validación completa.
+- form onSubmit.
+- flujo por pasos.
+- contexto edificio.
+- errores visibles.
+- resultados vacíos.
+- salida con confirmación/sending.
+- móvil Entrada/Salida.
+
+react/src/pages/CatalogPage.tsx
+
+- useCallback/load dependency.
+- estado error.
+- form real.
+- required por configuración.
+- labels/ids.
+- modo read-only registrador.
+- caption/cards móvil.
+
+react/src/pages/AdminCpfPage.tsx
+
+- solo admin.
+- labels/ids.
+- form real.
+- eliminar inline de Shield.
+- lenguaje simple.
+- estado sending/error.
+- modal/drawer si se desea.
+
+react/src/styles/reset.css
+
+- revisar display:block global de svg.
+- mantener img block.
+- asegurar iconos inline-flex mediante clase.
+
+react/src/styles/components.css
+
+- heading-with-icon.
+- icon--spin.
+- min 44 táctil.
+- alerts success/neutral.
+- flow sections.
+- operation switch.
+- mobile cards.
+- corregir selectores td.
+
+react/src/styles/layout.css
+
+- topbar desktop contextual.
+- drawer focus/inert visual.
+- breakpoints mobile cards.
+
+react/src/assets y react/public
+
+- eliminar assets genéricos azules/púrpuras solo tras confirmar ausencia de uso.
+
+===============================================================================
+23. CRITERIOS DE ACEPTACIÓN
+===============================================================================
+
+[ ] Un registrador entra directamente a Registro.
+[ ] Un registrador no ve Usuarios externos ni acciones CRUD.
+[ ] Un admin sí ve todo.
+[ ] /admin-cpf bloquea a no-admin con mensaje 403.
+[ ] No se puede registrar persona conocida sin seleccionarla.
+[ ] No se puede registrar visitante sin nombre.
+[ ] No se puede registrar sin edificio.
+[ ] El botón principal explica por qué está disabled o muestra campos pendientes.
+[ ] Error API nunca aparece como lista vacía.
+[ ] Búsqueda sin resultados muestra mensaje.
+[ ] Salida pide confirmación con nombre.
+[ ] Doble click no duplica solicitudes.
+[ ] Cada fila de salida tiene loading propio.
+[ ] Todos los formularios usan submit real.
+[ ] Todos los labels tienen htmlFor/id o envoltura válida.
+[ ] Grupos usan fieldset/legend.
+[ ] Tablas tienen caption.
+[ ] Sidebar tiene id coherente con aria-controls.
+[ ] Drawer maneja Escape, foco y scroll.
+[ ] Los iconos de títulos están alineados horizontalmente.
+[ ] spinner circular no se aplica a SVG.
+[ ] Controles táctiles miden al menos 44 px en móvil.
+[ ] Dashboard/Registro/Admin tienen cards móviles legibles.
+[ ] No hay scroll horizontal de página a 320 px.
+[ ] No hay azul, cian, teal, índigo, violeta ni púrpura.
+[ ] Assets genéricos prohibidos fueron removidos si estaban sin uso.
+[ ] SweetAlert usa rojo/gris/verde corporativo.
+[ ] Cuatro inline styles actuales fueron reemplazados por clases.
+[ ] Navegación interna usa Link/NavLink.
+[ ] npm run lint no presenta warnings nuevos.
+[ ] npm run build finaliza correctamente.
+[ ] Se probaron admin y registrador.
+[ ] Se probaron fallos de red y sesión vencida.
+
+===============================================================================
+24. PRUEBAS DE USABILIDAD CON PERSONA NO TÉCNICA
+===============================================================================
+
+Entregar una prueba de 15 minutos a una persona que no conozca el sistema.
+
+Tareas:
+
+1. Ingresar como registrador.
+2. Registrar entrada de un colaborador.
+3. Registrar un visitante.
+4. Adjuntar una foto.
+5. Registrar salida.
+6. Encontrar cuántas personas están dentro.
+7. Recuperarse de un error simulado de red.
+
+Medir:
+
+- tiempo por tarea;
+- número de clicks;
+- preguntas realizadas;
+- errores;
+- si encontró el botón correcto sin explicación;
+- si entendió el mensaje de éxito/error.
+
+Meta:
+
+- Persona conocida: entrada < 20 segundos.
+- Visitante: entrada < 45 segundos.
+- Salida: < 15 segundos.
+- Cero navegación a módulos incorrectos.
+- Cero dudas entre Entrada y Salida.
+
+Si el evaluador necesita que el desarrollador le explique dónde hacer click, el
+diseño todavía no está terminado.
+
+===============================================================================
+25. AUDITORÍA DE COLOR Y CALIDAD
+===============================================================================
+
+Buscar fuente:
+
+rg -ni 'blue|cyan|aqua|teal|indigo|violet|purple|#00d8ff|#1e40af|#dbeafe|#3b82f6|#2563eb|#0ea5e9' react/src react/public react/index.html
+
+Buscar build:
+
+rg -ni 'blue|cyan|aqua|teal|indigo|violet|purple|#00d8ff|#1e40af|#dbeafe|#3b82f6|#2563eb|#0ea5e9' react/dist
+
+Inline styles:
+
+rg -n 'style=\{\{' react/src -g '*.tsx'
+
+Catch vacíos:
+
+rg -n 'catch\s*\{\s*\}|catch\s*\([^)]*\)\s*\{\s*\}' react/src -g '*.tsx'
+
+Labels:
+
+rg -n '<label' react/src -g '*.tsx'
+
+La búsqueda de palabras no sustituye inspección de PNG ni computed styles. hero.png
+fue inspeccionado y contiene púrpura/violeta.
+
+===============================================================================
+26. QUÉ NO DEBE HACER EL SIGUIENTE AGENTE
+===============================================================================
+
+- No deshacer el sistema CSS actual para volver a inline styles.
+- No copiar las 859 líneas de Asistencia encima del proyecto.
+- No instalar Tailwind sin necesidad demostrada.
+- No tocar backend/contratos para resolver solo presentación.
+- No inventar permisos.
+- No mostrar datos administrativos a registrador.
+- No usar azul como “información”.
+- No usar verde para botones Guardar; verde es resultado/estado.
+- No ocultar errores de API.
+- No desplegar sin probar roles y rutas.
+- No agregar ilustraciones genéricas moradas.
+- No reducir texto para hacer caber una tabla móvil.
+- No cambiar rutas públicas /control-acceso/.
+
+===============================================================================
+27. PROMPT LISTO PARA EL AGENTE IMPLEMENTADOR
+===============================================================================
+
+Trabaja como arquitecto UX senior y desarrollador React. Mejora la versión actual
+de /opt/apps/control-acceso/react; no regreses a la versión anterior. Lee primero
+este documento completo, README.md, AuthContext, App, Shell, todas las páginas y los
+seis CSS.
+
+Objetivo principal: que un recepcionista sin conocimientos técnicos registre una
+entrada o salida rápida y correctamente, sin necesitar capacitación especial.
+
+Respeta estrictamente:
+
+- rojo y blanco como marca;
+- gris/negro auxiliares;
+- verde solo para éxito/estado válido;
+- cero azul/cian/teal/índigo/violeta/púrpura;
+- rutas, API, SSO y contratos existentes;
+- roles admin y registrador del backend.
+
+Orden obligatorio:
+
+1. Corregir validación y errores silenciosos.
+2. Implementar permisos visuales/rutas por rol.
+3. Corregir iconos/spinners/semántica.
+4. Convertir flujos a forms accesibles.
+5. Guiar Registro por pasos y contexto de edificio.
+6. Crear experiencia móvil con cards y modo Entrada/Salida.
+7. Pulir SweetAlert, assets y microcopy.
+8. Ejecutar lint, build, auditoría de color y pruebas de roles.
+
+No declares finalizado hasta cumplir la sección 23. En la entrega informa:
+
+- archivos modificados;
+- mejoras por pantalla;
+- decisiones de flujo;
+- pruebas admin/registrador;
+- resultado de lint/build;
+- resultado de auditoría de color;
+- pendientes reales.
+
+FIN DEL DOCUMENTO

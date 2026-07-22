@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Shell from './components/Shell';
+import RoleGuard from './components/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import SsoHandlerPage from './pages/SsoHandlerPage';
 import DashboardPage from './pages/DashboardPage';
@@ -34,7 +35,8 @@ export default function App() {
           <Route path="/control-acceso/proveedores" element={<ProtectedRoute><Shell><CatalogPage tipo="proveedores" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/instructores" element={<ProtectedRoute><Shell><CatalogPage tipo="instructores" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/cursos" element={<ProtectedRoute><Shell><CatalogPage tipo="cursos" /></Shell></ProtectedRoute>} />
-          <Route path="/control-acceso/admin-cpf" element={<ProtectedRoute><Shell><AdminCpfPage /></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/admin-cpf" element={<ProtectedRoute><RoleGuard roles={['admin']}><Shell><AdminCpfPage /></Shell></RoleGuard></ProtectedRoute>} />
+          <Route path="/control-acceso/forbidden" element={<RoleGuard roles={['admin']}><div>Sin permisos</div></RoleGuard>} />
           <Route path="*" element={<Navigate to="/control-acceso/" replace />} />
         </Routes>
       </AuthProvider>

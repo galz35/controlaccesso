@@ -21,7 +21,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-img, svg {
+img:not([class]), svg:not([class]) {
   display: block;
   max-width: 100%;
 }

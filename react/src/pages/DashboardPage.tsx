@@ -1,21 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { DoorOpen, LogOut, Building2, RefreshCw, Users } from 'lucide-react';
+import { showError } from '../lib/swal';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [hoy, setHoy] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try { const res = await api.get('/acceso/hoy'); setHoy(res.data || []); } catch {}
+    setLoading(true); setApiError(false);
+    try {
+      const res = await api.get('/acceso/hoy');
+      setHoy(res.data || []);
+    } catch { setApiError(true); }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const registrarSalida = async (id: number) => {
-    try { await api.post(`/acceso/salida/${id}`); load(); } catch {}
+    try { await api.post(`/acceso/salida/${id}`); load(); } catch { showError('Error', 'No se pudo registrar la salida'); }
   };
 
   const totalEntradas = hoy.length;
@@ -26,10 +33,10 @@ export default function DashboardPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-header__title">Resumen de accesos</h1>
+          <h1 className="page-header__title"><DoorOpen /> Resumen de accesos</h1>
           <p className="page-header__subtitle">{new Date().toLocaleDateString('es-NI', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <a href="/control-acceso/registro" className="btn btn--primary"><DoorOpen className="icon icon--sm" /> Registrar acceso</a>
+        <button onClick={() => navigate('/control-acceso/registro')} className="btn btn--primary"><DoorOpen className="icon icon--sm" /> Registrar acceso</button>
       </div>
 
       <div className="kpi-grid">
@@ -40,11 +47,18 @@ export default function DashboardPage() {
 
       <div className="card">
         <div className="card__header">
-          <span className="font-bold" style={{ fontSize: 16 }}><Users className="icon v-middle" /> Accesos de hoy</span>
-          <button onClick={load} className="btn btn--ghost btn--sm" disabled={loading}><RefreshCw className={`icon icon--sm ${loading ? 'spinner' : ''}`} />{loading ? 'Cargando…' : 'Recargar'}</button>
+          <span className="card-title"><Users className="icon" /> Accesos de hoy</span>
+          <button onClick={load} className="btn btn--ghost btn--sm" disabled={loading}>
+            <RefreshCw className={`icon icon--sm ${loading ? 'icon--spin' : ''}`} /> {loading ? 'Cargando…' : 'Recargar'}
+          </button>
         </div>
         <div className="card__body card__body--flush">
-          {loading ? (
+          {apiError ? (
+            <div className="empty-state">
+              <p className="empty-state__desc">No pudimos consultar los accesos.</p>
+              <button onClick={load} className="btn btn--primary btn--sm" style={{ marginTop: 8 }}>Reintentar</button>
+            </div>
+          ) : loading ? (
             <div className="empty-state"><div className="spinner mx-auto" /></div>
           ) : hoy.length === 0 ? (
             <div className="empty-state"><DoorOpen className="icon--lg empty-state__icon" /><p className="empty-state__desc">No hay accesos registrados hoy</p></div>

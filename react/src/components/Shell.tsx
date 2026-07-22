@@ -10,6 +10,7 @@ const navSections = [
       { label: 'Dashboard', icon: LayoutDashboard, to: '/control-acceso/' },
       { label: 'Registro', icon: DoorOpen, to: '/control-acceso/registro' },
     ],
+    minRole: 'registrador',
   },
   {
     label: 'Catálogos',
@@ -19,12 +20,14 @@ const navSections = [
       { label: 'Instructores', icon: Users, to: '/control-acceso/instructores' },
       { label: 'Cursos', icon: BookOpen, to: '/control-acceso/cursos' },
     ],
+    minRole: 'registrador',
   },
   {
     label: 'Administración',
     items: [
       { label: 'Usuarios CPF', icon: KeyRound, to: '/control-acceso/admin-cpf' },
     ],
+    minRole: 'admin',
   },
 ];
 
@@ -50,7 +53,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <div className="app-layout">
       {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} aria-hidden="true" />}
 
-      <aside className={`sidebar ${open ? 'sidebar--open' : ''}`} aria-label="Menú principal">
+      <aside id="sidebar" className={`sidebar ${open ? 'sidebar--open' : ''}`} aria-label="Menú principal">
         <div className="sidebar__brand">
           <div className="sidebar__logo">
             <DoorOpen className="sidebar__logo-icon" />
@@ -65,7 +68,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="sidebar__nav" aria-label="Navegación">
-          {navSections.map((section) => (
+          {navSections.map((section) => {
+            const allowed = section.minRole === 'admin' ? user?.rol === 'admin' : true;
+            if (!allowed) return null;
+            return (
             <div key={section.label} className="sidebar__section">
               <span className="sidebar__section-label">{section.label}</span>
               {section.items.map((item) => {
@@ -84,7 +90,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 );
               })}
             </div>
-          ))}
+          );
+          })}
         </nav>
 
         <div className="sidebar__footer">
