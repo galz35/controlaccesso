@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
-import { Loader2 } from 'lucide-react';
+import { DoorOpen, XCircle } from 'lucide-react';
 
 export default function SsoHandlerPage() {
+  const [state, setState] = useState<'loading' | 'error'>('loading');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -10,6 +11,7 @@ export default function SsoHandlerPage() {
     const token = params.get('token');
 
     if (!token) {
+      setState('error');
       setError('Token SSO no encontrado en la URL.');
       return;
     }
@@ -21,24 +23,36 @@ export default function SsoHandlerPage() {
         window.location.href = '/control-acceso/';
       })
       .catch(err => {
+        setState('error');
         setError(err?.response?.data?.message || 'Error al validar token SSO.');
       });
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f3f4f6' }}>
-      <div style={{ textAlign: 'center' }}>
-        {error ? (
-          <div>
-            <p style={{ color: '#dc2626', fontWeight: 700 }}>❌ {error}</p>
-            <a href="/control-acceso/login" style={{ color: '#da121a', marginTop: 12, display: 'inline-block' }}>Ir al inicio</a>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-brand">
+          <div className="login-icon">
+            <DoorOpen className="icon--lg" />
           </div>
-        ) : (
-          <div>
-            <Loader2 className="w-8 h-8" style={{ animation: 'spin 0.8s linear infinite', color: '#da121a', margin: '0 auto 12px' }} />
-            <p style={{ color: '#6b7280' }}>Validando acceso desde el Portal...</p>
-          </div>
-        )}
+          <h1 className="login-title">Control de Acceso</h1>
+          <p className="login-subtitle">Validando acceso seguro desde el Portal</p>
+        </div>
+
+        <div className="login-form" style={{ textAlign: 'center' }}>
+          {state === 'loading' ? (
+            <div style={{ padding: '20px 0' }} role="status" aria-live="polite">
+              <div className="spinner" style={{ margin: '0 auto 12px', width: 32, height: 32, borderWidth: 3 }} />
+              <p style={{ color: 'var(--gray-600)', fontSize: 14 }}>Validando acceso seguro…</p>
+            </div>
+          ) : (
+            <div style={{ padding: '12px 0' }} role="alert">
+              <XCircle className="icon--lg" style={{ color: 'var(--error)', margin: '0 auto 12px' }} />
+              <p style={{ color: 'var(--error)', fontWeight: 600, marginBottom: 8 }}>{error}</p>
+              <a href="/control-acceso/login" className="btn btn--primary">Volver al inicio de sesión</a>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

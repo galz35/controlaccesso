@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Search, DoorOpen, LogOut, Camera, Loader2 } from 'lucide-react';
+import { Search, DoorOpen, LogOut, Camera, X, Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 const TIPOS = [
@@ -25,7 +25,6 @@ export default function RegistroPage() {
   const [empresaManual, setEmpresaManual] = useState('');
   const [loading, setLoading] = useState(false);
   const [registrando, setRegistrando] = useState(false);
-  
   const [foto, setFoto] = useState<File | null>(null);
 
   useEffect(() => {
@@ -86,115 +85,146 @@ export default function RegistroPage() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-      {/* Left: Search and form */}
-      <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-        <div style={{ background: '#da121a', color: 'white', padding: '12px 16px', borderRadius: '12px 12px 0 0', fontWeight: 700, fontSize: 14 }}>
-          <DoorOpen className="w-4 h-4" style={{ verticalAlign: 'middle', marginRight: 6 }} /> Registrar Entrada
-        </div>
-        <div style={{ padding: 16 }}>
-          {/* Tipo */}
-          <label style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 4 }}>Tipo de Persona</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
-            {TIPOS.map(t => (
-              <button key={t.value} onClick={() => { setTipo(t.value); setSelected(null); setResults(null); }}
-                style={{ padding: '5px 10px', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 11, cursor: 'pointer',
-                  ...(tipo === t.value ? { background: '#da121a', color: 'white' } : { background: '#f3f4f6', color: '#6b7280' }) }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Search */}
-          {tipo !== 'VISITANTE' && (
-            <>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 4 }}>Buscar</label>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <div style={{ flex: 1, position: 'relative' }}>
-                  <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && buscar()}
-                    placeholder="Buscar por nombre o carnet..."
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-                <button onClick={buscar} disabled={loading}
-                  style={{ background: '#da121a', color: 'white', border: 'none', borderRadius: 6, padding: '8px 14px', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                  {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
-                </button>
-              </div>
-
-              {results && results.length > 0 && (
-                <div style={{ marginBottom: 12, maxHeight: 200, overflowY: 'auto' }}>
-                  {results.map((r: any, i: number) => (
-                    <button key={i} onClick={() => seleccionar(r)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer', textAlign: 'left', width: '100%', fontSize: 12, marginBottom: 4 }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{r.nombre || r.nombreCompleto}</div>
-                        <div style={{ fontSize: 10, color: '#6b7280' }}>{r.carnet || r.cedula || ''} {r.empresa ? '· ' + r.empresa : ''}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Manual fields for VISITANTE */}
-          {tipo === 'VISITANTE' && (
-            <div style={{ marginBottom: 12 }}>
-              <input type="text" value={nombreManual} onChange={e => setNombreManual(e.target.value)}
-                placeholder="Nombre completo *" style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, marginBottom: 6, boxSizing: 'border-box' }} />
-              <input type="text" value={cedulaManual} onChange={e => setCedulaManual(e.target.value)}
-                placeholder="Cédula" style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, marginBottom: 6, boxSizing: 'border-box' }} />
-              <input type="text" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)}
-                placeholder="Empresa / Motivo" style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' }} />
-            </div>
-          )}
-
-          {selected && (
-            <div style={{ padding: 10, background: '#d1fae5', borderRadius: 6, marginBottom: 12, fontSize: 12 }}>
-              ✅ {selected.nombre || selected.nombreCompleto}
-              <button onClick={() => setSelected(null)} style={{ marginLeft: 8, background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 12 }}>✕</button>
-            </div>
-          )}
-
-          {/* Edificio */}
-          <label style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 4 }}>Edificio</label>
-          <select value={edificioId} onChange={e => setEdificioId(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, marginBottom: 12, boxSizing: 'border-box' }}>
-            <option value="">Seleccione...</option>
-            {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
-          </select>
-
-          {/* Evento Curso */}
-          <label style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 4 }}>Curso / Capacitación (opcional)</label>
-          <select value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, marginBottom: 12, boxSizing: 'border-box' }}>
-            <option value="">Sin curso</option>
-            {eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre} - {ev.EdificioNombre || ''}</option>)}
-          </select>
-
-          {/* Foto optional */}
-          <label style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 4 }}>Foto (opcional)</label>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 6, border: '1px dashed #d1d5db', cursor: 'pointer', fontSize: 12 }}>
-              <Camera className="w-4 h-4" style={{ color: '#9ca3af' }} />
-              <span style={{ color: '#6b7280' }}>{foto ? foto.name : 'Subir foto'}</span>
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setFoto(e.target.files?.[0] || null)} />
-            </label>
-          </div>
-
-          <button onClick={registrarEntrada} disabled={registrando}
-            style={{ width: '100%', padding: 10, background: '#10b981', color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            {registrando ? <Loader2 className="w-4 h-4 animate-spin" /> : <DoorOpen className="w-4 h-4" />} Registrar Entrada
-          </button>
-        </div>
+    <div>
+      <div className="page-header">
+        <h1 className="page-header__title">Registro de Acceso</h1>
       </div>
 
-      {/* Right: Quick salida */}
-      <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-        <div style={{ background: '#1e40af', color: 'white', padding: '12px 16px', borderRadius: '12px 12px 0 0', fontWeight: 700, fontSize: 14 }}>
-          <LogOut className="w-4 h-4" style={{ verticalAlign: 'middle', marginRight: 6 }} /> Registrar Salida
+      <div className="registro-grid">
+        {/* Left: Entry */}
+        <div className="card">
+          <div className="card__header card__header--brand">
+            <span style={{ fontWeight: 700, fontSize: 15 }}>
+              <DoorOpen className="icon" style={{ verticalAlign: 'middle', marginRight: 6 }} /> Registrar Entrada
+            </span>
+          </div>
+          <div className="card__body">
+            {/* Tipo */}
+            <div className="form-group">
+              <label className="form-label">Tipo de persona</label>
+              <div className="tipo-grid">
+                {TIPOS.map(t => (
+                  <button key={t.value}
+                    type="button"
+                    className={`btn ${tipo === t.value ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                    onClick={() => { setTipo(t.value); setSelected(null); setResults(null); }}
+                    style={{ justifyContent: 'flex-start' }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Search */}
+            {tipo !== 'VISITANTE' && (
+              <div className="form-group">
+                <label className="form-label">Buscar persona</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={searchQ}
+                      onChange={e => setSearchQ(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && buscar()}
+                      placeholder="Buscar por nombre o carnet…"
+                    />
+                  </div>
+                  <button onClick={buscar} className="btn btn--primary btn--sm" disabled={loading}>
+                    {loading ? <Loader2 className="icon icon--sm spinner" /> : <Search className="icon icon--sm" />}
+                    Buscar
+                  </button>
+                </div>
+
+                {results && results.length > 0 && (
+                  <div className="search-results">
+                    {results.map((r: any, i) => (
+                      <button key={i} onClick={() => seleccionar(r)} className="search-result-item">
+                        <div className="search-result-avatar">{r.nombre?.charAt(0) || '?'}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{r.nombre || r.nombreCompleto}</div>
+                          <div style={{ fontSize: 11, color: 'var(--gray-500)' }}>{r.carnet || r.cedula || ''}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selected && (
+                  <div className="selected-person">
+                    <span>{selected.nombre || selected.nombreCompleto}</span>
+                    <button onClick={() => setSelected(null)} className="btn btn--ghost btn--sm" aria-label="Quitar selección">
+                      <X className="icon icon--sm" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Visitante manual */}
+            {tipo === 'VISITANTE' && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="vis-nombre" className="form-label form-label--required">Nombre completo</label>
+                  <input id="vis-nombre" type="text" className="form-control" value={nombreManual} onChange={e => setNombreManual(e.target.value)} placeholder="Nombre del visitante" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="vis-cedula" className="form-label">Cédula</label>
+                  <input id="vis-cedula" type="text" className="form-control" value={cedulaManual} onChange={e => setCedulaManual(e.target.value)} placeholder="Número de cédula" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="vis-empresa" className="form-label">Empresa / Motivo</label>
+                  <input id="vis-empresa" type="text" className="form-control" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)} placeholder="Empresa o motivo de visita" />
+                </div>
+              </>
+            )}
+
+            {/* Edificio */}
+            <div className="form-group">
+              <label htmlFor="edificio" className="form-label form-label--required">Edificio</label>
+              <select id="edificio" className="form-control" value={edificioId} onChange={e => setEdificioId(e.target.value)}>
+                <option value="">Seleccione un edificio…</option>
+                {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
+              </select>
+            </div>
+
+            {/* Curso opcional */}
+            <div className="form-group">
+              <label htmlFor="curso" className="form-label">Curso / Capacitación <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(opcional)</span></label>
+              <select id="curso" className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)}>
+                <option value="">Sin curso</option>
+                {eventos.map((ev: any) => (
+                  <option key={ev.Id || ev.id} value={ev.Id || ev.id}>
+                    {ev.CursoNombre || ev.nombre} — {ev.EdificioNombre || ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Foto */}
+            <div className="form-group">
+              <label className="form-label">Foto <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(opcional)</span></label>
+              <label className="foto-upload">
+                <Camera className="icon" style={{ color: 'var(--gray-400)' }} />
+                <span style={{ color: 'var(--gray-500)', fontSize: 13 }}>{foto ? foto.name : 'Subir foto'}</span>
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setFoto(e.target.files?.[0] || null)} />
+              </label>
+            </div>
+
+            <button
+              onClick={registrarEntrada}
+              disabled={registrando}
+              className="btn btn--primary"
+              style={{ width: '100%', padding: '12px' }}
+            >
+              {registrando ? <span className="spinner spinner--white" /> : <DoorOpen className="icon icon--sm" />}
+              {registrando ? 'Registrando…' : 'Registrar Entrada'}
+            </button>
+          </div>
         </div>
+
+        {/* Right: Exit */}
         <SalidaPanel />
       </div>
     </div>
@@ -207,7 +237,11 @@ function SalidaPanel() {
   const [search, setSearch] = useState('');
 
   const load = async () => {
-    try { const r = await api.get('/acceso/hoy'); setHoy(r.data?.filter((x: any) => !x.fechaSalida) || []); } catch {}
+    setLoading(true);
+    try {
+      const r = await api.get('/acceso/hoy');
+      setHoy(r.data?.filter((x: any) => !x.fechaSalida) || []);
+    } catch {}
     setLoading(false);
   };
 
@@ -217,29 +251,52 @@ function SalidaPanel() {
     try { await api.post(`/acceso/salida/${id}`); load(); } catch {}
   };
 
-  const filtrados = search ? hoy.filter(r => r.nombre.toUpperCase().includes(search.toUpperCase())) : hoy;
+  const filtrados = search ? hoy.filter(r => r.nombre.toLowerCase().includes(search.toLowerCase())) : hoy;
 
   return (
-    <div style={{ padding: 16 }}>
-      <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="Buscar persona dentro..." style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 13, marginBottom: 12, boxSizing: 'border-box' }} />
-      {loading ? <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>Cargando...</p> : (
-        <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-          {filtrados.map(r => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderBottom: '1px solid #f3f4f6' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{r.nombre}</div>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>{r.edificio} · {r.tipoPersona} · {new Date(r.fechaEntrada).toLocaleTimeString()}</div>
-              </div>
-              <button onClick={() => salida(r.id)}
-                style={{ background: '#1e40af', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}>
-                <LogOut className="w-3 h-3" style={{ verticalAlign: 'middle', marginRight: 2 }} /> Salida
-              </button>
-            </div>
-          ))}
-          {filtrados.length === 0 && <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>{search ? 'Sin resultados' : 'Nadie dentro del edificio'}</p>}
+    <div className="card">
+      <div className="card__header card__header--dark">
+        <span style={{ fontWeight: 700, fontSize: 15 }}>
+          <LogOut className="icon" style={{ verticalAlign: 'middle', marginRight: 6 }} /> Registrar Salida
+        </span>
+      </div>
+      <div className="card__body">
+        <div className="form-group">
+          <input
+            type="text"
+            className="form-control"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar persona dentro…"
+          />
         </div>
-      )}
+        <p style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 12 }}>
+          {hoy.length} persona(s) dentro del edificio
+        </p>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 20 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+        ) : filtrados.length === 0 ? (
+          <div className="empty-state" style={{ padding: '20px 0' }}>
+            <LogOut className="icon--lg" style={{ color: 'var(--gray-300)', margin: '0 auto 8px' }} />
+            <p style={{ fontSize: 13, color: 'var(--gray-500)' }}>{search ? 'Sin resultados' : 'No hay personas pendientes de salida'}</p>
+          </div>
+        ) : (
+          <div className="salida-list">
+            {filtrados.map(r => (
+              <div key={r.id} className="salida-item">
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{r.nombre}</div>
+                  <div style={{ fontSize: 11, color: 'var(--gray-500)' }}>{r.edificio} · {r.tipoPersona} · {new Date(r.fechaEntrada).toLocaleTimeString()}</div>
+                </div>
+                <button onClick={() => salida(r.id)} className="btn btn--dark btn--sm">
+                  <LogOut className="icon icon--sm" style={{ marginRight: 4 }} /> Salida
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
