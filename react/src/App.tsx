@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Shell from './components/Shell';
 import LoginPage from './pages/LoginPage';
+import SsoHandlerPage from './pages/SsoHandlerPage';
 import DashboardPage from './pages/DashboardPage';
 import RegistroPage from './pages/RegistroPage';
 import CatalogPage from './pages/CatalogPage';
@@ -26,6 +27,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/control-acceso/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/control-acceso/auth/sso" element={<SsoHandlerPage />} />
           <Route path="/control-acceso/" element={<ProtectedRoute><Shell><DashboardPage /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/registro" element={<ProtectedRoute><Shell><RegistroPage /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/edificios" element={<ProtectedRoute><Shell><CatalogPage tipo="edificios" /></Shell></ProtectedRoute>} />
