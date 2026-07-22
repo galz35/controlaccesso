@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Building2, Users, BookOpen, DoorOpen, LayoutDashboard, Menu } from 'lucide-react';
+import { LogOut, Building2, Users, BookOpen, DoorOpen, LayoutDashboard, Menu, KeyRound } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { label: 'Proveedores', icon: Users, to: '/control-acceso/proveedores' },
   { label: 'Instructores', icon: Users, to: '/control-acceso/instructores' },
   { label: 'Cursos', icon: BookOpen, to: '/control-acceso/cursos' },
+  { label: 'Usuarios CPF', icon: KeyRound, to: '/control-acceso/admin-cpf' },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {

@@ -5,7 +5,7 @@ GO
 -- AUTENTICACION
 -- ============================================================================
 
-CREATE OR ALTER PROCEDURE dbo.sp_Login_Empleado
+CREATE OR ALTER PROCEDURE sp_Login_Empleado
     @Carnet VARCHAR(50)
 AS
 BEGIN
@@ -23,7 +23,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_UsuarioCPF_Validar
+CREATE OR ALTER PROCEDURE sp_UsuarioCPF_Validar
     @Username VARCHAR(100)
 AS
 BEGIN
@@ -34,7 +34,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_UsuarioCPF_Registrar
+CREATE OR ALTER PROCEDURE sp_UsuarioCPF_Registrar
     @Username VARCHAR(100),
     @PasswordHash VARCHAR(500),
     @Nombre VARCHAR(250),
@@ -55,7 +55,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_UsuarioCPF_CambiarPassword
+CREATE OR ALTER PROCEDURE sp_UsuarioCPF_CambiarPassword
     @Username VARCHAR(100),
     @PasswordHash VARCHAR(500)
 AS
@@ -74,7 +74,7 @@ GO
 -- Cada catalogo tiene su propio SP porque la estructura de columnas es fija
 -- Ejemplo: Edificios
 
-CREATE OR ALTER PROCEDURE dbo.sp_Edificios_Listar
+CREATE OR ALTER PROCEDURE sp_Edificios_Listar
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -82,7 +82,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Edificios_Crear
+CREATE OR ALTER PROCEDURE sp_Edificios_Crear
     @Nombre VARCHAR(250),
     @Direccion VARCHAR(500) = NULL
 AS
@@ -94,7 +94,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Edificios_Actualizar
+CREATE OR ALTER PROCEDURE sp_Edificios_Actualizar
     @Id INT,
     @Nombre VARCHAR(250) = NULL,
     @Direccion VARCHAR(500) = NULL,
@@ -114,7 +114,7 @@ END
 GO
 
 -- Proveedores
-CREATE OR ALTER PROCEDURE dbo.sp_Proveedores_Listar
+CREATE OR ALTER PROCEDURE sp_Proveedores_Listar
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -123,7 +123,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Proveedores_Crear
+CREATE OR ALTER PROCEDURE sp_Proveedores_Crear
     @Nombre VARCHAR(250), @Cedula VARCHAR(50) = NULL, @Ruc VARCHAR(50) = NULL,
     @Telefono VARCHAR(50) = NULL, @Correo VARCHAR(250) = NULL, @Empresa VARCHAR(250) = NULL
 AS
@@ -135,7 +135,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Proveedores_Actualizar
+CREATE OR ALTER PROCEDURE sp_Proveedores_Actualizar
     @Id INT, @Nombre VARCHAR(250) = NULL, @Cedula VARCHAR(50) = NULL,
     @Ruc VARCHAR(50) = NULL, @Telefono VARCHAR(50) = NULL,
     @Correo VARCHAR(250) = NULL, @Empresa VARCHAR(250) = NULL, @Activo BIT = NULL
@@ -153,7 +153,7 @@ END
 GO
 
 -- Instructores
-CREATE OR ALTER PROCEDURE dbo.sp_Instructores_Listar
+CREATE OR ALTER PROCEDURE sp_Instructores_Listar
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -162,7 +162,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Instructores_Crear
+CREATE OR ALTER PROCEDURE sp_Instructores_Crear
     @Nombre VARCHAR(250), @Cedula VARCHAR(50) = NULL, @Telefono VARCHAR(50) = NULL,
     @Correo VARCHAR(250) = NULL, @Empresa VARCHAR(250) = NULL, @Especialidad VARCHAR(250) = NULL
 AS
@@ -174,7 +174,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Instructores_Actualizar
+CREATE OR ALTER PROCEDURE sp_Instructores_Actualizar
     @Id INT, @Nombre VARCHAR(250) = NULL, @Cedula VARCHAR(50) = NULL,
     @Telefono VARCHAR(50) = NULL, @Correo VARCHAR(250) = NULL,
     @Empresa VARCHAR(250) = NULL, @Especialidad VARCHAR(250) = NULL, @Activo BIT = NULL
@@ -192,7 +192,7 @@ END
 GO
 
 -- Cursos
-CREATE OR ALTER PROCEDURE dbo.sp_Cursos_Listar
+CREATE OR ALTER PROCEDURE sp_Cursos_Listar
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -201,7 +201,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Cursos_Crear
+CREATE OR ALTER PROCEDURE sp_Cursos_Crear
     @Nombre VARCHAR(250), @Descripcion VARCHAR(500) = NULL, @DuracionHoras INT = NULL
 AS
 BEGIN
@@ -212,7 +212,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Cursos_Actualizar
+CREATE OR ALTER PROCEDURE sp_Cursos_Actualizar
     @Id INT, @Nombre VARCHAR(250) = NULL, @Descripcion VARCHAR(500) = NULL,
     @DuracionHoras INT = NULL, @Activo BIT = NULL
 AS
@@ -230,7 +230,7 @@ GO
 -- EVENTOS DE CURSO
 -- ============================================================================
 
-CREATE OR ALTER PROCEDURE dbo.sp_EventosCurso_Listar
+CREATE OR ALTER PROCEDURE sp_EventosCurso_Listar
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -245,7 +245,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_EventosCurso_Crear
+CREATE OR ALTER PROCEDURE sp_EventosCurso_Crear
     @CursoId INT, @EdificioId INT,
     @FechaInicio DATETIME2, @FechaFin DATETIME2 = NULL,
     @Observaciones VARCHAR(500) = NULL
@@ -258,7 +258,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_EventosCurso_Actualizar
+CREATE OR ALTER PROCEDURE sp_EventosCurso_Actualizar
     @Id INT, @CursoId INT = NULL, @EdificioId INT = NULL,
     @FechaInicio DATETIME2 = NULL, @FechaFin DATETIME2 = NULL,
     @Observaciones VARCHAR(500) = NULL, @Activo BIT = NULL
@@ -281,7 +281,7 @@ GO
 -- REGISTRO DE ACCESO
 -- ============================================================================
 
-CREATE OR ALTER PROCEDURE dbo.sp_Acceso_RegistrarEntrada
+CREATE OR ALTER PROCEDURE sp_Acceso_RegistrarEntrada
     @EventoCursoId INT = NULL, @EdificioId INT,
     @TipoPersona VARCHAR(30), @PersonaId VARCHAR(50),
     @NombrePersona VARCHAR(250), @CedulaPersona VARCHAR(50) = NULL,
@@ -300,7 +300,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Acceso_RegistrarSalida
+CREATE OR ALTER PROCEDURE sp_Acceso_RegistrarSalida
     @Id INT
 AS
 BEGIN
@@ -315,7 +315,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Acceso_Hoy
+CREATE OR ALTER PROCEDURE sp_Acceso_Hoy
     @EdificioId INT = NULL
 AS
 BEGIN
@@ -329,7 +329,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Acceso_Reporte
+CREATE OR ALTER PROCEDURE sp_Acceso_Reporte
     @Pagina INT = 1, @PorPagina INT = 50,
     @EdificioId INT = NULL, @TipoPersona VARCHAR(30) = NULL,
     @Desde DATETIME2 = NULL, @Hasta DATETIME2 = NULL
@@ -362,7 +362,7 @@ GO
 -- BUSQUEDA
 -- ============================================================================
 
-CREATE OR ALTER PROCEDURE dbo.sp_Buscar_Empleado
+CREATE OR ALTER PROCEDURE sp_Buscar_Empleado
     @Query VARCHAR(100)
 AS
 BEGIN
@@ -375,7 +375,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Buscar_Proveedor
+CREATE OR ALTER PROCEDURE sp_Buscar_Proveedor
     @Query VARCHAR(100)
 AS
 BEGIN
@@ -388,7 +388,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Buscar_Instructor
+CREATE OR ALTER PROCEDURE sp_Buscar_Instructor
     @Query VARCHAR(100)
 AS
 BEGIN
@@ -401,7 +401,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Buscar_Ubicaciones
+CREATE OR ALTER PROCEDURE sp_Buscar_Ubicaciones
 AS
 BEGIN
     SET NOCOUNT ON;

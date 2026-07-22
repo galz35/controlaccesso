@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import RegistroPage from './pages/RegistroPage';
 import CatalogPage from './pages/CatalogPage';
+import AdminCpfPage from './pages/AdminCpfPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/control-acceso/proveedores" element={<ProtectedRoute><Shell><CatalogPage tipo="proveedores" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/instructores" element={<ProtectedRoute><Shell><CatalogPage tipo="instructores" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/cursos" element={<ProtectedRoute><Shell><CatalogPage tipo="cursos" /></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/admin-cpf" element={<ProtectedRoute><Shell><AdminCpfPage /></Shell></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/control-acceso/" replace />} />
         </Routes>
       </AuthProvider>

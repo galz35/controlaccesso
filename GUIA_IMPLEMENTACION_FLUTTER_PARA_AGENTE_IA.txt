@@ -1,0 +1,1453 @@
+ESPECIFICACIÓN DE IMPLEMENTACIÓN FLUTTER PARA AGENTE DE IA
+SISTEMA CONTROL DE ACCESO A EDIFICIOS
+
+Destino: DeepSeek V4 Flash, Gemini u otro agente de programación
+Fecha de corte técnico: 2026-07-22 UTC
+Proyecto analizado: /opt/apps/control-acceso
+API pública prevista: https://rhclaroni.com/control-acceso-api
+Aplicación actual de referencia: React + NestJS + SQL Server
+
+======================================================================
+0. INSTRUCCIÓN PRINCIPAL PARA EL AGENTE
+======================================================================
+
+Construir una aplicación Flutter Android-first, compatible con iOS y adaptable a
+teléfono/tablet, para operar el sistema Control de Acceso. La aplicación debe usar
+la API NestJS existente, respetar los roles admin/registrador y soportar dos métodos
+de identidad:
+
+1. EMPLEADO: SSO corporativo real.
+2. USUARIO EXTERNO CPF: usuario + contraseña.
+
+NO implementar login de empleado ingresando solo el carnet.
+NO llamar POST /auth/dev-login desde Flutter.
+NO guardar JWT ni contraseña en SharedPreferences.
+NO inventar endpoints, parámetros SSO, refresh tokens o reglas de negocio.
+NO comenzar integración final mientras los bloqueos de la sección 2 sigan abiertos.
+
+El agente debe trabajar por fases pequeñas, compilar y probar después de cada fase.
+Debe crear primero la estructura, contratos y pruebas; luego conectar la API real.
+Si un contrato no está disponible, usar una interfaz y fake local claramente marcado,
+nunca una implementación productiva ficticia.
+
+======================================================================
+1. OBJETIVO Y ALCANCE DE LA APP
+======================================================================
+
+Objetivo principal
+------------------
+
+Permitir a personal autorizado registrar y consultar entradas/salidas de empleados,
+proveedores, instructores y visitantes desde un dispositivo móvil o tablet en una
+portería, recepción o puesto de seguridad.
+
+Alcance MVP Flutter
+-------------------
+
+- Arranque seguro y restauración de sesión.
+- Login empleado por SSO.
+- Login externo CPF por usuario/contraseña.
+- Cierre de sesión y expiración controlada.
+- Dashboard de accesos del día.
+- Registro de entrada.
+- Registro rápido de salida.
+- Búsqueda de personas por tipo.
+- Selección de edificio y evento de curso.
+- Captura/subida opcional de foto cuando backend lo habilite correctamente.
+- Catálogos para admin: edificios, proveedores, instructores y cursos.
+- Reporte histórico paginado.
+- Perfil y cambio de contraseña CPF solo después de corregir el endpoint.
+- Estados loading, empty, error, offline y unauthorized diferenciados.
+
+Fuera del MVP
+-------------
+
+- Crear un backend dentro de Flutter.
+- Acceso directo desde Flutter a SQL Server.
+- Sincronización offline de entradas/salidas sin idempotencia del servidor.
+- Reconocimiento facial.
+- Apertura física de puertas.
+- Push notifications.
+- Impresión de gafetes.
+- Almacenamiento local permanente de cédulas, fotos o históricos completos.
+
+======================================================================
+2. ESTADO REAL DEL SISTEMA Y BLOQUEOS OBLIGATORIOS
+======================================================================
+
+El agente debe leer esta sección antes de generar código. El código del repositorio,
+la base y el proceso desplegado no están todavía sincronizados.
+
+Estado confirmado
+-----------------
+
+- Commit actual: 129dd2dd, "autenticacion SSO + CPF con bcrypt, SPs, login dual".
+- El código fuente contiene /auth/sso-login y /auth/cpf-login.
+- La base ControlAcceso contiene tblUsuariosCPF, actualmente con 0 usuarios.
+- La base NO contiene los procedimientos sp_* del archivo
+  database/004_create_procedures.sql; conteo observado: 0.
+- La API actualmente desplegada responde 404 a /auth/sso-login y /auth/cpf-login.
+- El proceso activo fue iniciado antes de compilar el commit nuevo.
+- El backend nuevo pasa TypeScript, pero tiene 317 problemas de lint.
+- El README.md sigue describiendo dev-login y quedó obsoleto para autenticación.
+
+BLOQUEO B-01. Migraciones incompletas
+------------------------------------
+
+Antes de reiniciar/desplegar el backend nuevo se debe:
+
+1. Tomar backup verificable.
+2. Revisar y aplicar database/004_create_procedures.sql.
+3. Confirmar que todos los SP esperados existen.
+4. Ejecutar pruebas directas de cada SP.
+5. Recién entonces reiniciar backend y hacer smoke tests.
+
+Si se reinicia antes, las operaciones migradas a SP pueden fallar masivamente.
+
+BLOQUEO B-02. Sesión CPF rota por JwtStrategy
+---------------------------------------------
+
+El token CPF incluye:
+
+  sub, username, nombre, rol, tipo, cpf=true
+
+Pero nest/src/common/jwt.strategy.ts devuelve solamente:
+
+  carnet, nombre, rol
+
+Como consecuencia, req.user.cpf, req.user.username, req.user.tipo y req.user.sub se
+pierden. Esto rompe /auth/me CPF y puede enviar UsuarioRegistra undefined al registrar
+una entrada. El backend debe preservar ambos tipos de identidad, por ejemplo:
+
+  actorId: string
+  authType: EMPLOYEE_SSO | CPF
+  carnet?: string
+  cpfUserId?: number
+  username?: string
+  nombre: string
+  rol: admin | registrador
+  tipo?: PROVEEDOR | INSTRUCTOR_EXTERNO
+
+Flutter no puede corregir este problema. Debe esperar contrato backend estable.
+
+BLOQUEO B-03. React aún no usa SSO real
+--------------------------------------
+
+La pestaña "Empleado" parece SSO, pero todavía llama /auth/dev-login con carnet. La
+rama de AuthContext que llama /auth/sso-login no está conectada a un redirect/callback
+real. Flutter NO debe copiar este comportamiento.
+
+BLOQUEO B-04. SSO móvil no tiene flujo completo definido
+-------------------------------------------------------
+
+El backend solo recibe un JWT ya obtenido:
+
+  POST /auth/sso-login { "token": "<token-del-portal>" }
+
+Faltan datos necesarios para móvil:
+
+- URL oficial de autorización del Portal/IdP.
+- Si es OIDC/OAuth2, issuer, clientId, scopes y discovery URL.
+- Redirect URI Android/iOS autorizado.
+- Flujo PKCE o código de un solo uso.
+- Logout/revocación SSO.
+- Audience e issuer que debe validar backend.
+- Forma de renovar sesión.
+
+No colocar un JWT largo en query string/deep link. La solución recomendada es
+Authorization Code + PKCE y canje backend. Si el Portal solo soporta JWT handoff,
+Seguridad debe definir un mecanismo de un solo uso y corta duración.
+
+BLOQUEO B-05. sp_Login_Empleado es inseguro
+-------------------------------------------
+
+El SP nuevo crea un usuario local para cualquier carnet recibido y ya no comprueba
+bdplaner.dbo.p_Usuarios. Mientras /auth/dev-login exista, cualquier texto puede crear
+un registrador. Se debe:
+
+- eliminar/deshabilitar dev-login en producción;
+- hacer que el flujo SSO sea la única entrada de empleados;
+- validar empleado activo y claims del IdP;
+- no autoaprovisionar permisos sin política.
+
+BLOQUEO B-06. Cambio de contraseña CPF incompleto
+------------------------------------------------
+
+- targetUser se calcula pero no se usa.
+- Debido a B-02, req.user.cpf nunca llega correctamente.
+- El endpoint permite enviar username arbitrario y siempre exige oldPassword.
+- El admin no tiene un flujo separado de reset.
+- Se lanza Error genérico en lugar de ForbiddenException.
+
+No mostrar pantalla de cambio/reset en producción hasta definir:
+
+- "cambiar mi contraseña" usando identidad del token, sin username enviado;
+- "reset administrativo" separado, auditado y con contraseña temporal/expiración;
+- política de contraseña y rate limit.
+
+BLOQUEO B-07. Fotos todavía no tienen contrato operativo completo
+-----------------------------------------------------------------
+
+El backend guarda WebP y retorna una ruta, pero Nginx reenvía la ruta al backend y
+NestJS no expone el directorio. Además faltan validaciones de archivo y privacidad.
+La UI puede preparar el selector/cámara detrás de feature flag, pero no debe depender
+de fotos hasta confirmar subida y lectura extremo a extremo.
+
+BLOQUEO B-08. Seguridad y validaciones pendientes
+-------------------------------------------------
+
+- DTOs siguen siendo any; ValidationPipe no valida contratos reales.
+- Sin rate limiting para contraseña o SSO.
+- JWT no tiene refresh endpoint.
+- CORS es abierto.
+- Secretos históricos continúan rastreados porque .gitignore no elimina archivos ya
+  versionados.
+- La cuenta SQL observada anteriormente era sa/sysadmin.
+
+Precondición de integración Flutter
+-----------------------------------
+
+No declarar integración terminada hasta que un smoke test real confirme:
+
+[ ] POST /auth/sso-login deja de responder 404.
+[ ] POST /auth/cpf-login deja de responder 404.
+[ ] Los SPs están aplicados y versionados.
+[ ] Un usuario CPF puede llamar GET /auth/me correctamente.
+[ ] Un usuario CPF puede registrar entrada y UsuarioRegistra no es null.
+[ ] Un empleado SSO válido puede llamar GET /auth/me.
+[ ] dev-login está deshabilitado en producción.
+[ ] 401, 403, 400 y 500 están diferenciados.
+
+======================================================================
+3. DECISIÓN DE AUTENTICACIÓN RECOMENDADA
+======================================================================
+
+La app debe presentar dos opciones claras:
+
+OPCIÓN A: "Soy empleado"
+------------------------
+
+- Botón único "Continuar con cuenta corporativa".
+- Abre navegador seguro del sistema/AppAuth.
+- Autentica contra el Portal/IdP.
+- Regresa mediante app link/deep link.
+- Canjea código/token con backend.
+- Guarda solamente el access token de ControlAcceso en almacenamiento seguro.
+
+No mostrar campo carnet ni contraseña corporativa dentro de Flutter. La app nunca
+debe capturar credenciales del SSO en un formulario propio.
+
+OPCIÓN B: "Soy usuario externo"
+-------------------------------
+
+- Campos username y password.
+- POST /auth/cpf-login.
+- Diseñado para PROVEEDOR o INSTRUCTOR_EXTERNO creados previamente por admin.
+- La contraseña solo vive en memoria durante el request.
+- No guardar password ni registrar payloads en logs.
+
+Si la empresa exige usuario/contraseña también para empleados
+-------------------------------------------------------------
+
+Eso NO está soportado por el backend actual. Se requiere un nuevo contrato de
+autenticación corporativa. No reutilizar tblUsuariosCPF para empleados sin decisión
+formal de Seguridad/RRHH.
+
+Abstracción Flutter obligatoria
+-------------------------------
+
+Definir un AuthRepository para que la UI no conozca HTTP:
+
+  Future<AuthSession> loginWithCpf(String username, String password)
+  Future<void> startEmployeeSso()
+  Future<AuthSession> completeEmployeeSso(Uri callbackUri)
+  Future<AuthUser> restoreAndValidateSession()
+  Future<void> logout()
+  Future<void> changeOwnPassword(...), solo cuando backend esté corregido
+
+Separar:
+
+- SsoAuthDataSource
+- CpfAuthDataSource
+- SessionStorage
+- AuthRepositoryImpl
+
+Feature flags recomendados:
+
+  enableEmployeeSso
+  enableCpfLogin
+  enablePhotoUpload
+  enableAdminCatalogs
+  enableReports
+
+Los flags deben venir de configuración de build o endpoint controlado, no estar
+dispersos en widgets.
+
+======================================================================
+4. STACK FLUTTER RECOMENDADO
+======================================================================
+
+Usar Flutter estable disponible en el entorno del agente y fijar versiones en
+pubspec.lock. No copiar números de versión sin ejecutar resolución real.
+
+Paquetes sugeridos
+------------------
+
+- flutter_riverpod: estado y dependencias.
+- go_router: navegación, redirects y deep links.
+- dio: HTTP, multipart, interceptores y timeouts.
+- flutter_secure_storage: JWT/session metadata mínima.
+- json_annotation + json_serializable: contratos JSON.
+- freezed + freezed_annotation: opcional para estados/modelos inmutables.
+- flutter_appauth: si el SSO final es OIDC/OAuth2 con PKCE.
+- app_links: si se requiere manejar app/universal links adicionales.
+- image_picker o camera: foto, detrás de feature flag.
+- intl: fechas y formato local.
+- connectivity_plus: solo para informar conectividad, no para decidir que Internet
+  funciona ni para crear cola offline automáticamente.
+- mocktail: mocks.
+- integration_test: flujos críticos.
+
+Evitar en MVP
+-------------
+
+- Service locator global sin tipos.
+- GetX mezclando rutas, HTTP y lógica en controladores.
+- SharedPreferences para tokens.
+- SQLite/Hive con datos personales si no existe necesidad aprobada.
+- Una clase ApiService gigante con todos los endpoints.
+- Modelos Map<String,dynamic> en UI.
+
+======================================================================
+5. ARQUITECTURA DE CARPETAS
+======================================================================
+
+Crear una arquitectura feature-first, pragmática:
+
+lib/
+  main.dart
+  bootstrap.dart
+
+  app/
+    app.dart
+    router.dart
+    routes.dart
+    app_providers.dart
+
+  core/
+    config/
+      app_config.dart
+      environment.dart
+      feature_flags.dart
+    network/
+      dio_provider.dart
+      auth_interceptor.dart
+      api_exception.dart
+      api_error_mapper.dart
+    storage/
+      secure_session_storage.dart
+    theme/
+      app_colors.dart
+      app_theme.dart
+      app_spacing.dart
+      app_typography.dart
+    utils/
+      date_time_formatter.dart
+      validators.dart
+    widgets/
+      app_error_view.dart
+      app_loading_view.dart
+      empty_state.dart
+      retry_button.dart
+      responsive_scaffold.dart
+
+  features/
+    auth/
+      data/
+        auth_api.dart
+        auth_repository_impl.dart
+        auth_dto.dart
+      domain/
+        auth_repository.dart
+        auth_session.dart
+        auth_user.dart
+        auth_type.dart
+      presentation/
+        auth_controller.dart
+        splash_page.dart
+        login_page.dart
+        cpf_login_form.dart
+        sso_login_panel.dart
+
+    dashboard/
+      data/
+      domain/
+      presentation/
+
+    access/
+      data/
+        access_api.dart
+        access_repository_impl.dart
+      domain/
+        access_record.dart
+        person_type.dart
+        register_entry_command.dart
+      presentation/
+        access_controller.dart
+        today_access_page.dart
+        register_entry_page.dart
+        register_exit_page.dart
+        widgets/
+
+    people_search/
+      data/
+      domain/
+      presentation/
+
+    buildings/
+    course_events/
+    catalogs/
+    reports/
+    profile/
+
+test/
+integration_test/
+
+Reglas de dependencia
+---------------------
+
+- presentation depende de domain.
+- data implementa interfaces de domain.
+- domain no importa Dio, Flutter widgets ni almacenamiento.
+- Widgets no llaman Dio directamente.
+- Repositories no muestran dialogs/snackbars.
+- Conversión PascalCase/camelCase ocurre en DTO/mappers, no en widgets.
+
+======================================================================
+6. CONFIGURACIÓN DE AMBIENTES
+======================================================================
+
+Definir como mínimo:
+
+  dev
+  staging
+  production
+
+AppConfig debe incluir:
+
+  apiBaseUrl
+  connectTimeout
+  receiveTimeout
+  environmentName
+  ssoIssuer/discoveryUrl/clientId/redirectUri, cuando se definan
+  featureFlags
+
+Producción prevista:
+
+  https://rhclaroni.com/control-acceso-api
+
+No concatenar rutas manualmente por toda la app. Centralizar paths.
+No incluir JWT_SECRET, SSO_SECRET ni contraseña de servicio en Flutter.
+Los secretos de firma pertenecen exclusivamente al backend.
+
+======================================================================
+7. MODELOS DE DOMINIO MÍNIMOS
+======================================================================
+
+AuthType
+--------
+
+  employeeSso
+  cpf
+
+UserRole
+--------
+
+  admin
+  registrador
+  unknown
+
+AuthUser
+--------
+
+  String actorId
+  String nombre
+  UserRole rol
+  AuthType authType
+  String? carnet
+  int? cpfUserId
+  String? username
+  String? tipoExterno
+
+AuthSession
+-----------
+
+  String accessToken
+  AuthUser user
+  DateTime? expiresAt
+
+PersonType
+----------
+
+Valores exactos del backend:
+
+  EMPLEADO
+  PROVEEDOR
+  VISITANTE
+  INSTRUCTOR_EXTERNO
+  INSTRUCTOR_INTERNO
+
+No enviar etiquetas de UI como valores de API.
+
+AccessRecord
+------------
+
+  int id
+  PersonType tipoPersona
+  String personaId
+  String nombre
+  String? cedula
+  String? empresa
+  String edificio
+  String? fotoUrl
+  DateTime fechaEntrada
+  DateTime? fechaSalida
+  String? usuarioRegistra
+
+Building
+--------
+
+  int id
+  String nombre
+  String? direccion
+  bool activo
+
+Course
+------
+
+  int id
+  String nombre
+  String? descripcion
+  int? duracionHoras
+  bool activo
+
+CourseEvent
+-----------
+
+  int id
+  int cursoId
+  String cursoNombre
+  int edificioId
+  String edificioNombre
+  DateTime fechaInicio
+  DateTime? fechaFin
+  String? observaciones
+  bool activo
+
+SearchPerson
+------------
+
+Modelo unión solo para presentación, conservando origen:
+
+  String id
+  String nombre
+  String? cedula
+  String? empresa
+  String? ubicacion
+  String sourceType
+
+No persistir resultados de búsqueda con PII más tiempo del necesario.
+
+======================================================================
+8. CONTRATOS DE AUTENTICACIÓN
+======================================================================
+
+Todas las rutas se expresan relativas a apiBaseUrl.
+
+8.1 Login SSO empleado
+----------------------
+
+Contrato backend actual, todavía no desplegado:
+
+  POST /auth/sso-login
+  Content-Type: application/json
+
+Request:
+
+  { "token": "JWT_SSO_DEL_PORTAL" }
+
+Response esperada:
+
+  {
+    "access_token": "JWT_CONTROL_ACCESO",
+    "user": {
+      "carnet": "500708",
+      "nombre": "NOMBRE EMPLEADO",
+      "rol": "admin"
+    }
+  }
+
+Advertencia: este endpoint no explica cómo Flutter obtiene el token Portal. Implementar
+la adquisición únicamente cuando el equipo entregue el contrato SSO de B-04.
+
+8.2 Login CPF externo
+---------------------
+
+  POST /auth/cpf-login
+  Content-Type: application/json
+
+Request:
+
+  {
+    "username": "usuario",
+    "password": "contraseña"
+  }
+
+Response esperada:
+
+  {
+    "access_token": "JWT_CONTROL_ACCESO",
+    "user": {
+      "id": 1,
+      "username": "usuario",
+      "nombre": "NOMBRE EXTERNO",
+      "rol": "registrador",
+      "tipo": "PROVEEDOR"
+    }
+  }
+
+Errores esperados:
+
+  400 payload inválido
+  401 usuario/contraseña incorrectos
+  429 demasiados intentos, cuando backend lo implemente
+  500/503 servicio no disponible
+
+No revelar si username existe.
+
+8.3 Validar/restaurar sesión
+----------------------------
+
+  GET /auth/me
+  Authorization: Bearer <access_token>
+
+Flutter debe llamar este endpoint al arrancar si existe token. No confiar solo en
+el usuario guardado localmente.
+
+Comportamiento:
+
+- 200: actualizar AuthUser y entrar.
+- 401: borrar sesión y mostrar login.
+- timeout/sin red: mostrar pantalla de error con reintentar; no asumir logout
+  automáticamente si la política permite conservar token.
+- respuesta null o incompleta: tratar como sesión inválida.
+
+8.4 Registro CPF administrativo
+--------------------------------
+
+  POST /auth/cpf-register
+  Authorization: Bearer <admin-token>
+
+Request:
+
+  {
+    "username": "externo1",
+    "password": "temporal-segura",
+    "nombre": "NOMBRE",
+    "tipo": "PROVEEDOR",
+    "referenciaId": 10
+  }
+
+No incluir en MVP hasta que exista flujo seguro de contraseña temporal, expiración y
+obligación de cambio inicial. Si se implementa, solo mostrar a admin.
+
+8.5 Cambio de contraseña CPF
+----------------------------
+
+Contrato actual:
+
+  PUT /auth/cpf-password
+
+No consumirlo hasta resolver B-02 y B-06.
+
+8.6 Dev login
+-------------
+
+  POST /auth/dev-login
+
+PROHIBIDO en Flutter. No crear método, botón, fallback ni flag de producción que lo
+habilite. Si se requiere para pruebas, usar fake repository en build dev, sin llamar
+al endpoint remoto.
+
+======================================================================
+9. SESIÓN, JWT Y SEGURIDAD EN FLUTTER
+======================================================================
+
+Almacenamiento
+--------------
+
+- Guardar access token en flutter_secure_storage.
+- Guardar solo metadata mínima de usuario si mejora el splash.
+- Nunca guardar password, token SSO de origen ni respuesta completa de búsqueda.
+- Borrar secure storage al logout, 401 definitivo o sesión inválida.
+
+Interceptor Dio
+---------------
+
+- Añadir Authorization: Bearer únicamente a rutas protegidas.
+- No añadir token a login.
+- Un solo manejador de 401 para evitar múltiples redirecciones simultáneas.
+- No reintentar automáticamente POST de entrada/salida.
+- Reintentar GET solo con política limitada y backoff.
+- Sanitizar logs: nunca Authorization, password, cédula, foto o payload SSO.
+
+Expiración
+----------
+
+El backend no expone refresh token. Por tanto:
+
+- leer exp del JWT solo para UX, no como validación de seguridad;
+- si exp pasó, borrar sesión y solicitar login;
+- si API retorna 401, volver a login;
+- no inventar refresh contra /auth/sso-login;
+- cuando backend añada refresh, implementar single-flight para evitar carreras.
+
+SSO seguro
+----------
+
+- Preferir navegador del sistema, no WebView embebido.
+- Usar PKCE, state y nonce si OIDC.
+- Validar scheme/host/path del callback.
+- No aceptar token desde cualquier deep link.
+- Usar universal/app links verificados en producción.
+- No loguear callback URI completo.
+
+======================================================================
+10. CLIENTE HTTP Y MANEJO DE ERRORES
+======================================================================
+
+Timeouts iniciales sugeridos
+----------------------------
+
+  connect: 10 segundos
+  receive GET: 20 segundos
+  upload foto: 30 segundos
+
+Mapear DioException a ApiFailure tipado:
+
+  validation
+  unauthorized
+  forbidden
+  notFound
+  conflict
+  rateLimited
+  networkUnavailable
+  timeout
+  server
+  unknown
+
+Mensajes UI
+-----------
+
+- 400: mostrar validación del servidor de forma segura.
+- 401 en login: "Credenciales incorrectas".
+- 401 autenticado: "Tu sesión expiró" y volver a login.
+- 403: "No tienes permiso para esta acción".
+- 404 salida: "El registro ya fue cerrado o no existe".
+- 409 duplicado futuro: ofrecer refrescar, no repetir silenciosamente.
+- 429: mostrar espera y bloquear temporalmente botón.
+- 500/503: "Servicio no disponible. Intenta nuevamente".
+- sin red: mantener formulario y permitir reintentar manualmente.
+
+No mostrar stack traces, nombres de SP, errores SQL ni HTML de Nginx.
+
+======================================================================
+11. ENDPOINTS FUNCIONALES A ENCAPSULAR
+======================================================================
+
+Autenticación
+-------------
+
+POST /auth/sso-login
+POST /auth/cpf-login
+GET  /auth/me
+POST /auth/cpf-register        admin, posponer
+PUT  /auth/cpf-password        posponer
+
+Búsqueda
+--------
+
+GET /search/empleado?q=<texto>
+GET /search/proveedor?q=<texto>
+GET /search/instructor?q=<texto>
+GET /search/ubicaciones
+
+Aplicar debounce 350-500 ms y mínimo 2-3 caracteres en Flutter, aunque backend aún
+no lo imponga. Cancelar request anterior cuando cambia la consulta.
+
+Catálogos
+---------
+
+GET  /edificios
+POST /edificios                admin
+PUT  /edificios/:id            admin
+
+GET  /proveedores
+POST /proveedores              admin
+PUT  /proveedores/:id          admin
+
+GET  /instructores
+POST /instructores             admin
+PUT  /instructores/:id         admin
+
+GET  /cursos
+POST /cursos                   admin
+PUT  /cursos/:id               admin
+
+Eventos
+-------
+
+GET  /eventos-curso
+POST /eventos-curso            admin
+PUT  /eventos-curso/:id        admin
+
+Acceso
+------
+
+POST /acceso/entrada           multipart
+POST /acceso/salida/:id
+GET  /acceso/hoy?edificioId=<id>
+GET  /acceso/reporte?edificioId=&tipoPersona=&desde=&hasta=&pagina=&porPagina=
+
+======================================================================
+12. CONTRATO DE REGISTRO DE ENTRADA
+======================================================================
+
+  POST /acceso/entrada
+  Authorization: Bearer <token>
+  Content-Type: multipart/form-data
+
+Campos exactos:
+
+  edificioId       requerido, int como string multipart
+  eventoCursoId    opcional
+  tipoPersona      requerido, enum exacto
+  personaId        requerido
+  nombrePersona    requerido
+  cedulaPersona    opcional
+  empresaPersona   opcional
+  foto             opcional, archivo
+
+Command de dominio recomendado:
+
+  RegisterEntryCommand(
+    buildingId,
+    eventId,
+    personType,
+    personId,
+    personName,
+    documentId,
+    company,
+    photoPath,
+  )
+
+Validaciones Flutter mínimas
+----------------------------
+
+- Edificio obligatorio.
+- Tipo obligatorio.
+- Persona seleccionada para empleado/proveedor/instructores.
+- Visitante: nombre obligatorio; documento según política aún por confirmar.
+- Evento, si existe, debe coincidir visualmente con edificio y fecha.
+- Bloquear botón durante envío.
+- Después de éxito, no reenviar al volver atrás.
+
+Advertencia
+-----------
+
+Validar en Flutter mejora UX, pero el backend debe repetir todas las validaciones.
+No considerar seguro un campo porque la UI lo limita.
+
+Respuesta actual del SP nuevo
+-----------------------------
+
+Probablemente usa PascalCase parcialmente:
+
+  Id
+  TipoPersona
+  PersonaId
+  Nombre
+  FechaEntrada
+  FotoUrl
+  EdificioId
+
+El DTO debe tolerar temporalmente PascalCase/camelCase mediante claves alternativas,
+pero el objetivo backend debe ser contrato JSON único camelCase con OpenAPI.
+
+======================================================================
+13. FLUJO GENERAL DE NAVEGACIÓN
+======================================================================
+
+Arranque:
+
+  Splash
+    -> no hay token -> Login
+    -> token presente -> GET /auth/me
+       -> 200 -> Home
+       -> 401 -> limpiar -> Login
+       -> red caída -> Error de conexión + Reintentar
+
+Login:
+
+  Elegir identidad
+    -> Empleado -> SSO corporativo -> callback -> sesión -> Home
+    -> Externo  -> usuario/contraseña -> sesión -> Home
+
+Home:
+
+  Dashboard
+    -> Registrar entrada
+    -> Registrar salida
+    -> Accesos de hoy
+    -> Reportes
+    -> Administración, solo admin
+    -> Perfil / cerrar sesión
+
+Navegación por dispositivo
+--------------------------
+
+Teléfono:
+
+- NavigationBar inferior con máximo 4 destinos:
+  Inicio, Entrada, Salida, Más.
+- "Más" contiene Reportes, Catálogos, Perfil y Logout según rol.
+
+Tablet:
+
+- NavigationRail o drawer persistente.
+- Contenido maestro/detalle cuando sea útil.
+- No aumentar simplemente espacios; aprovechar ancho para filtros + resultados.
+
+Guards de ruta
+--------------
+
+- Sin sesión: solo login/callback.
+- registrador: inicio, entrada, salida, hoy, reporte permitido por API.
+- admin: además catálogos y usuarios CPF cuando se habiliten.
+- unknown role: pantalla sin permisos y logout.
+
+La UI oculta acciones no permitidas, pero backend sigue siendo autoridad.
+
+======================================================================
+14. DISEÑO VISUAL
+======================================================================
+
+Base visual tomada del sistema React
+------------------------------------
+
+  primary red:       #DA121A
+  dark/navigation:   #1E1E1E
+  background:        #F3F4F6
+  success:           #10B981
+  info/exit:         #1E40AF
+  warning:           #F59E0B
+  error:             #DC2626
+  text primary:      #1F2937
+  text secondary:    #6B7280
+  border:            #E5E7EB
+
+Usar Material 3 y ThemeData central. No copiar estilos inline de React.
+
+Principios
+----------
+
+- Operación rápida con una mano.
+- Botones primarios de 48-56 dp de alto.
+- Objetivos táctiles mínimos de 48 dp.
+- Contraste suficiente y no depender solo del color.
+- Texto escalable; evitar tamaños menores de 12 sp para datos importantes.
+- Confirmaciones claras para operaciones irreversibles.
+- Cédula/foto parcialmente ocultas cuando no sean necesarias.
+- Loading skeleton o progress, no pantalla congelada.
+
+Componentes reutilizables
+-------------------------
+
+- AppPageHeader
+- StatCard
+- PersonTypeSelector
+- PersonSearchField
+- SelectedPersonCard
+- BuildingDropdown
+- CourseEventDropdown
+- AccessStatusChip
+- AccessRecordTile
+- ConfirmActionSheet
+- AsyncValueView
+- EmptyState
+- ErrorState
+- PrimaryLoadingButton
+
+======================================================================
+15. ESPECIFICACIÓN DE PANTALLAS
+======================================================================
+
+15.1 Splash / Session Bootstrap
+-------------------------------
+
+Contenido:
+
+- Logo/ícono simple de acceso.
+- Indicador discreto.
+- Sin botones salvo que validación tarde/falle.
+
+Estados:
+
+- checkingSecureStorage
+- validatingSession
+- connectionError
+- unauthenticated
+- authenticated
+
+No mostrar Home antes de validar /auth/me.
+
+15.2 Login
+----------
+
+Cabecera:
+
+  Control Acceso
+  "Registro seguro de entrada a edificios"
+
+Selector segmentado:
+
+  Empleado | Usuario externo
+
+Empleado:
+
+- Explicación corta.
+- Botón "Continuar con cuenta corporativa".
+- Sin campo carnet.
+- Estado "Abriendo inicio de sesión seguro...".
+
+Externo:
+
+- Username.
+- Password con mostrar/ocultar.
+- Botón Ingresar.
+- Enter/submit desde teclado.
+- Autocomplete apropiado sin guardar password en logs.
+
+Errores no deben mover bruscamente el layout.
+
+15.3 Dashboard
+--------------
+
+Encabezado:
+
+- saludo + nombre;
+- edificio actual si se define scope;
+- refresh y estado de última actualización.
+
+KPIs:
+
+- Entradas hoy.
+- Salidas hoy.
+- Personas dentro.
+
+Acciones grandes:
+
+- Registrar entrada, verde.
+- Registrar salida, azul.
+
+Lista reciente:
+
+- tipo, nombre, edificio, hora y estado Dentro/Salió.
+- pull-to-refresh.
+- actualización cada 30-60 s solo mientras pantalla está visible, hasta disponer de
+  tiempo real.
+
+15.4 Registrar entrada
+----------------------
+
+Usar formulario progresivo en una sola pantalla, no wizard largo. Una portería debe
+registrar con pocos toques.
+
+Orden:
+
+1. Selector de tipo de persona.
+2. Búsqueda o campos de visitante.
+3. Tarjeta de persona seleccionada.
+4. Edificio; preseleccionar solo si backend asigna scope al operador.
+5. Evento de curso opcional filtrado por edificio y fecha.
+6. Foto opcional detrás de feature flag.
+7. Resumen compacto.
+8. Botón fijo "Registrar entrada".
+
+Por tipo:
+
+- EMPLEADO/INSTRUCTOR_INTERNO: /search/empleado.
+- PROVEEDOR: /search/proveedor.
+- INSTRUCTOR_EXTERNO: /search/instructor.
+- VISITANTE: nombre, cédula/documento, empresa/motivo según regla aprobada.
+
+Después de éxito:
+
+- mostrar confirmación con nombre, edificio y hora;
+- limpiar persona/evento/foto;
+- mantener edificio solo si puesto fijo y usuario lo desea;
+- ofrecer "Registrar otra" o "Ir al inicio".
+
+15.5 Registrar salida
+---------------------
+
+- Cargar /acceso/hoy.
+- Filtrar fechaSalida == null.
+- Filtro por edificio y búsqueda local por nombre/documento en resultados cargados.
+- Mostrar hora de entrada y tiempo dentro.
+- Tap abre bottom sheet de confirmación.
+- POST /acceso/salida/:id una sola vez.
+- En éxito retirar elemento y actualizar dashboard.
+- En 404 refrescar y explicar que otro puesto ya registró la salida.
+
+15.6 Accesos de hoy
+-------------------
+
+- Filtro edificio.
+- Chips Todos / Dentro / Salieron.
+- Lista ordenada por entrada descendente.
+- Detalle con PII mínima.
+- Pull-to-refresh y estado vacío real.
+
+15.7 Reportes
+-------------
+
+- Desde/hasta.
+- Edificio.
+- Tipo de persona.
+- Paginación/infinite scroll controlado.
+- Indicador total.
+
+Advertencia actual: "hasta" se interpreta como instante de medianoche si se envía
+solo fecha. Hasta que backend implemente rango exclusivo, Flutter puede enviar fin
+del día local cuidadosamente, pero debe preferirse corregir el contrato backend.
+
+15.8 Catálogos admin
+--------------------
+
+- Lista + búsqueda.
+- FAB Agregar.
+- Formulario Crear/Editar.
+- Confirmar desactivación.
+- Ocultar completamente a registrador.
+- Validar campos y mostrar conflictos/duplicados.
+
+Separar cada catálogo en configuración tipada; no usar Map dinámico para requests.
+
+15.9 Perfil
+-----------
+
+- Nombre, tipo de autenticación, rol e identificador no sensible.
+- Cerrar sesión.
+- Cambiar contraseña solo para CPF y cuando B-06 esté resuelto.
+- Empleado SSO no cambia contraseña en esta app.
+
+======================================================================
+16. ESTADO Y SINCRONIZACIÓN
+======================================================================
+
+Riverpod recomendado
+--------------------
+
+- authControllerProvider: estado global de sesión.
+- dioProvider observa token/session de forma segura.
+- todayAccessProvider.family(buildingId).
+- buildingsProvider.
+- courseEventsProvider.
+- personSearchProvider con parámetros type/query y debounce.
+- registerEntryControllerProvider.
+- registerExitControllerProvider.
+- reportProvider con filtros/página.
+
+Invalidaciones después de mutaciones
+------------------------------------
+
+Entrada exitosa:
+
+- invalidar accesos de hoy;
+- invalidar KPIs/dashboard;
+- no invalidar todos los catálogos.
+
+Salida exitosa:
+
+- actualizar optimistamente solo después de 200 o usar invalidación inmediata;
+- invalidar accesos de hoy y KPIs.
+
+No mantener dos fuentes de verdad independientes para la misma lista.
+
+Offline
+-------
+
+MVP: lectura de último estado solo si privacidad lo permite; mutaciones deshabilitadas
+sin red. No crear cola de entradas/salidas porque backend no tiene idempotency key y
+podría duplicar registros al reconectar.
+
+======================================================================
+17. FECHAS Y ZONA HORARIA
+======================================================================
+
+- Parsear respuestas ISO a DateTime.
+- Mantener instantes internos en UTC cuando el backend lo permita.
+- Presentar en zona America/Managua o zona oficial confirmada.
+- No llamar toLocal() a ciegas si servidor envía fecha SQL sin offset.
+- Confirmar contrato de timezone con backend antes de pruebas finales.
+- Mostrar hora en formato local consistente.
+- Para duración "dentro", calcular respecto a reloj actual y actualizar cada minuto,
+  no cada frame.
+
+======================================================================
+18. FOTOS Y PRIVACIDAD
+======================================================================
+
+Implementar solo tras resolver B-07.
+
+Flujo UI propuesto:
+
+- Elegir Cámara o Galería según política.
+- Solicitar permiso en contexto, no al iniciar app.
+- Mostrar preview y opción eliminar.
+- Comprimir/redimensionar en dispositivo sin destruir orientación.
+- Backend vuelve a validar y transformar.
+- No guardar foto en galería pública por defecto.
+- Limpiar temporal después de éxito/cancelación.
+
+No mostrar foto completa en listas. Usar thumbnail autorizado y placeholder.
+Definir consentimiento, retención y acceso antes de producción.
+
+======================================================================
+19. ACCESIBILIDAD Y RESPONSIVE
+======================================================================
+
+- Semantics en iconos/botones.
+- Labels asociados a todos los campos.
+- Orden de foco lógico.
+- Soporte teclado en tablet/web si se compila.
+- Contraste AA.
+- Escala de texto hasta al menos 200% sin recortes críticos.
+- No fijar anchos en píxeles.
+- SafeArea y teclado sin ocultar botón.
+- Pruebas en 360x640, teléfono grande y tablet 7-10 pulgadas.
+- Estados no dependen solo de rojo/verde; incluir texto/ícono.
+
+======================================================================
+20. PRUEBAS OBLIGATORIAS
+======================================================================
+
+Unitarias
+---------
+
+- Mapeo auth empleado y CPF.
+- Decodificación tolerante PascalCase/camelCase.
+- ApiErrorMapper.
+- Validadores de entrada.
+- AuthController restore/401/logout.
+- PersonType -> endpoint correcto.
+- Paginación de reporte.
+
+Widgets
+-------
+
+- Login cambia Empleado/Externo.
+- Password ocultar/mostrar.
+- Botón bloqueado mientras envía.
+- Rutas ocultas por rol.
+- Formulario visitante y persona seleccionada.
+- Estados loading/error/empty.
+- Confirmación de salida.
+
+Integración
+-----------
+
+- Inicio limpio -> login CPF -> dashboard.
+- Token almacenado -> /me -> dashboard.
+- 401 -> limpieza -> login.
+- SSO callback válido e inválido, cuando exista contrato.
+- Buscar empleado -> seleccionar -> registrar entrada.
+- Registrar salida y refrescar KPIs.
+- Admin crea/edita catálogo.
+- Registrador no accede a catálogo admin.
+- Timeout conserva formulario y permite reintento manual.
+
+Seguridad
+---------
+
+- Logs no contienen Authorization/password/JWT/cédula.
+- Token no aparece en SharedPreferences.
+- Deep link no acepta host/path no autorizado.
+- Captura de errores no envía PII a telemetría.
+- Build production no incluye dev-login ni fake repositories.
+
+======================================================================
+21. PLAN DE IMPLEMENTACIÓN PARA EL AGENTE
+======================================================================
+
+FASE F0. Verificación previa
+---------------------------
+
+1. Leer este TXT completo.
+2. Leer API actual y confirmar si bloqueos cambiaron.
+3. Ejecutar smoke tests de sección 2.
+4. Documentar contratos SSO entregados por el equipo.
+5. No modificar backend salvo autorización explícita.
+
+Salida: matriz "disponible / bloqueado / fake permitido".
+
+FASE F1. Scaffold
+-----------------
+
+1. Crear proyecto Flutter con applicationId/bundleId acordado.
+2. Configurar flavors dev/staging/prod.
+3. Añadir Riverpod, GoRouter, Dio y secure storage.
+4. Crear theme Material 3 y estructura de carpetas.
+5. CI mínimo: format, analyze, test, build debug.
+
+Salida: app vacía compila Android y tests pasan.
+
+FASE F2. Sesión y autenticación
+------------------------------
+
+1. Modelos AuthUser/AuthSession/AuthType.
+2. SecureSessionStorage.
+3. Dio + interceptor.
+4. AuthRepository y fake para desarrollo.
+5. Splash + /auth/me.
+6. Login CPF real cuando endpoint esté activo.
+7. SSO real solo con contrato B-04.
+8. Guards de rutas y logout.
+
+Salida: flujo auth probado sin dev-login.
+
+FASE F3. Datos base y dashboard
+-------------------------------
+
+1. Building/Event/AccessRecord DTOs.
+2. GET edificios, eventos y accesos de hoy.
+3. Dashboard KPIs y lista reciente.
+4. Refresh y errores.
+
+FASE F4. Entrada y búsqueda
+---------------------------
+
+1. PersonType y search repositories.
+2. Debounce/cancelación.
+3. Formulario progresivo.
+4. Multipart sin foto primero.
+5. Confirmación e invalidaciones.
+6. Foto después de B-07.
+
+FASE F5. Salida
+---------------
+
+1. Lista dentro.
+2. Búsqueda/filtro.
+3. Confirmación.
+4. Manejo de carrera/404.
+5. Actualización dashboard.
+
+FASE F6. Admin y reportes
+-------------------------
+
+1. Permisos UI.
+2. Catálogos tipados.
+3. Reportes paginados.
+4. Eventos de curso.
+5. CPF admin solo cuando su ciclo de contraseña esté definido.
+
+FASE F7. Calidad y entrega
+--------------------------
+
+1. Unit/widget/integration tests.
+2. Accesibilidad y responsive.
+3. Pruebas en dispositivo real/red lenta.
+4. Build release firmado por pipeline seguro.
+5. Manual de instalación, configuración, soporte y rollback.
+
+======================================================================
+22. DEFINICIÓN DE TERMINADO
+======================================================================
+
+La versión Flutter se considera terminada solo si:
+
+[ ] flutter analyze sin errores.
+[ ] flutter test completamente verde.
+[ ] Builds Android dev y production exitosos.
+[ ] iOS compila en entorno macOS autorizado o queda dependencia documentada.
+[ ] No existe referencia a /auth/dev-login en lib/ production.
+[ ] SSO usa contrato real y callback validado.
+[ ] CPF login, /me y registro de acceso funcionan con identidad correcta.
+[ ] JWT solo está en almacenamiento seguro.
+[ ] 401/403/404/429/500/sin red tienen UX diferenciada.
+[ ] Admin/registrador ven únicamente acciones permitidas.
+[ ] Entrada/salida no se duplican por doble toque.
+[ ] Datos PascalCase/camelCase están encapsulados en DTOs.
+[ ] Pantallas funcionan en teléfono pequeño y tablet.
+[ ] Logs y telemetría no exponen PII/secrets.
+[ ] Pruebas de integración cubren los flujos críticos.
+[ ] API/DB desplegadas coinciden con contratos documentados.
+
+======================================================================
+23. ERRORES QUE EL AGENTE DEBE EVITAR
+======================================================================
+
+- Copiar AuthContext React literalmente.
+- Llamar dev-login porque "es más fácil".
+- Mostrar formulario de carnet como SSO.
+- Construir WebView que capture usuario/contraseña corporativos.
+- Guardar password para autologin.
+- Crear un singleton mutable con token global sin ciclo de vida.
+- Reintentar POST de entrada automáticamente.
+- Implementar offline queue sin idempotencia.
+- Usar dynamic/Map en toda la aplicación.
+- Mezclar PascalCase/camelCase en widgets.
+- Confiar en rol guardado sin /auth/me.
+- Mostrar catálogos admin a registrador.
+- Dar por implementadas fotos solo porque upload devuelve una ruta.
+- Reiniciar backend nuevo antes de aplicar/probar SPs.
+- Declarar terminado un endpoint que responde 404 en producción.
+- Cambiar reglas de negocio para hacer pasar una prueba.
+
+======================================================================
+24. PROMPT CORTO REUTILIZABLE PARA DEEPSEEK/GEMINI
+======================================================================
+
+"Lee completamente GUIA_IMPLEMENTACION_FLUTTER_PARA_AGENTE_IA.txt antes de actuar.
+Construye la aplicación Flutter por las fases F0-F7. Usa arquitectura feature-first,
+Riverpod, GoRouter, Dio y flutter_secure_storage. Empleado debe autenticarse por SSO
+real y externo CPF por usuario/contraseña. Está prohibido consumir /auth/dev-login.
+No inventes el flujo SSO: si faltan issuer, clientId, redirect URI o PKCE, deja la
+interfaz y fake solo en dev, reporta el bloqueo y continúa con trabajo no bloqueado.
+Verifica que SPs y endpoints estén desplegados antes de integrar. Compila, analiza y
+prueba después de cada fase. No hardcodees secretos ni guardes PII innecesaria. Toda
+decisión o desviación debe quedar documentada con evidencia." 
+
+======================================================================
+25. PUNTOS CLAVE PARA RECORDAR
+======================================================================
+
+1. El código nuevo existe, pero no está desplegado completamente.
+2. La tabla CPF existe; los SPs no estaban aplicados en la fecha de corte.
+3. Los endpoints CPF/SSO respondían 404 en producción.
+4. JwtStrategy debe corregirse antes de usar CPF en operaciones reales.
+5. React "Empleado" sigue siendo dev-login; no copiarlo.
+6. SSO móvil necesita contrato IdP/Portal y PKCE/callback.
+7. Empleado = SSO; externo CPF = usuario/contraseña.
+8. JWT en secure storage; contraseña nunca persistida.
+9. Flutter consume API; jamás SQL Server directo.
+10. Primero seguridad/contrato, después pantallas y fotos.
+11. Entrada/salida no deben reintentarse automáticamente.
+12. La UI móvil debe optimizar pocos toques y operación en tablet/portería.
+13. Backend sigue siendo responsable de validación, permisos e integridad.
+14. No habilitar offline mutaciones sin idempotencia.
+15. Una app bonita no compensa autenticación o despliegue incorrectos.
+
+FIN DE LA ESPECIFICACIÓN

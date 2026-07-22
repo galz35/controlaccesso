@@ -18,6 +18,7 @@ const cursos_module_1 = require("./cursos/cursos.module");
 const eventos_curso_module_1 = require("./eventos-curso/eventos-curso.module");
 const acceso_module_1 = require("./acceso/acceso.module");
 const search_module_1 = require("./search/search.module");
+const admin_module_1 = require("./admin/admin.module");
 const app_controller_1 = require("./app.controller");
 let AppModule = class AppModule {
 };
@@ -35,6 +36,7 @@ exports.AppModule = AppModule = __decorate([
             eventos_curso_module_1.EventosCursoModule,
             acceso_module_1.AccesoModule,
             search_module_1.SearchModule,
+            admin_module_1.AdminModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [],
