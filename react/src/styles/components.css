@@ -125,9 +125,10 @@
 
 /* === EMPTY STATE === */
 .empty-state { text-align: center; padding: var(--space-10) var(--space-6); }
+.empty-state--compact { padding: var(--space-5) 0; }
 .empty-state__icon { margin: 0 auto var(--space-2); color: var(--gray-300); }
 .empty-state__title { font-weight: 600; font-size: 15px; color: var(--gray-600); margin-bottom: var(--space-1); }
-.empty-state__desc { font-size: 13px; color: var(--gray-500); }
+.empty-state__desc { font-size: 13px; color: var(--gray-500); margin-bottom: var(--space-3); }
 
 /* === REGISTRO PAGE === */
 .registro-grid { display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-5); align-items: start; }
@@ -154,6 +155,26 @@
 
 /* === CATALOG / ADMIN === */
 .catalog-empty td { text-align: center; padding: var(--space-10); color: var(--gray-500); }
+.catalog-empty--text { text-align: center; padding: var(--space-10); color: var(--gray-500); }
+
+/* === UTILITY === */
+.flex { display: flex; }
+.flex--1 { flex: 1; min-width: 0; }
+.flex--center { align-items: center; }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mt-3 { margin-top: var(--space-3); }
+.text-center { text-align: center; }
+.text-muted { color: var(--gray-500); }
+.text-sm { font-size: 13px; }
+.text-xs { font-size: 11px; }
+.font-bold { font-weight: 600; }
+.block { display: block; }
+.inline { display: inline; }
+.v-middle { vertical-align: middle; }
+.m-auto { margin: 0 auto; }
+.mx-auto { margin-left: auto; margin-right: auto; }
 
 /* === RESPONSIVE === */
 @media (max-width: 1023px) { .registro-grid { grid-template-columns: 1fr; } }
