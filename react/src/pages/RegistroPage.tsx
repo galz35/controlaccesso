@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
-import { Search, DoorOpen, LogOut, Camera, X, Loader2 } from 'lucide-react';
+import { Search, DoorOpen, LogOut, Camera, X, Loader2, GraduationCap } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 
 const TIPOS = [
@@ -21,6 +21,7 @@ export default function RegistroPage() {
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [edificioId, setEdificioId] = useState('');
+  const [motivo, setMotivo] = useState<'general' | 'capacitacion' | null>(null);
   const [eventoCursoId, setEventoCursoId] = useState('');
   const [nombreManual, setNombreManual] = useState('');
   const [cedulaManual, setCedulaManual] = useState('');
@@ -30,8 +31,18 @@ export default function RegistroPage() {
   const [foto, setFoto] = useState<File | null>(null);
   const [error, setError] = useState('');
 
+  const edificioSel = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
+  const esCapacitacion = edificioSel?.EsCapacitacion || edificioSel?.esCapacitacion;
+
   useEffect(() => {
-    api.get('/edificios').then(r => setEdificios(r.data || [])).catch(() => setError('No se pudieron cargar los edificios'));
+    api.get('/edificios').then(r => {
+      const items = r.data || [];
+      setEdificios(items);
+      // Si solo hay un edificio y es de capacitación, preseleccionar motivo
+      if (items.length === 1 && (items[0]?.EsCapacitacion || items[0]?.esCapacitacion)) {
+        setMotivo('general');
+      }
+    }).catch(() => setError('No se pudieron cargar los edificios'));
     api.get('/eventos-curso').then(r => setEventos(r.data || [])).catch(() => setCourseError(true));
   }, []);
 
@@ -76,9 +87,10 @@ export default function RegistroPage() {
       }
       if (foto) fd.append('foto', foto);
       await api.post('/acceso/entrada', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showSuccess('Entrada registrada');
-      setSelected(null); setNombreManual(''); setCedulaManual(''); setEmpresaManual(''); setFoto(null); setEventoCursoId('');
-    } catch (err: any) { showError('Error', err?.response?.data?.message || 'No se pudo registrar la entrada'); }
+      showSuccess('Acceso registrado');
+      setSelected(null); setNombreManual(''); setCedulaManual(''); setEmpresaManual(''); setFoto(null);
+      setEventoCursoId(''); setMotivo(null);
+    } catch (err: any) { showError('Error', err?.response?.data?.message || 'No se pudo registrar el acceso'); }
     setRegistrando(false);
   };
 
@@ -86,9 +98,12 @@ export default function RegistroPage() {
     <div>
       <div className="page-header"><h1 className="page-header__title"><DoorOpen /> Registro de Acceso</h1></div>
       {error && <div className="alert alert--error mb-3" role="alert">{error} <button className="btn btn--ghost btn--sm" onClick={() => setError('')}>✕</button></div>}
+      <p className="page-header__subtitle" style={{ marginBottom: 'var(--space-4)' }}>
+        Este sistema registra accesos físicos al edificio. No corresponde a marcación laboral.
+      </p>
       <div className="registro-grid">
         <form onSubmit={registrarEntrada} className="card">
-          <div className="card__header card__header--brand"><span className="card-title"><DoorOpen className="icon" /> Registrar Entrada</span></div>
+          <div className="card__header card__header--brand"><span className="card-title"><DoorOpen className="icon" /> Registrar Entrada al Edificio</span></div>
           <div className="card__body">
             <fieldset className="form-group" style={{ border: 'none', padding: 0 }}>
               <legend className="form-label">Tipo de persona</legend>
@@ -125,7 +140,7 @@ export default function RegistroPage() {
                 )}
                 {searched && results?.length === 0 && (
                   <div className="alert alert--error" style={{ marginTop: 8, padding: '8px 12px', fontSize: 12 }}>
-                    No encontramos coincidencias para "{searchQ}". Verificá el nombre o carnet.
+                    No encontramos coincidencias para &quot;{searchQ}&quot;. Verificá el nombre o carnet.
                   </div>
                 )}
                 {selected && (
@@ -141,27 +156,51 @@ export default function RegistroPage() {
               <>
                 <div className="form-group"><label htmlFor="vis-nombre" className="form-label form-label--required">Nombre completo</label><input id="vis-nombre" type="text" className="form-control" value={nombreManual} onChange={e => setNombreManual(e.target.value)} placeholder="Nombre del visitante" /></div>
                 <div className="form-group"><label htmlFor="vis-cedula" className="form-label">Cédula</label><input id="vis-cedula" type="text" className="form-control" value={cedulaManual} onChange={e => setCedulaManual(e.target.value)} placeholder="Número de cédula" /></div>
-                <div className="form-group"><label htmlFor="vis-empresa" className="form-label">Empresa / Motivo</label><input id="vis-empresa" type="text" className="form-control" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)} placeholder="Empresa o motivo" /></div>
+                <div className="form-group"><label htmlFor="vis-empresa" className="form-label">Empresa / Motivo</label><input id="vis-empresa" type="text" className="form-control" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)} placeholder="Empresa o motivo del acceso" /></div>
               </>
             )}
             <div className="form-group"><label htmlFor="edificio" className="form-label form-label--required">Edificio</label>
-              <select id="edificio" className="form-control" value={edificioId} onChange={e => setEdificioId(e.target.value)}>
+              <select id="edificio" className="form-control" value={edificioId} onChange={e => { setEdificioId(e.target.value); setMotivo(null); setEventoCursoId(''); }}>
                 <option value="">Seleccione un edificio…</option>
                 {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
               </select>
             </div>
-            <div className="form-group"><label htmlFor="curso" className="form-label">Curso <span className="form-hint inline">(opcional)</span></label>
-              <select id="curso" className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError}>
-                <option value="">{courseError ? 'Cursos no disponibles, puede registrar sin curso' : 'Sin curso'}</option>
-                {!courseError && eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre} — {ev.EdificioNombre || ''}</option>)}
-              </select>
-            </div>
+
+            {/* Motivo del acceso (solo para edificio de capacitación) */}
+            {esCapacitacion && edificioId && (
+              <div className="form-group">
+                <label className="form-label">Motivo del acceso</label>
+                <div className="tipo-grid" role="radiogroup">
+                  <button type="button" role="radio" aria-checked={motivo === 'general'}
+                    className={`btn ${motivo === 'general' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                    onClick={() => { setMotivo('general'); setEventoCursoId(''); }}>
+                    Acceso general
+                  </button>
+                  <button type="button" role="radio" aria-checked={motivo === 'capacitacion'}
+                    className={`btn ${motivo === 'capacitacion' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                    onClick={() => { setMotivo('capacitacion'); }}>
+                    <GraduationCap className="icon icon--sm" /> Capacitación
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Curso solo si motivo = capacitación */}
+            {motivo === 'capacitacion' && (
+              <div className="form-group"><label htmlFor="curso" className="form-label">Curso o evento de capacitación</label>
+                <select id="curso" className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError}>
+                  <option value="">{courseError ? 'Cursos no disponibles' : 'Seleccione un curso…'}</option>
+                  {!courseError && eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre} — {ev.EdificioNombre || ''}</option>)}
+                </select>
+              </div>
+            )}
+
             <div className="form-group"><label className="form-label">Foto <span className="form-hint inline">(opcional)</span></label>
               <label className="foto-upload"><Camera className="icon text-muted" /><span className="text-muted text-sm">{foto ? foto.name : 'Subir foto'}</span><input type="file" accept="image/*" className="hidden" onChange={e => setFoto(e.target.files?.[0] || null)} /></label>
             </div>
             <button type="submit" disabled={!puedeRegistrar() || registrando} className="btn btn--primary btn--block btn--lg">
               {registrando ? <span className="spinner spinner--white" /> : <DoorOpen className="icon icon--sm" />}
-              {registrando ? 'Registrando…' : 'Registrar Entrada'}
+              {registrando ? 'Registrando…' : 'Registrar Entrada al Edificio'}
             </button>
           </div>
         </form>
@@ -199,14 +238,11 @@ function SalidaPanel() {
 
   return (
     <div className="card">
-      <div className="card__header card__header--dark"><span className="card-title"><LogOut className="icon" /> Registrar Salida</span></div>
+      <div className="card__header card__header--dark"><span className="card-title"><LogOut className="icon" /> Registrar Salida del Edificio</span></div>
       <div className="card__body">
         <div className="form-group"><label htmlFor="buscar-salida" className="form-label">Buscar persona dentro</label><input id="buscar-salida" type="text" className="form-control" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar persona dentro…" /></div>
         {apiError ? (
-          <div className="alert alert--error" role="alert">
-            <p>No pudimos consultar los accesos activos.</p>
-            <button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button>
-          </div>
+          <div className="alert alert--error" role="alert"><p>No pudimos consultar los accesos activos.</p><button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button></div>
         ) : loading ? (
           <div className="empty-state empty-state--compact"><div className="spinner mx-auto" /></div>
         ) : filtrados.length === 0 ? (
@@ -216,7 +252,7 @@ function SalidaPanel() {
           </div>
         ) : (
           <>
-            <p className="empty-state__desc mb-3">{hoy.length} persona(s) dentro del edificio</p>
+            <p className="empty-state__desc mb-3">{hoy.length} persona(s) dentro de las instalaciones</p>
             <div className="salida-list">
               {filtrados.map(r => (
                 <div key={r.id} className="salida-item">
