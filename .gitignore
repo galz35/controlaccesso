@@ -6,8 +6,25 @@ yarn-error.log*
 
 # Build outputs
 dist/
+build/
 .env
 .env.*
+
+# Uploads
+uploads/
+*.webp
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
 
 # IDE
 .vscode/
