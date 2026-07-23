@@ -1,0 +1,1024 @@
+ANÁLISIS FINAL DEFINITIVO
+CONTROL ACCESO REACT VS. SISTEMA ASISTENCIA
+
+Sistema principal: /opt/apps/control-acceso/react
+Sistema de referencia: /opt/apps/asistencia/registro/react
+Commit final analizado: 367a9cbe
+Fecha: 22 de julio de 2026
+Estado al auditar: rama master limpia y sincronizada con origin/master
+Producción auditada: /var/www/control-acceso
+
+===============================================================================
+0. PROPÓSITO Y VALIDEZ DE ESTE DOCUMENTO
+===============================================================================
+
+Este es el análisis comparativo final. Sustituye como diagnóstico vigente a los
+documentos anteriores porque se realizó después de los commits:
+
+- 6b60a904: sistema CSS centralizado.
+- 74b3fae2: rediseño general de pantallas.
+- 442d8bc6: eliminación inicial de inline styles y azul.
+- 33a2ac21: reducción de 181 a 4 inline styles.
+- 46aa84f8: validaciones, roles, errores y formularios.
+- 367a9cbe: captions, utilidades CSS y detalles finales.
+
+No analizar la aplicación como si aún fuera la primera versión. La mayor parte de
+los defectos arquitectónicos originales ya fue corregida.
+
+Este documento responde cuatro preguntas:
+
+1. ¿Control Acceso sigue viéndose/estando peor que Asistencia?
+2. ¿Qué quedó realmente bien?
+3. ¿Qué sigue mal o incompleto?
+4. ¿Qué debe hacer un último agente sin destruir los avances?
+
+===============================================================================
+1. VEREDICTO FINAL
+===============================================================================
+
+Control Acceso ya es técnicamente superior a Asistencia como base frontend.
+
+No conviene clonarlo nuevamente ni reemplazar su CSS con el CSS de Asistencia.
+Control Acceso ahora tiene mejor:
+
+- organización CSS;
+- identidad corporativa;
+- uso de HTML español;
+- reducción de estilos inline;
+- asociación de labels;
+- formularios semánticos;
+- manejo de errores;
+- navegación por rol;
+- mantenibilidad;
+- prohibición del azul.
+
+Asistencia todavía puede parecer más “lleno” o elaborado en algunas pantallas por
+su densidad visual, encabezados y cantidad de estilos específicos. Pero esa riqueza
+visual está construida con mucha deuda técnica. Copiarla sería retroceder.
+
+La recomendación final NO es otro rediseño total.
+
+La recomendación es una última fase de UX y accesibilidad con alcance controlado:
+
+- confirmar y bloquear correctamente la salida;
+- corregir el modelo de permisos para cualquier rol autenticado;
+- completar estados de búsqueda/cursos;
+- hacer tablas operativas realmente móviles;
+- corregir captions ocultos y grupos semánticos;
+- elevar controles táctiles;
+- terminar la limpieza de estilos/assets.
+
+Puntuación final estimada de Control Acceso:
+
+- Arquitectura CSS: 8.5/10.
+- Identidad Claro: 8.5/10.
+- Consistencia visual: 7.5/10.
+- HTML semántico: 7/10.
+- Accesibilidad: 6.5/10.
+- Responsive estructural: 6.5/10.
+- Responsive operativo: 5.5/10.
+- Prevención de errores de entrada: 8/10.
+- Prevención de errores de salida: 4/10.
+- Permisos por rol: 6.5/10.
+- Facilidad para usuario no técnico: 6.5/10.
+- Recuperación ante fallos: 7/10.
+- Estado general: 7.5/10.
+
+Asistencia continúa cerca de 5/10 como arquitectura mantenible, aunque algunas
+pantallas puedan producir una primera impresión visual favorable.
+
+===============================================================================
+2. ESTADO TÉCNICO FINAL COMPROBADO
+===============================================================================
+
+Control Acceso:
+
+- CSS organizado en 6 archivos.
+- 690 líneas CSS actuales.
+- 3 inline styles restantes.
+- 19 elementos label.
+- 16 usos de htmlFor.
+- 4 formularios reales.
+- 3 tablas.
+- 3 captions agregados.
+- 1 Promise catch vacío restante, correspondiente a eventos/curso opcional.
+- Lint funcional con 1 warning de Fast Refresh en AuthContext.
+- HTML lang="es".
+- title="Control de Acceso | Claro".
+- meta description y theme-color #DA291C.
+- build con JavaScript y CSS separados.
+- dist local y /var/www/control-acceso tienen el mismo index y mismos assets.
+- rama master limpia y sincronizada.
+
+Producción verificada:
+
+- JS: index-CNtvPtI4.js.
+- CSS: index-CVnoFv7f.css.
+- index local y desplegado tienen el mismo SHA-256.
+
+Asistencia:
+
+- 859 líneas en un index.css principal.
+- aproximadamente 799 inline styles.
+- 20 labels.
+- 0 htmlFor detectados.
+- 1 formulario real.
+- 7 catch vacíos aproximados.
+- index.html todavía usa lang="en".
+- title todavía dice “react”.
+- conserva token azul --info #3b82f6.
+- usa Tailwind más CSS propio e inline styles.
+
+Conclusión basada en evidencia:
+
+Control Acceso ya no debe considerarse inferior en ingeniería frontend. La deuda
+restante está concentrada y puede corregirse sin rehacer la aplicación.
+
+===============================================================================
+3. TABLA COMPARATIVA DEFINITIVA
+===============================================================================
+
+CRITERIO                    CONTROL ACCESO FINAL       ASISTENCIA
+-------------------------   -------------------------  ---------------------------
+CSS centralizado            Sí, 6 archivos             Sí, 1 archivo grande
+Tokens corporativos         Sí, paleta cerrada         Sí, incluye azul
+Inline styles               3                          ~799
+Azul en estilos activos     No detectado               Sí
+HTML lang español           Sí                         No
+Título de producto          Sí                         No, “react”
+Formularios semánticos       4                          1
+Labels asociados            16                         0 detectados
+Catch vacíos                1 opcional                 7 aproximados
+Sidebar desktop             Sí                         Sí
+Drawer móvil                Sí, foco incompleto        Sí, foco incompleto
+Ruta activa                 Sí                         Sí
+Roles visuales              Parcialmente correcto      Parcial/incompleto
+CRUD por rol                Sí en Control              Variable
+Errores vs. vacío           Mejor diferenciados        Inconsistente
+Tablas móviles              Scroll horizontal          Patrones variables
+Identidad Claro             Estricta                   Menos estricta
+Mantenibilidad              Alta                       Baja-media
+Primera impresión visual    Buena y sobria             Rica, más recargada
+Base recomendada            Control Acceso             No copiar
+
+Ganador técnico: Control Acceso.
+Ganador en algunas composiciones visuales aisladas: Asistencia.
+Base que debe conservarse: Control Acceso.
+
+===============================================================================
+4. TODO LO QUE YA QUEDÓ CORREGIDO
+===============================================================================
+
+4.1 Arquitectura visual
+-----------------------
+
+CORREGIDO:
+
+- Existe tokens.css con rojo #DA291C.
+- Existe reset.css.
+- Existe base.css.
+- Existe components.css.
+- Existe layout.css.
+- index.css los importa en orden.
+- main.tsx carga el CSS.
+- El build genera CSS real.
+
+No volver a estilos inline masivos.
+
+4.2 Colores corporativos
+------------------------
+
+CORREGIDO:
+
+- Se eliminaron #1e40af y #dbeafe de salida/dashboard.
+- Entrada usa rojo.
+- Salida usa negro/carbón.
+- Estado Dentro usa verde.
+- Fondo/cards usan blanco y grises.
+- Focus usa rojo.
+
+El azul ya no forma parte de la interfaz activa auditada.
+
+4.3 HTML base
+-------------
+
+CORREGIDO:
+
+- lang="es".
+- título del producto.
+- meta description.
+- theme-color.
+- skip link.
+- CSS empaquetado en producción.
+
+4.4 Shell
+---------
+
+CORREGIDO:
+
+- Sidebar visible en desktop.
+- Drawer en tablet/móvil.
+- NavLink.
+- ruta activa.
+- grupos Operación, Catálogos y Administración.
+- id="sidebar" coherente con aria-controls.
+- Escape y bloqueo de scroll.
+- Administración oculta para registrador.
+
+4.5 Dashboard
+-------------
+
+CORREGIDO:
+
+- KPIs rojo/carbón/verde.
+- navegación interna sin <a href>.
+- estado error distinto de lista vacía.
+- spinner de icono correcto con icon--spin.
+- título e icono alineados mediante flex.
+- botón Reintentar.
+
+4.6 Registro de entrada
+-----------------------
+
+CORREGIDO:
+
+- Es un form con onSubmit.
+- No registra sin edificio.
+- No registra persona conocida sin selección.
+- No registra visitante sin nombre.
+- Botón se deshabilita si faltan requisitos.
+- errores de búsqueda visibles.
+- labels principales asociados.
+- spinner SVG corregido.
+- botón Registrar usa loading.
+- errores de entrada no se ocultan.
+
+Este era el defecto funcional/UX más peligroso y ya quedó solucionado.
+
+4.7 Salida
+----------
+
+CORREGIDO PARCIALMENTE:
+
+- Error API ya no aparece como lista vacía.
+- Búsqueda tiene label.
+- existe Reintentar.
+- errores al registrar salida son visibles.
+
+Falta seguridad de interacción; se detalla más adelante.
+
+4.8 Catálogos
+-------------
+
+CORREGIDO:
+
+- load usa useCallback correctamente.
+- estado error.
+- form real.
+- ids y htmlFor dinámicos.
+- botones Nuevo/Editar solo admin.
+- registrador tiene lectura.
+- caption agregado.
+
+4.9 Administración CPF
+----------------------
+
+CORREGIDO:
+
+- ruta protegida por RoleGuard.
+- formulario real.
+- ids/htmlFor.
+- validación básica.
+- estados de carga/error.
+- caption agregado.
+- botones corporativos.
+
+4.10 SweetAlert
+---------------
+
+CORREGIDO PARCIALMENTE:
+
+- helper central showSuccess/showError/showWarning/confirmAction.
+- confirmaciones con rojo.
+- errores con botón rojo.
+
+Falta consolidar el diálogo directo de contraseña y revisar icono warning.
+
+===============================================================================
+5. PENDIENTES OBLIGATORIOS — PRIORIDAD ALTA
+===============================================================================
+
+5.1 Salida sin confirmación
+---------------------------
+
+Archivo:
+
+- react/src/pages/RegistroPage.tsx, función salida.
+- react/src/pages/DashboardPage.tsx, registrarSalida.
+
+Problema:
+
+El click envía POST inmediatamente. El helper confirmAction existe, pero no se usa.
+Una persona puede registrar la salida del nombre equivocado.
+
+Corrección:
+
+1. Pasar el objeto persona, no solo id.
+2. Preguntar “¿Registrar salida de NOMBRE?”.
+3. Mostrar edificio y hora de entrada.
+4. Confirmar con botón carbón o rojo corporativo.
+5. Cancelar sin modificar datos.
+6. Mostrar éxito con nombre/hora.
+
+Criterio:
+
+Ninguna salida debe ocurrir con un solo click accidental.
+
+5.2 Doble click y estado por fila
+--------------------------------
+
+Problema:
+
+No existe exitingId/sendingId. Durante POST el botón sigue activo.
+
+Corrección:
+
+- const [exitingId, setExitingId] = useState<number | null>(null).
+- bloquear la fila durante petición.
+- texto “Registrando…”.
+- finally setExitingId(null).
+- no recargar toda la pantalla antes de resolver.
+
+5.3 RoleGuard incompleto
+------------------------
+
+Problemas:
+
+1. admin-cpf está compuesto como RoleGuard -> Shell. Si no está autorizado, el
+   usuario recibe la página restringida sin sidebar/topbar ni salida visible.
+2. /forbidden usa RoleGuard roles=['admin'] alrededor de “Sin permisos”; la lógica
+   es confusa/invertida y no funciona como página 403 genérica.
+3. Shell solo restringe sección admin. Cualquier rol autenticado desconocido ve
+   Operación y Catálogos porque el else devuelve true.
+4. RoleGuard usa <a href> y recarga el SPA.
+5. AdminCpfPage repite isAdmin aunque la ruta ya está protegida.
+
+Corrección recomendada:
+
+- Cada item define roles: ['admin','registrador'] o ['admin'].
+- Filtrar items por includes(user.rol).
+- Mantener Shell fuera de RoleGuard:
+
+  <ProtectedRoute>
+    <Shell>
+      <RoleGuard roles={['admin']}>
+        <AdminCpfPage />
+      </RoleGuard>
+    </Shell>
+  </ProtectedRoute>
+
+- Crear ForbiddenPage simple, sin envolverla en RoleGuard.
+- Usar Link para volver.
+- El backend sigue siendo la autoridad; el frontend solo mejora UX.
+
+5.4 Resultados de búsqueda vacíos
+---------------------------------
+
+Problema:
+
+Si results es [], no se muestra “Sin resultados”. Solo desaparece la lista y queda
+un hint genérico.
+
+Corrección:
+
+- results === null: todavía no se buscó/cargando.
+- results.length > 0: lista.
+- results.length === 0: alerta neutral “No encontramos coincidencias”.
+- conservar el texto de búsqueda para corregirlo.
+
+5.5 Curso/eventos falla en silencio
+-----------------------------------
+
+RegistroPage aún tiene:
+
+.catch(() => {});
+
+Es un campo opcional, pero si falla la API el usuario ve “Sin curso” y puede creer
+que realmente no existen cursos.
+
+Corrección:
+
+- estado courseLoadError.
+- deshabilitar select si falla.
+- texto “No pudimos cargar los cursos; puede registrar sin curso”.
+- permitir continuar porque es opcional.
+
+5.6 Captions invisibles de forma incorrecta
+-------------------------------------------
+
+Las tres tablas usan:
+
+<caption className="hidden">...</caption>
+
+.hidden es display:none !important. Esto retira el caption del árbol accesible.
+
+Corrección:
+
+- crear .visually-hidden.
+- cambiar caption className="visually-hidden".
+- reservar .hidden para elementos realmente eliminados de layout/accesibilidad.
+
+5.7 Semántica de tipo de persona
+--------------------------------
+
+Actualmente hay un label seguido de botones. El estado seleccionado se comunica
+principalmente por color/clase.
+
+Corrección mínima:
+
+- fieldset + legend.
+- botones con aria-pressed={tipo === value}.
+
+Corrección ideal:
+
+- radios visualmente personalizados dentro de labels.
+
+5.8 Tablas no operativas en móvil
+---------------------------------
+
+.table-wrapper solo ofrece scroll horizontal. Esto evita romper el layout, pero la
+acción Salida queda lejos del nombre y requiere desplazamiento lateral.
+
+Corrección:
+
+- desktop: tabla actual.
+- móvil <=700: cards de acceso.
+- cada card: nombre, tipo, edificio, entrada, estado y botón visible.
+- Admin/Catálogo pueden usar cards compactas o scroll si son consulta secundaria.
+- Registro/Dashboard sí requieren cards por ser operación principal.
+
+===============================================================================
+6. PENDIENTES IMPORTANTES — PRIORIDAD MEDIA
+===============================================================================
+
+6.1 Controles táctiles pequeños
+-------------------------------
+
+.btn--sm y .btn--icon.btn--sm miden 34 px. Para móvil/recepción táctil se recomienda
+44 px.
+
+Aplicar:
+
+@media (pointer: coarse) {
+  .btn--sm { min-height: 44px; }
+  .btn--icon.btn--sm { width: 44px; height: 44px; }
+}
+
+6.2 Landing por rol
+-------------------
+
+Registrador entra al Dashboard. Su tarea principal es Registro.
+
+Recomendación:
+
+- admin -> Dashboard.
+- registrador -> Registro.
+
+No es un defecto de seguridad; es una mejora fuerte de facilidad.
+
+6.3 Contexto de edificio
+------------------------
+
+El operador selecciona edificio en cada entrada. Si trabaja en un puesto fijo,
+esto agrega tiempo y error.
+
+Recomendación:
+
+- “Edificio actual” al comenzar turno.
+- preselección persistida en sessionStorage.
+- visible siempre.
+- modificable con confirmación.
+- conservar selección tras cada registro.
+
+Implementar solo si coincide con la operación real de la empresa.
+
+6.4 Progressive disclosure
+---------------------------
+
+Registro muestra todos los campos de una vez. Puede guiarse mejor:
+
+1. tipo;
+2. persona;
+3. edificio/detalles;
+4. confirmar.
+
+No crear un wizard lento. Usar secciones numeradas y revelar detalles después de
+seleccionar persona.
+
+6.5 Mensaje de éxito más informativo
+------------------------------------
+
+Hoy: “Entrada registrada”.
+
+Ideal:
+
+“Entrada registrada: Ana Pérez — Edificio Central — 08:42”.
+
+Esto permite al recepcionista confirmar visualmente que eligió bien.
+
+6.6 Pluralización
+-----------------
+
+Reemplazar “persona(s)” por:
+
+- “1 persona dentro”.
+- “N personas dentro”.
+
+Si hay varias sedes, usar “en las instalaciones” o filtrar por edificio.
+
+6.7 Lenguaje CPF/ID Referencia
+------------------------------
+
+Para usuario no técnico:
+
+- menú “Usuarios externos”.
+- título “Usuarios externos (CPF)” puede conservar sigla secundaria.
+- “ID Referencia” necesita ayuda o, idealmente, un select de proveedor/instructor.
+
+6.8 Confirmación de contraseña fuera del helper
+-----------------------------------------------
+
+AdminCpfPage importa SweetAlert directamente. Integrar el prompt de contraseña en
+lib/swal.ts o componente propio para conservar tema y comportamiento.
+
+6.9 Warning amarillo/naranja
+----------------------------
+
+SweetAlert icon:'warning' suele usar ámbar/naranja. La paleta solicitada limita los
+colores a rojo/blanco/gris/negro y verde ocasional.
+
+Opciones:
+
+- usar icon:'question' con customClass neutral;
+- usar icon:'error' rojo para acción crítica;
+- personalizar completamente el icono warning a rojo/gris.
+
+No introducir amarillo/naranja sin aprobación de marca.
+
+6.10 Drawer: manejo de foco
+---------------------------
+
+Ya cierra con Escape y bloquea scroll, pero falta:
+
+- mover foco al primer enlace al abrir;
+- focus trap;
+- devolver foco al botón menú al cerrar;
+- inert/aria-hidden cuando está cerrado en móvil.
+
+===============================================================================
+7. PENDIENTES MENORES — LIMPIEZA
+===============================================================================
+
+7.1 Tres inline styles
+----------------------
+
+Quedan en:
+
+- AdminCpfPage: color del Shield.
+- SsoHandlerPage: tamaño/borde del spinner.
+- SsoHandlerPage: color/margen de XCircle.
+
+Crear clases:
+
+- .text-brand.
+- .spinner--lg.
+- .error-icon-centered.
+
+7.2 vite.svg sin uso
+--------------------
+
+react/src/assets/vite.svg permanece y contiene identidad violeta/azulada. No está
+referenciado ni incluido en el build final, pero contradice la limpieza del repo.
+
+Eliminarlo después de confirmar rg sin referencias.
+
+7.3 icons.svg
+-------------
+
+public/icons.svg contiene un símbolo llamado bluesky, aunque su fill es negro. No
+aparece referenciado. Se copia al build y dispara auditorías por la palabra blue.
+
+Eliminar si no se usa. Conservar únicamente favicon aprobado/neutral.
+
+7.4 Favicon no referenciado
+---------------------------
+
+public/favicon.svg existe, pero index.html no incluye link rel="icon". Agregarlo si
+es un activo aprobado y no contiene color prohibido.
+
+7.5 Warning lint
+----------------
+
+AuthContext exporta provider y useAuth en el mismo archivo. Separar hook/context si
+se desea lint limpio. Es deuda de desarrollo, no problema de usuario.
+
+7.6 StrictMode
+--------------
+
+Asistencia usa StrictMode; Control no. Activarlo en desarrollo puede detectar
+efectos problemáticos. Antes de añadirlo, comprobar que no duplica llamadas no
+idempotentes durante desarrollo. No afecta producción directamente.
+
+===============================================================================
+8. DISEÑO FINAL RECOMENDADO PARA PERSONA NO TÉCNICA
+===============================================================================
+
+8.1 Registrador
+---------------
+
+Al ingresar debe ver directamente:
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ CONTROL DE ACCESO                 Edificio actual: [Central ▼]   Usuario │
+├───────────────────────────────────────┬───────────────────────────────────┤
+│ REGISTRAR ENTRADA                     │ PERSONAS DENTRO                  │
+│                                       │                                  │
+│ 1 ¿Quién ingresa?                     │ Buscar [____________________]    │
+│ [Colaborador] [Proveedor] [...]       │ 12 personas dentro               │
+│                                       │                                  │
+│ 2 Nombre o carnet                     │ Ana Pérez                        │
+│ [________________] [Buscar]           │ Central · 08:15                  │
+│                                       │ [Registrar salida]               │
+│ Persona: ANA PÉREZ                    │                                  │
+│                                       │                                  │
+│ 3 Detalles                            │                                  │
+│ Edificio: Central                     │                                  │
+│ Curso: Sin curso                      │                                  │
+│ Foto: [Adjuntar]                      │                                  │
+│                                       │                                  │
+│ [       REGISTRAR ENTRADA       ]     │                                  │
+└───────────────────────────────────────┴───────────────────────────────────┘
+
+La persona no debe entender bases de datos, endpoints, roles ni IDs.
+
+8.2 Móvil
+----------
+
+┌──────────────────────────────┐
+│ Control Acceso       [Menú]  │
+│ Edificio: Central            │
+├──────────────────────────────┤
+│ [ ENTRADA ] [ SALIDA ]       │
+├──────────────────────────────┤
+│ 1 ¿Quién ingresa?            │
+│ [Colaborador] [Proveedor]    │
+│ ...                          │
+│                              │
+│ Nombre o carnet              │
+│ [________________________]   │
+│ [         BUSCAR         ]   │
+│                              │
+│ [   REGISTRAR ENTRADA    ]   │
+└──────────────────────────────┘
+
+Una sola operación visible. Botones de 44-48 px. Sin tabla horizontal operativa.
+
+8.3 Administrador
+-----------------
+
+Puede conservar Dashboard como entrada, con acceso a:
+
+- Registro.
+- Catálogos.
+- Usuarios externos.
+
+Las acciones administrativas deben estar visualmente separadas del flujo diario.
+
+===============================================================================
+9. CSS FINAL SUGERIDO
+===============================================================================
+
+9.1 Caption accesible
+---------------------
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+9.2 Táctil
+----------
+
+@media (pointer: coarse) {
+  .btn,
+  .btn--sm {
+    min-height: 44px;
+  }
+
+  .btn--icon,
+  .btn--icon.btn--sm {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+9.3 Inline restantes
+---------------------
+
+.text-brand { color: var(--brand-red); }
+
+.spinner--lg {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+.error-icon-centered {
+  color: var(--error);
+  margin: 0 auto var(--space-3);
+}
+
+9.4 Cards móviles
+-----------------
+
+.access-cards { display: none; }
+
+@media (max-width: 700px) {
+  .access-table { display: none; }
+  .access-cards {
+    display: grid;
+    gap: var(--space-3);
+  }
+}
+
+No convertir la tabla semántica a div mediante CSS. Renderizar un componente móvil
+con la misma fuente de datos.
+
+9.5 Estado seleccionado accesible
+----------------------------------
+
+.person-type[aria-pressed="true"] {
+  background: var(--brand-red);
+  color: var(--white);
+  border-color: var(--brand-red);
+}
+
+===============================================================================
+10. HTML/REACT FINAL SUGERIDO
+===============================================================================
+
+10.1 Tipo de persona
+--------------------
+
+<fieldset className="form-group">
+  <legend className="form-label">¿Quién ingresa?</legend>
+  <div className="tipo-grid">
+    {TIPOS.map(item => (
+      <button
+        key={item.value}
+        type="button"
+        className="person-type btn btn--secondary"
+        aria-pressed={tipo === item.value}
+        onClick={() => changeType(item.value)}
+      >
+        {item.label}
+      </button>
+    ))}
+  </div>
+</fieldset>
+
+10.2 Sin resultados
+--------------------
+
+{results !== null && results.length === 0 && (
+  <div className="alert alert--neutral" role="status">
+    No encontramos personas con “{searchQ}”. Revise el nombre o carnet.
+  </div>
+)}
+
+10.3 Salida segura
+------------------
+
+const salida = async (record) => {
+  const accepted = await confirmAction(
+    `Registrar salida de ${record.nombre}`,
+    `${record.edificio} · Entrada ${formatTime(record.fechaEntrada)}`
+  );
+
+  if (!accepted) return;
+
+  setExitingId(record.id);
+  try {
+    await api.post(`/acceso/salida/${record.id}`);
+    showSuccess(`Salida registrada: ${record.nombre}`);
+    await load();
+  } catch {
+    showError('No se pudo registrar la salida', 'Intente nuevamente.');
+  } finally {
+    setExitingId(null);
+  }
+};
+
+10.4 Roles explícitos
+---------------------
+
+const navItems = [
+  { label: 'Resumen', to: '/', roles: ['admin', 'registrador'] },
+  { label: 'Registro', to: '/registro', roles: ['admin', 'registrador'] },
+  { label: 'Usuarios externos', to: '/admin-cpf', roles: ['admin'] },
+];
+
+No usar una comparación de jerarquía minRole basada en strings.
+
+===============================================================================
+11. PLAN FINAL DE TRABAJO
+===============================================================================
+
+FASE A — Seguridad operativa
+
+1. Confirmar salida.
+2. exitingId y bloqueo por fila.
+3. éxito de salida.
+4. resultados de búsqueda vacíos.
+5. error de cursos opcional.
+
+FASE B — Roles
+
+1. roles[] por item.
+2. arreglar composición RoleGuard/Shell.
+3. eliminar/integrar /forbidden.
+4. Link en RoleGuard.
+5. landing registrador a Registro, si negocio lo aprueba.
+
+FASE C — Accesibilidad
+
+1. visually-hidden para captions.
+2. fieldset/legend y aria-pressed.
+3. drawer con foco.
+4. botón cerrar error con aria-label.
+5. show password con aria-pressed y texto completo.
+
+FASE D — Móvil
+
+1. cards de acceso.
+2. Entrada/Salida como selector en móvil.
+3. controles de 44 px.
+4. pruebas 320/375/390/768.
+
+FASE E — Limpieza
+
+1. eliminar 3 inline styles.
+2. eliminar vite.svg sin uso.
+3. eliminar icons.svg sin uso.
+4. agregar favicon si está aprobado.
+5. warning lint opcional.
+
+===============================================================================
+12. CRITERIOS DE ACEPTACIÓN DEFINITIVOS
+===============================================================================
+
+[ ] Una salida requiere confirmación con nombre.
+[ ] Una salida no acepta doble click.
+[ ] La fila muestra loading propio.
+[ ] Se informa éxito de salida.
+[ ] Una búsqueda sin coincidencias muestra mensaje.
+[ ] Fallo de cursos no se oculta como lista vacía.
+[ ] admin ve Administración.
+[ ] registrador no ve Administración.
+[ ] rol desconocido/CPF no recibe módulos por defecto.
+[ ] acceso denegado conserva navegación/salida o tiene página 403 coherente.
+[ ] /forbidden funciona de forma lógica o fue eliminado.
+[ ] captions usan visually-hidden, no display:none.
+[ ] tipo de persona tiene fieldset/legend y estado accesible.
+[ ] cards operativas reemplazan tabla en móvil.
+[ ] controles táctiles miden al menos 44 px.
+[ ] drawer gestiona foco.
+[ ] no quedan inline styles evitables.
+[ ] no queda vite.svg violeta/azulado sin uso.
+[ ] icons.svg se elimina si no se usa.
+[ ] no aparece azul/cian/teal/índigo/violeta/púrpura.
+[ ] no aparece warning amarillo/naranja no aprobado.
+[ ] npm run lint no añade warnings.
+[ ] npm run build termina correctamente.
+[ ] dist y /var/www tienen los mismos hashes/archivos.
+[ ] se prueba admin.
+[ ] se prueba registrador.
+[ ] se prueba error API.
+[ ] se prueba 320 px y zoom 200%.
+
+===============================================================================
+13. PRUEBA DE USABILIDAD FINAL
+===============================================================================
+
+Pedir a una persona sin conocimiento técnico:
+
+1. Iniciar sesión.
+2. Registrar un colaborador.
+3. Registrar un visitante.
+4. Buscar a una persona dentro.
+5. Registrar su salida.
+6. Cancelar una salida equivocada.
+7. Recuperarse de un error simulado.
+
+Metas:
+
+- colaborador < 20 segundos;
+- visitante < 45 segundos;
+- salida < 15 segundos;
+- cero dudas entre entrada/salida;
+- cero registros incompletos;
+- cero acceso visible a módulos no autorizados;
+- comprensión del éxito/error sin explicación externa.
+
+===============================================================================
+14. COMANDOS DE VERIFICACIÓN
+===============================================================================
+
+Desde /opt/apps/control-acceso:
+
+Inline:
+
+rg -n 'style=\{\{' react/src -g '*.tsx'
+
+Catch vacíos:
+
+rg -n '\.catch\(\(\)\s*=>\s*\{\s*\}\)' react/src -g '*.tsx'
+
+Color fuente:
+
+rg -ni 'blue|cyan|aqua|teal|indigo|violet|purple|#00d8ff|#646cff|#1e40af|#dbeafe|#3b82f6' react/src react/public react/index.html
+
+Color build:
+
+rg -ni 'blue|cyan|aqua|teal|indigo|violet|purple|#00d8ff|#646cff|#1e40af|#dbeafe|#3b82f6' react/dist
+
+Lint/build:
+
+cd /opt/apps/control-acceso/react
+npm run lint
+npm run build
+
+Comparar despliegue:
+
+sha256sum /opt/apps/control-acceso/react/dist/index.html /var/www/control-acceso/index.html
+
+===============================================================================
+15. INSTRUCCIÓN FINAL PARA OTRO AGENTE
+===============================================================================
+
+Trabaja sobre el commit 367a9cbe o posterior. No rehagas el sistema visual y no
+copies Asistencia. Conserva los seis CSS, tokens, rutas, API, autenticación, SSO y
+paleta actual.
+
+Control Acceso ya tiene una base mejor que Asistencia. Tu tarea es cerrar los
+pendientes concretos de este documento, en este orden:
+
+1. salida segura;
+2. roles estrictos;
+3. accesibilidad de captions/grupos/drawer;
+4. experiencia móvil operativa;
+5. limpieza final.
+
+No tocar backend salvo que una prueba demuestre que el contrato impide el flujo.
+No desplegar hasta probar admin y registrador. No introducir ningún azul, cian,
+teal, índigo, violeta o púrpura. Verde solo para éxito/estado válido.
+
+Entrega final esperada:
+
+- lista de archivos cambiados;
+- pendientes resueltos;
+- pruebas de roles;
+- pruebas de entrada/salida;
+- resultado lint/build;
+- auditoría de color;
+- validación móvil;
+- pendientes reales restantes.
+
+===============================================================================
+16. CONCLUSIÓN DEFINITIVA
+===============================================================================
+
+Control Acceso ya no necesita ser remodelado para “parecerse” a Asistencia.
+Necesita terminar su propia identidad y flujo.
+
+La dirección correcta es:
+
+- conservar la arquitectura CSS actual;
+- mantener Claro rojo/blanco;
+- simplificar el trabajo del registrador;
+- impedir salidas accidentales;
+- restringir navegación por roles explícitos;
+- sustituir tablas por cards en móvil;
+- completar accesibilidad y limpieza.
+
+Si se cumplen los criterios de este documento, el sistema podrá superar a
+Asistencia tanto en apariencia como en mantenibilidad y facilidad de uso.
+
+FIN DEL ANÁLISIS FINAL DEFINITIVO

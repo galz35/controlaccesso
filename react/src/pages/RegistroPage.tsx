@@ -14,9 +14,11 @@ const TIPOS = [
 export default function RegistroPage() {
   const [edificios, setEdificios] = useState<any[]>([]);
   const [eventos, setEventos] = useState<any[]>([]);
+  const [courseError, setCourseError] = useState(false);
   const [tipo, setTipo] = useState('EMPLEADO');
   const [searchQ, setSearchQ] = useState('');
   const [results, setResults] = useState<any[] | null>(null);
+  const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [edificioId, setEdificioId] = useState('');
   const [eventoCursoId, setEventoCursoId] = useState('');
@@ -30,12 +32,12 @@ export default function RegistroPage() {
 
   useEffect(() => {
     api.get('/edificios').then(r => setEdificios(r.data || [])).catch(() => setError('No se pudieron cargar los edificios'));
-    api.get('/eventos-curso').then(r => setEventos(r.data || [])).catch(() => {});
+    api.get('/eventos-curso').then(r => setEventos(r.data || [])).catch(() => setCourseError(true));
   }, []);
 
   const buscar = async () => {
     if (!searchQ.trim()) return;
-    setSearchLoading(true); setResults(null); setSelected(null);
+    setSearchLoading(true); setResults(null); setSelected(null); setSearched(true);
     try {
       let endpoint = '/search/empleado';
       if (tipo === 'PROVEEDOR') endpoint = '/search/proveedor';
@@ -88,15 +90,16 @@ export default function RegistroPage() {
         <form onSubmit={registrarEntrada} className="card">
           <div className="card__header card__header--brand"><span className="card-title"><DoorOpen className="icon" /> Registrar Entrada</span></div>
           <div className="card__body">
-            <div className="form-group">
-              <label className="form-label">Tipo de persona</label>
+            <fieldset className="form-group" style={{ border: 'none', padding: 0 }}>
+              <legend className="form-label">Tipo de persona</legend>
               <div className="tipo-grid">
                 {TIPOS.map(t => (
-                  <button key={t.value} type="button" className={`btn ${tipo === t.value ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                  <button key={t.value} type="button" role="radio" aria-checked={tipo === t.value}
+                    className={`btn ${tipo === t.value ? 'btn--primary' : 'btn--secondary'} btn--sm`}
                     onClick={() => { setTipo(t.value); setSelected(null); setResults(null); setError(''); }}>{t.label}</button>
                 ))}
               </div>
-            </div>
+            </fieldset>
             {tipo !== 'VISITANTE' && (
               <div className="form-group">
                 <label htmlFor="search-persona" className="form-label form-label--required">Buscar persona</label>
@@ -118,6 +121,11 @@ export default function RegistroPage() {
                         </div>
                       </button>
                     ))}
+                  </div>
+                )}
+                {searched && results?.length === 0 && (
+                  <div className="alert alert--error" style={{ marginTop: 8, padding: '8px 12px', fontSize: 12 }}>
+                    No encontramos coincidencias para "{searchQ}". Verificá el nombre o carnet.
                   </div>
                 )}
                 {selected && (
@@ -143,9 +151,9 @@ export default function RegistroPage() {
               </select>
             </div>
             <div className="form-group"><label htmlFor="curso" className="form-label">Curso <span className="form-hint inline">(opcional)</span></label>
-              <select id="curso" className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)}>
-                <option value="">Sin curso</option>
-                {eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre} — {ev.EdificioNombre || ''}</option>)}
+              <select id="curso" className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError}>
+                <option value="">{courseError ? 'Cursos no disponibles, puede registrar sin curso' : 'Sin curso'}</option>
+                {!courseError && eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre} — {ev.EdificioNombre || ''}</option>)}
               </select>
             </div>
             <div className="form-group"><label className="form-label">Foto <span className="form-hint inline">(opcional)</span></label>
@@ -168,20 +176,23 @@ function SalidaPanel() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
   const [search, setSearch] = useState('');
+  const [exitingId, setExitingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setApiError(false);
-    try {
-      const r = await api.get('/acceso/hoy');
-      setHoy(r.data?.filter((x: any) => !x.fechaSalida) || []);
-    } catch { setApiError(true); }
+    try { const r = await api.get('/acceso/hoy'); setHoy(r.data?.filter((x: any) => !x.fechaSalida) || []); } catch { setApiError(true); }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const salida = async (id: number) => {
-    try { await api.post(`/acceso/salida/${id}`); load(); } catch { showError('Error', 'No se pudo registrar la salida'); }
+  const salida = async (r: any) => {
+    const confirm = window.confirm(`¿Registrar salida de ${r.nombre}? (${r.edificio} - ${new Date(r.fechaEntrada).toLocaleTimeString()})`);
+    if (!confirm) return;
+    setExitingId(r.id);
+    try { await api.post(`/acceso/salida/${r.id}`); showSuccess('Salida registrada', r.nombre); load(); }
+    catch { showError('Error', 'No se pudo registrar la salida'); }
+    setExitingId(null);
   };
 
   const filtrados = search ? hoy.filter(r => r.nombre.toLowerCase().includes(search.toLowerCase())) : hoy;
@@ -201,7 +212,7 @@ function SalidaPanel() {
         ) : filtrados.length === 0 ? (
           <div className="empty-state empty-state--compact">
             <LogOut className="icon--lg empty-state__icon" />
-            <p className="empty-state__desc">{search ? 'Sin resultados' : 'No hay personas pendientes de salida'}</p>
+            <p className="empty-state__desc">{search ? 'Sin resultados para esa búsqueda' : 'No hay personas pendientes de salida'}</p>
           </div>
         ) : (
           <>
@@ -213,7 +224,9 @@ function SalidaPanel() {
                     <div className="font-bold text-sm">{r.nombre}</div>
                     <div className="form-hint">{r.edificio} · {r.tipoPersona} · {new Date(r.fechaEntrada).toLocaleTimeString()}</div>
                   </div>
-                  <button onClick={() => salida(r.id)} className="btn btn--dark btn--sm"><LogOut className="icon icon--sm" /> Salida</button>
+                  <button onClick={() => salida(r)} disabled={exitingId === r.id} className="btn btn--dark btn--sm">
+                    {exitingId === r.id ? '…' : <><LogOut className="icon icon--sm" /> Salida</>}
+                  </button>
                 </div>
               ))}
             </div>

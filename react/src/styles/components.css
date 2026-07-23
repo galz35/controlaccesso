@@ -187,6 +187,7 @@
 
 /* === RESPONSIVE === */
 @media (max-width: 1023px) { .registro-grid { grid-template-columns: 1fr; } }
+
 @media (max-width: 768px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .form-grid--3 { grid-template-columns: 1fr 1fr; }
@@ -195,4 +196,49 @@
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr; }
   .form-grid--2, .form-grid--3 { grid-template-columns: 1fr; }
+}
+
+/* === ACCESS CARDS MOBILE === */
+@media (max-width: 700px) {
+  .access-table-desktop { display: none; }
+  .access-cards-mobile { display: block; }
+}
+@media (min-width: 701px) {
+  .access-cards-mobile { display: none; }
+}
+.access-card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.access-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: var(--space-2);
+}
+.access-card__name {
+  font-weight: 700;
+  font-size: 15px;
+}
+.access-card__badge { flex-shrink: 0; }
+.access-card__details {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-bottom: var(--space-2);
+}
+.access-card__time {
+  display: flex;
+  gap: var(--space-4);
+  font-size: 12px;
+  color: var(--gray-600);
+  margin-bottom: var(--space-3);
+}
+
+/* === TOUCH === */
+@media (pointer: coarse) {
+  .btn--sm { min-height: 44px; }
+  .btn--icon.btn--sm { width: 44px; height: 44px; }
 }

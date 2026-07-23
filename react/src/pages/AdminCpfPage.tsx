@@ -79,7 +79,7 @@ export default function AdminCpfPage() {
         ) : (
           <div className="table-wrapper">
             <table className="table">
-                <caption className="hidden">Usuarios CPF registrados</caption>
+                <caption className="visually-hidden">Usuarios CPF registrados</caption>
               <thead><tr><th scope="col">Usuario</th><th scope="col">Nombre</th><th scope="col" className="text-center">Tipo</th><th scope="col" className="text-center">Rol</th><th scope="col" className="text-center">Activo</th><th scope="col" className="text-center">Acción</th></tr></thead>
               <tbody>
                 {users.map((u: any) => (
