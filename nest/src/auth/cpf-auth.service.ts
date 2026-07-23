@@ -10,7 +10,7 @@ export class CpfAuthService {
     private jwt: JwtService,
   ) {}
 
-  async register(dto: { username: string; password: string; nombre: string; tipo: string; referenciaId?: number }) {
+  async register(dto: { username: string; password: string; nombre: string; tipo: string; referenciaId?: number; edificioIdDefecto?: number }) {
     if (dto.password.length < 6) throw new BadRequestException('La contraseña debe tener al menos 6 caracteres.');
     if (!['PROVEEDOR', 'INSTRUCTOR_EXTERNO'].includes(dto.tipo)) {
       throw new BadRequestException('Tipo inválido.');
@@ -27,6 +27,7 @@ export class CpfAuthService {
         .input('Tipo', dto.tipo)
         .input('ReferenciaId', dto.referenciaId || null)
         .input('Rol', 'registrador')
+        .input('EdificioIdDefecto', dto.edificioIdDefecto || null)
         .execute('sp_UsuarioCPF_Registrar');
       return result.recordset[0];
     } catch (err: any) {
@@ -54,7 +55,7 @@ export class CpfAuthService {
 
     return {
       access_token: token,
-      user: { id: user.Id, username: user.Username, nombre: user.Nombre, rol: user.Rol, tipo: user.Tipo },
+      user: { id: user.Id, username: user.Username, nombre: user.Nombre, rol: user.Rol, tipo: user.Tipo, edificioIdDefecto: user.EdificioIdDefecto || null },
     };
   }
 

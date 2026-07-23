@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { Search, DoorOpen, LogOut, Camera, X, Loader2, GraduationCap } from 'lucide-react';
@@ -9,9 +10,11 @@ const TIPOS = [
   { value: 'INSTRUCTOR_EXTERNO', label: 'Facilitador Externo' },
   { value: 'INSTRUCTOR_INTERNO', label: 'Facilitador Interno' },
   { value: 'VISITANTE', label: 'Visitante' },
+  { value: 'SERVICIO_EXTERNO', label: 'Servicio Externo (PL, Cocina)' },
 ];
 
 export default function RegistroPage() {
+  const { user } = useAuth();
   const [edificios, setEdificios] = useState<any[]>([]);
   const [eventos, setEventos] = useState<any[]>([]);
   const [courseError, setCourseError] = useState(false);
@@ -20,7 +23,7 @@ export default function RegistroPage() {
   const [results, setResults] = useState<any[] | null>(null);
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState<any>(null);
-  const [edificioId, setEdificioId] = useState('');
+  const [edificioId, setEdificioId] = useState(user?.edificioIdDefecto ? String(user.edificioIdDefecto) : '');
   const [motivo, setMotivo] = useState<'general' | 'capacitacion' | null>(null);
   const [eventoCursoId, setEventoCursoId] = useState('');
   const [nombreManual, setNombreManual] = useState('');

@@ -36,7 +36,7 @@ export class AuthController {
   @Post('cpf-register')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin')
-  async cpfRegister(@Body() dto: { username: string; password: string; nombre: string; tipo: string; referenciaId?: number }) {
+  async cpfRegister(@Body() dto: { username: string; password: string; nombre: string; tipo: string; referenciaId?: number; edificioIdDefecto?: number }) {
     return this.cpf.register(dto);
   }
 

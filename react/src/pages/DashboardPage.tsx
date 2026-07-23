@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { DoorOpen, LogOut, Building2, RefreshCw, Users } from 'lucide-react';
+import { DoorOpen, LogOut, Building2, RefreshCw, Users, X, Camera } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 
 export default function DashboardPage() {
@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
   const [exitingId, setExitingId] = useState<number | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setApiError(false);
@@ -70,6 +71,7 @@ export default function DashboardPage() {
                   <caption className="visually-hidden">Accesos registrados hoy</caption>
                   <thead><tr>
                     <th scope="col">Tipo</th><th scope="col">Nombre</th><th scope="col">Cédula</th><th scope="col">Edificio</th>
+                    <th scope="col" className="text-center">Foto</th>
                     <th scope="col" className="text-center">Entrada</th><th scope="col" className="text-center">Salida</th><th scope="col" className="text-center">Acción</th>
                   </tr></thead>
                   <tbody>
@@ -79,6 +81,7 @@ export default function DashboardPage() {
                         <td className="font-bold">{r.nombre}</td>
                         <td className="text-muted text-xs">{r.cedula || '-'}</td>
                         <td className="text-muted text-xs">{r.edificio}</td>
+                        <td className="text-center">{r.fotoUrl ? <button onClick={() => setFotoPreview(r.fotoUrl)} className="btn btn--ghost btn--sm btn--icon" aria-label="Ver foto"><Camera className="icon icon--sm" /></button> : '-'}</td>
                         <td className="text-center text-xs">{new Date(r.fechaEntrada).toLocaleTimeString()}</td>
                         <td className="text-center">{r.fechaSalida ? <span className="badge badge--neutral">{new Date(r.fechaSalida).toLocaleTimeString()}</span> : <span className="badge badge--success">Dentro</span>}</td>
                         <td className="text-center">{!r.fechaSalida && (
@@ -119,6 +122,19 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Foto Preview Modal */}
+      {fotoPreview && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setFotoPreview(null)}>
+          <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }}>
+            <button onClick={() => setFotoPreview(null)} className="btn btn--primary btn--sm"><X className="icon icon--sm" /> Cerrar</button>
+          </div>
+          <img src={fotoPreview.startsWith('http') ? fotoPreview : `https://rhclaroni.com${fotoPreview}`} alt="Foto de acceso"
+            style={{ maxWidth: '90%', maxHeight: '85%', borderRadius: 8, objectFit: 'contain' }}
+            onClick={e => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }

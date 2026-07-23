@@ -37,6 +37,7 @@ export declare class AuthController {
             nombre: any;
             rol: any;
             tipo: any;
+            edificioIdDefecto: any;
         };
     }>;
     cpfRegister(dto: {
@@ -45,6 +46,7 @@ export declare class AuthController {
         nombre: string;
         tipo: string;
         referenciaId?: number;
+        edificioIdDefecto?: number;
     }): Promise<any>;
     cpfChangePassword(dto: {
         username: string;
