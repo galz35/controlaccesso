@@ -205,7 +205,6 @@ export default function RegistroPage() {
     if (!puedeRegistrar()) { showError('Complete los campos requeridos'); return; }
     if (!motivoAcceso) { showError('Seleccione un motivo de acceso'); return; }
     if (motivoAcceso === 'Otro' && !motivoDetalle.trim()) { showError('Debe describir el motivo al seleccionar "Otro".'); return; }
-    if (isTraining && vieneCapacitacion === 'si' && !eventoCursoId) { showError('Seleccione el curso o evento de capacitación'); return; }
     setRegistrando(true);
     try {
       const fd = new FormData();
@@ -463,9 +462,9 @@ export default function RegistroPage() {
 
             {motivoAcceso === 'Capacitación' && esCapacitacion && (
               <div style={{ marginTop: 12, padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
-                <label className="form-label" style={{ marginBottom: 8 }}>Seleccione el curso o evento de capacitación</label>
+                <label className="form-label" style={{ marginBottom: 8 }}>Curso o evento (opcional)</label>
                 <select className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError} style={{ maxWidth: 400 }}>
-                  <option value="">{courseError ? 'Cursos no disponibles' : 'Seleccione un curso…'}</option>
+                  <option value="">{courseError ? 'Cursos no disponibles' : 'Sin curso específico…'}</option>
                   {!courseError && eventos.map((ev: any) => (
                     <option key={ev.Id || ev.id} value={ev.Id || ev.id}>
                       {ev.CursoNombre || ev.nombre} — {new Date(ev.FechaInicio).toLocaleDateString()}
@@ -474,7 +473,7 @@ export default function RegistroPage() {
                 </select>
                 {vieneCapacitacion === 'si' && eventoCursoId && (
                   <p className="form-hint" style={{ marginTop: 4, color: 'var(--success)' }}>
-                    <Check className="icon icon--sm" /> Curso seleccionado
+                    <Check className="icon icon--sm" /> Curso asignado desde importación
                   </p>
                 )}
               </div>
