@@ -1,0 +1,1690 @@
+================================================================================
+PLAN FINAL DE EXPERIENCIA DE USUARIO, DISEÑO POR PÁGINA Y REPORTES
+SISTEMA: CONTROL DE ACCESO A EDIFICIOS - CLARO NICARAGUA
+FECHA: 24 DE JULIO DE 2026
+DESTINATARIO: AGENTE DE IA O EQUIPO QUE IMPLEMENTARÁ EL REDISEÑO
+================================================================================
+
+1. PROPÓSITO
+================================================================================
+
+Este documento define cómo mejorar cada página del sistema para que una persona
+sin conocimientos informáticos pueda usarlo con poca o ninguna capacitación.
+
+No se propone convertirlo en un sistema grande. Se propone un MVP claro, rápido,
+predecible y resistente a errores durante la operación diaria.
+
+La aplicación reemplaza el papel que usa el personal CPF para anotar movimientos
+físicos en edificios. No controla jornada laboral, asistencia ni puntualidad.
+
+Reglas del negocio que deben conservarse:
+
+- Una entrada significa que se registró el acceso físico a un edificio.
+- Una salida puede registrarse, pero es opcional.
+- Que falte una salida NO prueba que la persona siga físicamente dentro.
+- Se permite registrar una salida aunque no exista una entrada previa.
+- Todo empleado tiene código/carnet físico y ese dato debe ser la búsqueda rápida.
+- Hay visitantes generales.
+- Hay proveedores.
+- Hay facilitadores internos y externos.
+- Hay personal externo, incluyendo PL, cocina, carga, manejo y otros servicios.
+- Algunos planteles tienen comedor.
+- Solo un edificio maneja capacitación, pero no toda persona que entra allí va a
+  capacitación.
+- Los reportes deben explicar quién estuvo, dónde, cuándo, por qué y quién registró.
+
+
+2. DIAGNÓSTICO HUMANO DEL DISEÑO ACTUAL
+================================================================================
+
+Estado general:
+
+- La identidad roja, blanca, gris y negra ya es coherente con Claro.
+- No se usa azul como color principal, lo cual debe mantenerse.
+- Los componentes básicos son consistentes.
+- Hay adaptación móvil para varias tablas.
+- Existen mensajes de carga, errores y estados vacíos.
+- La operación principal ya funciona.
+
+Lo que todavía dificulta el uso:
+
+1. El menú usa términos técnicos o administrativos:
+   "Dashboard", "Catálogos", "Usuarios CPF", "Personal Ext.".
+
+2. La página Registro presenta demasiadas decisiones a la vez:
+   edificio, seis tipos de persona, búsqueda, capacitación, curso, motivo, detalle,
+   foto y salida.
+
+3. El botón principal no explica por qué está deshabilitado cuando falta información.
+
+4. Las categorías "Proveedor", "Facilitador Externo" y "Servicio Externo" pueden
+   confundirse si el CPF no conoce la clasificación administrativa.
+
+5. Entrada y salida aparecen en la misma página con peso visual similar. La entrada
+   debe ser la tarea principal y la salida una tarea secundaria muy rápida.
+
+6. La salida sin entrada está escondida detrás de un texto largo y solicita tres
+   campos desde cero.
+
+7. El resumen usa indicadores, pero "Sin salida registrada" puede interpretarse como
+   "actualmente dentro". Eso sería incorrecto porque la salida es opcional.
+
+8. El reporte actual tiene once columnas. Técnicamente es completo, pero obliga al
+   usuario a leer demasiado horizontalmente.
+
+9. El reporte no ofrece de forma inmediata las consultas humanas más importantes:
+   "hoy", "quiénes tuvieron acceso", "por qué llegaron", "salidas no registradas" y
+   "salidas sin entrada".
+
+10. Los botones con solo iconos en administración y catálogos dependen de que el
+    usuario entienda el dibujo o descubra el tooltip.
+
+11. Algunos formularios marcan todos los campos de catálogo como requeridos aunque
+    el negocio puede aceptar varios como opcionales.
+
+12. Importar cursos pegando JSON es una función para desarrolladores, no para un
+    administrador no técnico.
+
+13. Hay estilos importantes en línea dentro de JSX. Eso dificulta mantener una
+    jerarquía visual común y corregir móvil.
+
+14. Falta una confirmación final visible con los datos esenciales después de una
+    entrada: persona, edificio, hora y motivo.
+
+Conclusión:
+
+La aplicación es funcional, pero todavía exige que el usuario entienda el modelo de
+datos. El rediseño debe hacer lo contrario: la interfaz debe traducir las preguntas
+cotidianas del CPF al modelo de datos sin exponer complejidad innecesaria.
+
+
+3. PRINCIPIOS OBLIGATORIOS DEL REDISEÑO
+================================================================================
+
+3.1 Una pantalla, una tarea principal
+
+- Inicio: entender qué ocurrió hoy.
+- Registrar: registrar entrada en pocos pasos.
+- Salidas: encontrar persona y registrar salida.
+- Reportes: responder preguntas y exportar.
+- Administración: mantener datos, solo para quien corresponde.
+
+3.2 Mostrar solo lo necesario en el momento necesario
+
+- No mostrar curso hasta responder que sí viene a capacitación.
+- No mostrar campos manuales hasta elegir Visitante.
+- No mostrar salida sin entrada hasta solicitar esa acción.
+- No mostrar opciones administrativas al CPF registrador.
+
+3.3 Lenguaje de trabajo, no lenguaje del sistema
+
+Usar:
+
+- "Inicio" en lugar de "Dashboard".
+- "Registrar acceso" en lugar de "Registro".
+- "Historial y reportes" en lugar de "Reportes".
+- "Datos de apoyo" o "Administración" en lugar de "Catálogos".
+- "Cuentas de acceso" en lugar de "Usuarios CPF".
+- "Código o carnet" en lugar de "PersonaId".
+- "Salida no registrada" en lugar de "Pendiente", cuando se hable del movimiento.
+
+3.4 No afirmar más de lo que el dato prueba
+
+Prohibido mostrar "Personas dentro" como verdad absoluta si una salida es opcional.
+Usar:
+
+- "Entradas sin salida registrada".
+- "Posiblemente en el edificio", solo si Claro acepta explícitamente esa semántica.
+- Texto de ayuda: "La salida es opcional; esta lista no confirma presencia actual".
+
+3.5 Acción primaria evidente
+
+- Un solo botón rojo principal por bloque.
+- Negro para salida o acción secundaria fuerte.
+- Blanco/gris para cancelar, volver, limpiar o editar.
+- Verde únicamente para confirmar éxito o estado activo.
+- Nunca usar azul.
+
+3.6 Botones entendibles sin iconos
+
+Todo botón operativo debe llevar verbo y objeto:
+
+- "Registrar entrada".
+- "Registrar salida".
+- "Buscar persona".
+- "Descargar reporte".
+- "Editar proveedor".
+
+El icono acompaña, pero no reemplaza el texto.
+
+3.7 Prevenir errores antes de mostrar mensajes
+
+- Seleccionar automáticamente el edificio del CPF.
+- Enfocar el campo de carnet al abrir.
+- Permitir Enter para buscar.
+- Elegir valores frecuentes con botones grandes.
+- Deshabilitar acciones solo si se explica qué falta.
+- Mantener datos escritos cuando el servidor falla.
+
+3.8 Tamaño y accesibilidad
+
+- Texto normal mínimo: 16 px en formularios operativos.
+- Texto secundario mínimo: 13 px.
+- Botones táctiles: mínimo 44 x 44 px.
+- Contraste suficiente entre gris y blanco.
+- Foco visible rojo.
+- Labels permanentes; no depender solo de placeholders.
+- Mensajes de estado con role="status" o role="alert".
+- Navegación completa por teclado.
+
+
+4. ARQUITECTURA DE NAVEGACIÓN RECOMENDADA
+================================================================================
+
+4.1 Menú para CPF o registrador
+
+Mostrar solo:
+
+1. Registrar acceso
+2. Registrar salida
+3. Historial y reportes
+
+La página inicial del CPF debe ser "Registrar acceso", no un resumen.
+La velocidad de registro es su trabajo principal.
+
+4.2 Menú para administrador
+
+Mostrar:
+
+1. Inicio
+2. Registrar acceso
+3. Registrar salida
+4. Historial y reportes
+5. Administración
+
+Dentro de Administración:
+
+- Edificios
+- Proveedores
+- Facilitadores
+- Cursos y capacitaciones
+- Personal externo
+- Cuentas de acceso
+
+No es necesario mostrar los seis catálogos abiertos simultáneamente en el menú.
+Agruparlos reduce ruido.
+
+4.3 Encabezado global
+
+Debe mostrar:
+
+- Nombre corto de la página.
+- Edificio actual, si el usuario está fijado a uno.
+- Nombre del usuario.
+- Botón "Salir" con texto.
+
+Ejemplo:
+
+  Registrar acceso             Edificio: Plantel X    Gustavo | Salir
+
+En móvil:
+
+  [Menú] Registrar acceso
+  Plantel X
+
+4.4 Navegación de tareas rápidas
+
+En páginas operativas debe existir una franja:
+
+  [Registrar entrada] [Registrar salida] [Ver historial]
+
+En escritorio puede estar dentro de la barra superior.
+En móvil puede ser una barra inferior fija, sin cubrir el contenido.
+
+
+5. PÁGINA 1: INICIO DE SESIÓN
+================================================================================
+
+Objetivo humano:
+
+"Entrar al sistema sin tener que entender qué método de autenticación usa".
+
+Problemas actuales:
+
+- "Usuario" es genérico.
+- No explica quién puede entrar.
+- El error puede mostrar mensajes técnicos devueltos por el backend.
+- No existe ayuda visible para recuperar acceso.
+
+Diseño propuesto:
+
+1. Logo o marca Claro discreta.
+2. Título: "Control de acceso a edificios".
+3. Subtítulo: "Uso autorizado para personal de control".
+4. Campo: "Usuario".
+5. Campo: "Contraseña".
+6. Botón grande: "Ingresar".
+7. Ayuda corta: "Si no puede ingresar, contacte al administrador del sistema".
+
+Texto de error recomendado:
+
+- Credenciales incorrectas:
+  "El usuario o la contraseña no son correctos. Revise los datos e intente otra vez."
+
+- Cuenta desactivada:
+  "Esta cuenta está desactivada. Solicite ayuda al administrador."
+
+- Sin edificio asignado:
+  "Su cuenta no tiene un edificio asignado. El administrador debe configurarlo."
+
+- Servidor no disponible:
+  "El sistema no está disponible en este momento. No cierre esta pantalla e intente
+  nuevamente."
+
+Comportamiento:
+
+- Enter envía el formulario.
+- No borrar el usuario si la contraseña es incorrecta.
+- Enfocar contraseña después de un intento fallido.
+- Mostrar "Ingresando..." y evitar doble envío.
+- Mostrar/ocultar contraseña con texto accesible.
+- No mostrar opciones SSO que no estén activas.
+
+Criterios de aceptación:
+
+- Un usuario nuevo entiende en menos de cinco segundos qué debe escribir.
+- Todos los errores se muestran en español sencillo.
+- Funciona con teclado y en un teléfono de 360 px.
+
+
+6. PÁGINA 2: VALIDACIÓN SSO
+================================================================================
+
+Objetivo humano:
+
+"Esperar mientras el sistema valida el acceso proveniente del portal".
+
+Diseño:
+
+- Título: "Estamos verificando su acceso".
+- Texto: "Esto puede tardar unos segundos".
+- Indicador de progreso.
+- Si falla, evitar palabras como token, query string o SSO.
+
+Error recomendado:
+
+  "No pudimos verificar su acceso desde el Portal. Vuelva al Portal e intente de
+  nuevo. Si el problema continúa, solicite ayuda."
+
+Botones:
+
+- "Volver al Portal", si se conoce la URL.
+- "Usar usuario y contraseña", solo si ese método está habilitado.
+
+Agregar un identificador corto de error para soporte, sin exponer datos sensibles:
+
+  Código de ayuda: ACC-SSO-01
+
+
+7. PÁGINA 3: REGISTRAR ACCESO
+================================================================================
+
+Esta es la pantalla más importante del sistema.
+
+Objetivo humano:
+
+"Identificar a la persona, indicar por qué entra y guardar".
+
+Meta de velocidad:
+
+- Empleado con carnet: 10 a 15 segundos.
+- Proveedor conocido: menos de 20 segundos.
+- Visitante nuevo: menos de 30 segundos.
+
+7.1 Estructura visual
+
+Usar un flujo de tres pasos visibles:
+
+  Paso 1. ¿Quién entra?
+  Paso 2. ¿Por qué entra?
+  Paso 3. Confirmar entrada
+
+No usar un asistente de páginas separadas. Los tres pasos pueden estar en una sola
+tarjeta, revelándose progresivamente para evitar clics y recargas.
+
+7.2 Edificio
+
+CPF:
+
+- Mostrar el edificio asignado como dato fijo.
+- No usar selector.
+- Encabezado: "Registrando en: Plantel X".
+- Si no hay edificio asignado, bloquear y mostrar una instrucción clara.
+
+Administrador:
+
+- Mostrar selector con búsqueda si existen muchos edificios.
+- Recordar el último edificio elegido durante la sesión.
+- Pedir confirmación visual al cambiar de edificio.
+
+7.3 Paso 1: tipo de persona
+
+No mostrar seis botones con el mismo peso.
+
+Primera fila, opciones frecuentes:
+
+  [Empleado] [Visitante] [Proveedor] [Personal externo]
+
+En "Más opciones":
+
+  [Facilitador interno] [Facilitador externo]
+
+Si los datos reales demuestran otra frecuencia, ordenar por uso.
+
+Explicar categorías con una línea:
+
+- Empleado: "Colaborador Claro con carnet".
+- Visitante: "Persona no registrada previamente".
+- Proveedor: "Persona asociada a una empresa proveedora".
+- Personal externo: "PL, cocina, carga, conductor u otro servicio".
+- Facilitador: "Persona que imparte una capacitación".
+
+Al cambiar de tipo:
+
+- Limpiar selección anterior.
+- Mantener edificio.
+- No mantener campos incompatibles.
+- Colocar foco en carnet/búsqueda.
+
+7.4 Búsqueda de empleado
+
+Label:
+
+  "Escanee o escriba el código del carnet"
+
+Placeholder:
+
+  "Ejemplo: 500708"
+
+Debajo:
+
+  "También puede buscar por nombre".
+
+Comportamiento recomendado:
+
+- Un solo campo para carnet, código, cédula o nombre.
+- Buscar con Enter.
+- Si hay coincidencia exacta por carnet, seleccionarla automáticamente.
+- Si hay varias coincidencias, mostrar máximo 8 inicialmente.
+- Resaltar el texto coincidente.
+- Cada resultado debe mostrar nombre grande y código claramente.
+- Evitar avatar decorativo si no aporta identificación real.
+
+Resultado:
+
+  JUAN PÉREZ
+  Carnet 123456 · Colaborador
+  [Seleccionar]
+
+No encontrado:
+
+  "No encontramos a la persona. Revise el código o busque por nombre."
+
+No ofrecer registro manual de empleado, porque debilita la calidad del dato.
+
+7.5 Proveedor, facilitador y personal externo
+
+Usar el mismo patrón de búsqueda.
+
+Mostrar:
+
+- Nombre.
+- Código o cédula.
+- Empresa.
+- Servicio, cuando corresponda.
+
+Si no existe:
+
+- Para el MVP, mostrar:
+  "No aparece en la lista. Solicite al administrador que lo agregue."
+
+- No enviar al CPF a un catálogo complejo durante una fila de entrada.
+
+Una mejora posterior puede permitir "Registro rápido temporal", sujeto a aprobación
+del negocio y con trazabilidad.
+
+7.6 Visitante
+
+Campos:
+
+1. Nombre completo, requerido.
+2. Cédula o identificación, opcional.
+3. Empresa o procedencia, opcional.
+
+No mostrar la palabra "manual".
+
+Añadir:
+
+- Autocapitalización visual del nombre.
+- Teclado adecuado en móvil.
+- Límite visible solo si se acerca al máximo.
+
+7.7 Paso 2: motivo
+
+Usar botones grandes para motivos frecuentes:
+
+  [Comedor] [Entrega] [Reunión] [Mantenimiento]
+  [Carga/descarga] [Transporte] [Otro]
+
+"Servicio de cocina" puede mostrarse cuando el tipo sea Personal externo.
+"Capacitación" debe mostrarse solo en el edificio de capacitación.
+
+El sistema puede ordenar motivos según el tipo:
+
+- Proveedor: Entrega, Reunión, Mantenimiento.
+- Personal externo: Comedor, Cocina, Carga/descarga, Transporte.
+- Visitante: Reunión, Visita general, Comedor.
+
+El usuario siempre puede ver "Otros motivos".
+
+Detalle:
+
+- Solo hacerlo obligatorio cuando Motivo = Otro.
+- Para los demás casos, label "Detalle adicional (opcional)".
+- Placeholder contextual:
+  "Ejemplo: visita a Recursos Humanos".
+
+7.8 Capacitación
+
+Solo en el edificio configurado para capacitación:
+
+  "¿Esta entrada es por una capacitación?"
+  [No] [Sí]
+
+Valor inicial: No.
+
+Si selecciona Sí:
+
+- Mostrar curso/evento.
+- Listar primero los eventos de hoy.
+- Mostrar nombre y horario.
+- Si solo existe un evento activo, preseleccionarlo.
+- Si no cargan los cursos, permitir registrar una entrada general y mostrar:
+  "No pudimos consultar capacitaciones. Puede registrar la entrada como visita
+  general y corregirla posteriormente si el negocio habilita edición."
+
+No asumir capacitación por estar en ese edificio.
+
+7.9 Paso 3: resumen y registro
+
+Antes del botón mostrar un resumen compacto:
+
+  Persona: Juan Pérez · Carnet 123456
+  Edificio: Plantel X
+  Motivo: Reunión · Recursos Humanos
+
+Botón:
+
+  "Registrar entrada"
+
+Si está deshabilitado, mostrar debajo:
+
+  "Falta seleccionar una persona"
+  o
+  "Falta seleccionar el motivo"
+
+Después de guardar:
+
+Mostrar confirmación durante 2 a 3 segundos:
+
+  Entrada registrada
+  Juan Pérez
+  Plantel X · 8:42 a. m. · Reunión
+
+Acciones:
+
+  [Registrar otra persona]
+  [Deshacer] solo si existe una operación segura y auditada; no incluir en MVP sin
+  respaldo de backend.
+
+Después:
+
+- Limpiar persona y motivo.
+- Mantener edificio.
+- Mantener el tipo más frecuente o volver a Empleado.
+- Enfocar carnet.
+
+7.10 Foto
+
+Para el MVP mantener desactivada.
+
+Si se habilita después:
+
+- Explicar para qué se solicita.
+- Mantenerla opcional.
+- Mostrar vista previa.
+- Permitir eliminar antes de guardar.
+- Resolver primero el control de acceso de fotos por edificio.
+
+
+8. PÁGINA 4: REGISTRAR SALIDA
+================================================================================
+
+Recomendación:
+
+Separar la salida de la tarjeta lateral de Registro y darle ruta propia:
+
+  /control-acceso/salidas
+
+Objetivo humano:
+
+"Encontrar rápidamente a una persona y registrar que salió".
+
+Texto aclaratorio:
+
+  "Registrar la salida es opcional. Esta función no controla horario laboral."
+
+8.1 Búsqueda principal
+
+Campo grande:
+
+  "Escanee carnet o busque por nombre"
+
+Buscar únicamente entre entradas sin salida registrada del edificio autorizado.
+
+Resultado:
+
+  JUAN PÉREZ
+  Entrada registrada a las 8:42 a. m.
+  Motivo: Reunión
+  [Registrar salida]
+
+Confirmación:
+
+  "¿Registrar la salida de Juan Pérez?"
+  "Entrada: 8:42 a. m. · Plantel X"
+  [Cancelar] [Sí, registrar salida]
+
+No usar window.confirm. Usar el diálogo común del sistema para mantener lenguaje y
+apariencia consistentes.
+
+8.2 Lista secundaria
+
+Debajo de la búsqueda:
+
+  "Entradas sin salida registrada"
+
+Mostrar:
+
+- Nombre.
+- Código.
+- Hora de entrada.
+- Motivo.
+- Botón con texto "Registrar salida".
+
+No cargar una lista excesiva sin búsqueda. Mostrar los registros más recientes y
+paginar o cargar más.
+
+Texto obligatorio:
+
+  "Esta lista no confirma que la persona siga dentro; la salida es opcional."
+
+8.3 Salida sin entrada registrada
+
+Botón secundario:
+
+  "Registrar salida sin entrada previa"
+
+Abrir un diálogo, no expandir un formulario largo en medio de la lista.
+
+Flujo:
+
+1. Buscar carnet/código primero.
+2. Si se encuentra, completar nombre automáticamente.
+3. Si no se encuentra, permitir escribir nombre.
+4. Solicitar observación.
+5. Mostrar edificio fijo.
+6. Confirmar.
+
+Observaciones rápidas:
+
+- "No se registró la entrada".
+- "Entrada registrada en papel".
+- "Falla temporal del sistema".
+- "Otro".
+
+Si elige Otro, solicitar detalle.
+
+El botón final debe decir:
+
+  "Registrar salida sin entrada"
+
+
+9. PÁGINA 5: INICIO / RESUMEN
+================================================================================
+
+Objetivo humano:
+
+"Entender de un vistazo la actividad de hoy y actuar sobre excepciones".
+
+Esta página es útil principalmente para administrador o supervisor.
+No debe ser la página inicial obligatoria del CPF.
+
+9.1 Indicadores
+
+Usar:
+
+1. Entradas registradas hoy.
+2. Salidas registradas hoy.
+3. Entradas sin salida registrada.
+4. Salidas sin entrada previa.
+
+Evitar:
+
+- "Personas dentro".
+- Gráficas decorativas sin una pregunta de negocio.
+
+Cada indicador debe ser clicable y abrir el reporte filtrado correspondiente.
+
+9.2 Lista de actividad
+
+Título:
+
+  "Movimientos de hoy"
+
+Columnas principales:
+
+- Hora.
+- Persona.
+- Tipo.
+- Motivo.
+- Movimiento.
+
+Edificio solo para administrador global.
+Código, empresa y operador pueden ir en un detalle desplegable.
+
+Estado:
+
+- "Entrada registrada" con texto oscuro o rojo discreto.
+- "Salida registrada" con verde.
+- "Salida no registrada" en gris, no como alarma.
+- "Salida sin entrada" en ámbar/gris oscuro; no introducir azul.
+
+9.3 Acción rápida
+
+Botones:
+
+- "Registrar entrada".
+- "Registrar salida".
+- "Ver reporte de hoy".
+
+9.4 Actualización
+
+- Mostrar "Actualizado hace X minutos".
+- Botón "Actualizar".
+- No recargar toda la página.
+- Si falla, conservar datos anteriores y mostrar:
+  "No pudimos actualizar. Se muestran los últimos datos disponibles."
+
+
+10. PÁGINA 6: HISTORIAL Y REPORTES
+================================================================================
+
+Objetivo humano:
+
+"Responder una pregunta concreta sin tener que interpretar una tabla técnica".
+
+El reporte debe estar pensado primero para consultar y luego para exportar.
+
+10.1 Estructura MVP recomendada
+
+Usar dos pestañas:
+
+1. Historial de accesos
+2. Entradas sin salida registrada
+
+Para administrador puede agregarse:
+
+3. Resumen del día
+
+No crear inicialmente un constructor libre de reportes.
+
+10.2 Filtros rápidos
+
+Primera fila:
+
+  [Hoy] [Ayer] [Esta semana] [Este mes] [Elegir fechas]
+
+Valor inicial: Hoy.
+
+Segunda fila:
+
+- Buscar persona, carnet o cédula.
+- Edificio, solo administrador.
+- Tipo de persona.
+- Motivo.
+- Estado del movimiento.
+
+Estado:
+
+- Todos.
+- Con salida registrada.
+- Sin salida registrada.
+- Salida sin entrada previa.
+
+Botones:
+
+- "Ver resultados".
+- "Limpiar filtros", con texto; no solo una X.
+
+Mostrar filtros aplicados como chips:
+
+  Hoy ×   Visitante ×   Reunión ×
+
+10.3 Resumen antes de la tabla
+
+Mostrar:
+
+  48 movimientos encontrados
+  36 entradas · 10 salidas registradas · 2 salidas sin entrada
+
+Para un rango:
+
+  Del 20/07/2026 al 24/07/2026
+
+No calcular "personas dentro" a partir de salida nula.
+
+10.4 Tabla principal
+
+Reducir columnas visibles:
+
+1. Fecha y hora de entrada.
+2. Persona.
+3. Tipo.
+4. Motivo.
+5. Edificio, solo administrador.
+6. Salida.
+7. Acción "Ver detalle".
+
+Al abrir detalle:
+
+- Código/carnet.
+- Empresa.
+- Detalle del motivo.
+- Usuario que registró.
+- Hora de entrada completa.
+- Hora de salida completa.
+- Curso, si aplica.
+- Indicador de salida sin entrada.
+
+Esto conserva toda la información sin hacer ilegible la vista principal.
+
+10.5 Lenguaje de salida
+
+Si hay salida:
+
+  "Registrada: 4:31 p. m."
+
+Si no hay:
+
+  "Sin salida registrada"
+
+Si es salida independiente:
+
+  "Salida sin entrada previa"
+
+No usar solo "—", porque obliga a interpretar.
+
+10.6 Tarjetas móviles
+
+Orden:
+
+  Nombre
+  Fecha y hora
+  Tipo · Motivo
+  Edificio
+  Salida registrada / Sin salida registrada
+  [Ver detalle]
+
+No concatenar toda la información en una línea con puntos.
+
+10.7 Exportación
+
+Botón:
+
+  "Descargar resultados"
+
+Al pulsar, abrir opciones:
+
+- Excel/CSV.
+- PDF imprimible, fase posterior.
+
+Texto:
+
+  "Se descargarán los 48 resultados de los filtros aplicados."
+
+Nombre de archivo:
+
+  accesos_plantel-x_2026-07-24.csv
+
+El archivo debe incluir:
+
+- Fecha.
+- Hora de entrada.
+- Hora de salida.
+- Estado de salida.
+- Persona.
+- Tipo.
+- Código/carnet.
+- Empresa.
+- Motivo.
+- Detalle.
+- Edificio.
+- Curso/evento.
+- Usuario que registró.
+
+Debe usar encabezados humanos y valores traducidos.
+
+10.8 Reportes concretos que aportan utilidad
+
+MVP obligatorio:
+
+A. Historial de accesos
+   Responde quién estuvo, cuándo, dónde y por qué.
+
+B. Entradas sin salida registrada
+   Responde cuáles movimientos no tienen salida, sin afirmar presencia actual.
+
+C. Salidas sin entrada previa
+   Permite auditar excepciones y explicar por qué ocurrieron.
+
+D. Reporte diario por edificio
+   Totales por tipo y motivo, seguido del detalle.
+
+Fase posterior:
+
+E. Asistencia a capacitación
+   Solo para eventos del edificio de capacitación.
+
+F. Frecuencia por motivo
+   Comedor, cocina, carga, entrega, reunión, etc.
+
+G. Actividad por operador
+   Para soporte y auditoría, no para medir productividad sin política aprobada.
+
+10.9 Mejoras necesarias de backend para reportes
+
+El endpoint actual permite edificio, tipo, motivo y fechas.
+Agregar al DTO, servicio y procedimiento:
+
+- q: busca nombre, PersonaId, cédula y empresa.
+- estadoSalida: TODOS | CON_SALIDA | SIN_SALIDA | SALIDA_INDEPENDIENTE.
+- cursoEventoId, opcional.
+- resumen: conteos del conjunto filtrado.
+
+Contrato sugerido:
+
+GET /acceso/reporte
+  ?desde=2026-07-24
+  &hasta=2026-07-24
+  &edificioId=121
+  &q=500708
+  &tipoPersona=EMPLEADO
+  &motivoAcceso=Reunión
+  &estadoSalida=SIN_SALIDA
+  &pagina=1
+  &porPagina=25
+
+Respuesta sugerida:
+
+{
+  "data": [],
+  "total": 48,
+  "pagina": 1,
+  "porPagina": 25,
+  "resumen": {
+    "entradas": 36,
+    "conSalida": 10,
+    "sinSalida": 26,
+    "salidasIndependientes": 2
+  }
+}
+
+Nota:
+
+"sinSalida" es ausencia de registro de salida, no presencia confirmada.
+
+10.10 Validaciones de fecha
+
+- Desde no puede ser posterior a Hasta.
+- Mostrar fecha en formato local al usuario.
+- Enviar ISO al backend.
+- Hasta debe cubrir todo el día seleccionado.
+- Limitar exportaciones muy grandes o procesarlas por lotes.
+- Si no hay resultados, no descargar archivo vacío sin advertencia.
+
+
+11. PÁGINAS 7 A 11: CATÁLOGOS
+================================================================================
+
+Catálogos actuales:
+
+- Edificios.
+- Proveedores.
+- Facilitadores.
+- Cursos.
+- Personal externo.
+
+Objetivo humano:
+
+"Buscar, agregar o corregir datos que ayudan al registro".
+
+11.1 Patrón común
+
+Encabezado:
+
+  Proveedores
+  "Personas y empresas proveedoras disponibles para registrar accesos."
+
+Acciones:
+
+  [Buscar proveedor...] [Agregar proveedor]
+
+Listado:
+
+- Mostrar primero el nombre.
+- Mostrar datos secundarios debajo.
+- Botón con texto "Editar".
+- Estado vacío con acción:
+  "Todavía no hay proveedores. Agregue el primero."
+
+Formulario:
+
+- Abrir en panel o diálogo con título:
+  "Agregar proveedor" / "Editar proveedor".
+- Marcar únicamente campos realmente requeridos.
+- Mostrar errores al lado del campo.
+- Conservar datos si falla Guardar.
+- Deshabilitar Guardar mientras se envía.
+- Confirmar con el nombre:
+  "Proveedor Juan Pérez guardado".
+
+11.2 Edificios
+
+Mostrar:
+
+- Nombre.
+- Dirección.
+- Tipo: General / Capacitación.
+- Estado: Activo / Inactivo, si el backend lo soporta.
+
+La bandera de capacitación debe poder administrarse visualmente.
+Evitar depender de ajustes directos en base de datos.
+
+11.3 Proveedores
+
+Separar conceptualmente:
+
+- Persona.
+- Empresa.
+
+Si el modelo actual representa personas proveedoras, el título más claro es:
+
+  "Personal de proveedores"
+
+Campos:
+
+- Nombre, requerido.
+- Cédula, según política.
+- Empresa, requerido.
+- RUC, perteneciente a empresa; revisar si corresponde al registro personal.
+- Teléfono y correo, opcionales.
+
+11.4 Facilitadores
+
+Título:
+
+  "Facilitadores de capacitación"
+
+Mostrar distintivo:
+
+- Interno.
+- Externo.
+
+El código actual usa catálogo de instructores externos y empleados para internos.
+La interfaz debe explicar esa diferencia sin duplicar personas.
+
+11.5 Cursos
+
+Campos:
+
+- Nombre.
+- Descripción.
+- Duración.
+
+La importación pegando JSON debe ocultarse del MVP.
+Sustituir posteriormente por:
+
+- Descargar plantilla CSV.
+- Seleccionar archivo.
+- Vista previa.
+- Mostrar filas válidas y filas con error.
+- Confirmar importación.
+
+11.6 Personal externo
+
+Explicar en subtítulo:
+
+  "PL, cocina, carga, conductores y otros servicios externos."
+
+Campos:
+
+- Código.
+- Nombre.
+- Cédula.
+- Empresa.
+- Servicio.
+- Teléfono opcional.
+
+Usar una lista cerrada de servicios frecuentes más "Otro", si el negocio puede
+normalizarla. Esto mejora búsquedas y reportes.
+
+11.7 Eliminación y desactivación
+
+Preferir "Desactivar" a borrar.
+Los registros relacionados con accesos históricos no deben desaparecer.
+Toda desactivación requiere confirmación y auditoría.
+
+
+12. PÁGINA 12: CUENTAS DE ACCESO
+================================================================================
+
+Nombre recomendado:
+
+  "Cuentas de acceso al sistema"
+
+No usar "Usuarios Externos (CPF)" si esas cuentas pertenecen al personal que registra
+en portería. El nombre actual mezcla el usuario del sistema con la persona visitante.
+
+Objetivo humano:
+
+"Crear una cuenta, asignarle edificio y mantenerla activa".
+
+12.1 Listado
+
+Columnas:
+
+- Nombre.
+- Usuario.
+- Función.
+- Edificio asignado.
+- Estado.
+- Acciones.
+
+Acciones con texto en menú:
+
+  [Administrar ▾]
+    Cambiar contraseña
+    Cambiar edificio
+    Desactivar cuenta
+
+Evitar tres iconos sin etiqueta.
+
+12.2 Crear cuenta
+
+Orden:
+
+1. Nombre de la persona.
+2. Usuario.
+3. Función o rol.
+4. Edificio asignado.
+5. Contraseña temporal.
+
+Eliminar "ID Referencia" de la vista común. Es un dato técnico.
+Si es realmente necesario, ubicarlo en "Opciones avanzadas".
+
+Edificio debe ser obligatorio para un CPF registrador.
+Solo una cuenta administrativa global puede quedar sin edificio fijo.
+
+Contraseña:
+
+- Mostrar requisitos antes de escribir.
+- Permitir generar contraseña temporal.
+- Obligar cambio en primer ingreso, si el backend lo implementa.
+- Nunca mostrar contraseña existente.
+
+12.3 Cambio de edificio
+
+Diálogo:
+
+  "Cambiar edificio de María López"
+  Edificio actual: Plantel A
+  Nuevo edificio: [selector]
+
+  [Cancelar] [Guardar cambio]
+
+12.4 Activación
+
+- Verde: Activa.
+- Gris/rojo suave: Desactivada.
+- Confirmar desactivación.
+- Confirmar reactivación si la acción tiene impacto de seguridad.
+
+
+13. PÁGINAS DE ERROR, SIN PERMISO Y SESIÓN VENCIDA
+================================================================================
+
+Sin permiso:
+
+  "No tiene permiso para ver esta página."
+  "Puede volver a Registrar acceso o solicitar ayuda al administrador."
+  [Volver a Registrar acceso]
+
+Sesión vencida:
+
+- No redirigir sin explicación cuando sea posible.
+- Mostrar:
+  "Su sesión terminó por seguridad. Ingrese nuevamente."
+
+Página no encontrada:
+
+  "No encontramos la página solicitada."
+  [Ir al inicio]
+
+Servidor sin conexión:
+
+  "No pudimos conectar con el sistema."
+  [Intentar nuevamente]
+
+Evitar "Error 401", "Error 403", "token inválido" y mensajes SQL.
+
+
+14. SISTEMA VISUAL Y CSS
+================================================================================
+
+14.1 Paleta
+
+Permitidos:
+
+- Rojo Claro: acción principal y selección.
+- Blanco: superficies.
+- Gris claro: fondos y separadores.
+- Negro/gris oscuro: texto y salida.
+- Verde: éxito y activo.
+- Ámbar discreto: advertencia excepcional.
+
+Prohibido:
+
+- Azul en botones, enlaces, gráficos, foco o estados.
+- Rojo para todo; pierde capacidad de indicar prioridad.
+
+14.2 Jerarquía
+
+- H1: 24 a 28 px.
+- H2/título de tarjeta: 18 a 20 px.
+- Texto de formulario: 16 px.
+- Ayuda: 13 a 14 px.
+- Botón operativo: 16 px y 48 px de alto.
+- Tablas: 13 a 14 px, sin bajar a 11 px para información esencial.
+
+14.3 Componentes que deben crearse
+
+- PageHeader.
+- BuildingContext.
+- TaskNavigation.
+- PersonTypeSelector.
+- PersonSearch.
+- ReasonSelector.
+- SelectedPersonSummary.
+- AccessConfirmation.
+- EmptyState.
+- InlineError.
+- ConfirmDialog.
+- FilterBar.
+- ActiveFilterChips.
+- ReportSummary.
+- ReportDetailDrawer.
+- ResponsiveDataList.
+- FormField.
+- SubmitButton con explicación de requisito faltante.
+
+14.4 Eliminar estilos en línea
+
+Mover estilos de Registro, Reportes, Dashboard y Administración a clases.
+Esto permite:
+
+- Corregir móvil una sola vez.
+- Mantener consistencia.
+- Evitar valores distintos para el mismo componente.
+- Facilitar pruebas visuales.
+
+14.5 CSS base sugerido
+
+:root {
+  --brand-red: #DA291C;
+  --brand-red-hover: #B82318;
+  --brand-black: #1C1C1C;
+  --surface: #FFFFFF;
+  --page-bg: #F7F7F7;
+  --text: #262626;
+  --text-muted: #666666;
+  --border: #D9D9D9;
+  --success: #15803D;
+  --warning: #8A4B08;
+  --error: #B91C1C;
+  --control-height: 48px;
+  --touch-target: 44px;
+}
+
+.operational-form .form-control {
+  min-height: var(--control-height);
+  font-size: 16px;
+}
+
+.task-button {
+  min-height: 48px;
+  padding: 12px 18px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.choice-button {
+  min-height: 56px;
+  white-space: normal;
+  text-align: center;
+}
+
+.help-text {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.report-primary-cell {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.report-secondary-cell {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .main-content {
+    padding: 12px;
+  }
+
+  .page-header {
+    align-items: stretch;
+  }
+
+  .page-header .btn {
+    width: 100%;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .choice-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+15. ESTRUCTURA REACT SUGERIDA
+================================================================================
+
+No reescribir toda la aplicación. Extraer gradualmente los componentes.
+
+Rutas propuestas:
+
+- /control-acceso/login
+- /control-acceso/
+- /control-acceso/registro
+- /control-acceso/salidas
+- /control-acceso/reportes
+- /control-acceso/admin/*
+
+Estado de registro sugerido:
+
+type AccessDraft = {
+  edificioId: number | null;
+  tipoPersona: PersonType;
+  persona: SelectedPerson | null;
+  esCapacitacion: boolean;
+  eventoCursoId: number | null;
+  motivoAcceso: AccessReason | null;
+  motivoDetalle: string;
+};
+
+Requisito faltante:
+
+function getMissingRequirement(draft: AccessDraft): string | null {
+  if (!draft.edificioId) return 'Falta asignar el edificio';
+  if (!draft.persona) return 'Falta seleccionar una persona';
+  if (!draft.motivoAcceso) return 'Falta seleccionar el motivo';
+  if (draft.esCapacitacion && !draft.eventoCursoId) {
+    return 'Falta seleccionar la capacitación';
+  }
+  if (draft.motivoAcceso === 'Otro' && !draft.motivoDetalle.trim()) {
+    return 'Falta explicar el motivo';
+  }
+  return null;
+}
+
+Uso:
+
+const missing = getMissingRequirement(draft);
+
+<button disabled={Boolean(missing) || saving}>
+  {saving ? 'Registrando entrada…' : 'Registrar entrada'}
+</button>
+{missing && <p className="help-text" role="status">{missing}</p>}
+
+Esto es mejor que un botón deshabilitado sin explicación.
+
+
+16. MEJORAS DE MENSAJES Y MICROTEXTOS
+================================================================================
+
+Cambiar:
+
+- "Nuevo" por "Agregar proveedor", "Agregar curso", etc.
+- "Guardado" por "Proveedor guardado".
+- "Error" por una explicación útil.
+- "Sin registros" por "Todavía no hay proveedores".
+- "Código" por "Código o carnet" cuando corresponda.
+- "Registró" por "Registrado por".
+- "Pág" por "Página".
+- "Registro(s)" por pluralización correcta cuando sea simple.
+
+Éxito de entrada:
+
+  "Entrada registrada correctamente."
+
+Éxito de salida:
+
+  "Salida registrada correctamente."
+
+Duplicado:
+
+  "Esta persona ya tiene una entrada sin salida registrada. Puede registrar otra
+  entrada si el negocio lo permite o revisar el movimiento anterior."
+
+Falla de búsqueda:
+
+  "No pudimos realizar la búsqueda. Sus datos no se han perdido. Intente nuevamente."
+
+Falla al guardar:
+
+  "No se registró la entrada. Revise la conexión e intente nuevamente."
+
+
+17. PLAN DE IMPLEMENTACIÓN PRIORIZADO
+================================================================================
+
+FASE 0 - CONFIRMAR VOCABULARIO Y REGLAS (2 horas)
+
+- Confirmar qué significa CPF para mostrar el nombre correcto.
+- Confirmar quién usa cuentas de usuario y contraseña.
+- Confirmar los cuatro tipos más frecuentes.
+- Confirmar motivos frecuentes por tipo de persona.
+- Confirmar que salida seguirá siendo opcional.
+- Confirmar si existe necesidad real de PDF.
+
+Entregable:
+
+- Diccionario de términos aprobado, de una página.
+
+FASE 1 - OPERACIÓN PRINCIPAL MVP (1 día)
+
+- Hacer Registro la página inicial del CPF.
+- Mostrar edificio fijo.
+- Reorganizar Registro en tres pasos progresivos.
+- Priorizar búsqueda por carnet.
+- Ordenar tipos y motivos por frecuencia.
+- Explicar por qué el botón está deshabilitado.
+- Crear confirmación completa.
+- Mantener foto desactivada.
+- Separar Salidas en ruta propia.
+- Sustituir window.confirm por ConfirmDialog.
+
+Archivos principales:
+
+- react/src/App.tsx
+- react/src/components/Shell.tsx
+- react/src/pages/RegistroPage.tsx
+- nueva react/src/pages/SalidasPage.tsx
+- nuevos componentes de operación
+- react/src/styles/components.css
+- react/src/styles/layout.css
+
+FASE 2 - REPORTES ÚTILES (1 a 2 días)
+
+- Agregar filtros rápidos de fecha.
+- Agregar búsqueda por persona/carnet.
+- Agregar estado de salida.
+- Mostrar resumen del conjunto filtrado.
+- Simplificar columnas y crear detalle desplegable.
+- Mejorar tarjetas móviles.
+- Mejorar nombre y contenido del CSV.
+- Crear vistas de entradas sin salida y salidas independientes.
+
+Backend:
+
+- ReporteQueryDto.
+- acceso.controller.ts.
+- acceso.service.ts.
+- procedimiento sp_Acceso_Reporte mediante nueva migración versionada.
+- pruebas API y SQL.
+
+Frontend:
+
+- ReportsPage.tsx.
+- FilterBar.
+- ReportSummary.
+- ReportDetailDrawer.
+
+FASE 3 - NAVEGACIÓN Y ADMINISTRACIÓN (1 día)
+
+- Renombrar menú.
+- Ocultar catálogos al CPF si no son necesarios para su tarea.
+- Agrupar administración.
+- Reemplazar iconos solos por acciones con texto.
+- Corregir formulario de cuentas.
+- Ocultar importación JSON.
+- Agregar subtítulos que expliquen cada catálogo.
+
+FASE 4 - ACCESIBILIDAD Y MÓVIL (medio día)
+
+- Probar 360, 768, 1024 y escritorio.
+- Verificar teclado.
+- Verificar lector de pantalla básico.
+- Aumentar tamaños de texto operativo.
+- Revisar contraste.
+- Verificar diálogos y manejo del foco.
+- Respetar reducción de movimiento.
+
+FASE 5 - PRUEBA CON HUMANOS (medio día)
+
+Probar con al menos:
+
+- Un CPF habitual.
+- Un CPF nuevo.
+- Un administrador.
+
+No explicar la pantalla antes de la primera tarea.
+Observar dónde dudan y qué texto preguntan.
+
+Tareas:
+
+1. Registrar empleado con carnet.
+2. Registrar visitante que va al comedor.
+3. Registrar PL o personal de carga.
+4. Registrar persona en edificio de capacitación que NO va a capacitación.
+5. Registrar participante que sí va a capacitación.
+6. Registrar salida normal.
+7. Registrar salida sin entrada.
+8. Buscar quién visitó ayer por reunión.
+9. Descargar el reporte.
+
+
+18. PRUEBAS DE ACEPTACIÓN
+================================================================================
+
+Registro:
+
+- El CPF reconoce el edificio antes de escribir.
+- Puede registrar empleado usando solo teclado.
+- Una coincidencia exacta de carnet requiere pocos pasos.
+- Cambiar tipo no conserva una persona incompatible.
+- Capacitación no aparece en otros edificios.
+- En edificio de capacitación, el valor inicial es No.
+- Motivo Otro exige detalle.
+- El sistema explica qué falta.
+- Un fallo no borra el formulario.
+- La confirmación incluye persona, edificio, hora y motivo.
+
+Salida:
+
+- Busca solo movimientos autorizados del edificio.
+- La salida normal requiere confirmación.
+- La salida sin entrada queda claramente diferenciada.
+- Nunca se presenta la lista como presencia física confirmada.
+
+Reportes:
+
+- Hoy es el filtro inicial.
+- Desde mayor que Hasta muestra error claro.
+- CPF no puede cambiar a otro edificio.
+- Administrador sí puede elegir edificio.
+- Búsqueda acepta nombre, carnet y cédula.
+- Estado de salida filtra correctamente.
+- Resumen y total coinciden.
+- CSV contiene todos los resultados filtrados.
+- CSV escapa fórmulas y caracteres especiales.
+- CSV usa fecha y nombre de edificio.
+- Móvil no requiere desplazamiento horizontal para la vista principal.
+
+Administración:
+
+- Un CPF no ve acciones administrativas.
+- El administrador entiende cada botón sin depender del icono.
+- Crear cuenta exige edificio cuando corresponde.
+- Desactivar no elimina historial.
+- Errores no exponen SQL ni detalles internos.
+
+
+19. MÉTRICAS DE ÉXITO
+================================================================================
+
+Medir después de desplegar:
+
+- Tiempo promedio para entrada de empleado: meta menor a 15 segundos.
+- Tiempo promedio para visitante: meta menor a 30 segundos.
+- Porcentaje de búsquedas sin resultado.
+- Porcentaje de errores al guardar.
+- Cantidad de clics para registrar una entrada frecuente.
+- Consultas de soporte por pantalla.
+- Porcentaje de accesos con motivo.
+- Uso de filtros y descargas de reporte.
+- Porcentaje de usuarios que completa tareas de prueba sin ayuda.
+
+No usar la cantidad de registros por CPF como indicador de productividad sin una
+política aprobada. Estas métricas son para mejorar el sistema.
+
+
+20. QUÉ NO HACER EN ESTE MVP
+================================================================================
+
+- No reescribir React en otra tecnología.
+- No desarrollar Flutter simultáneamente.
+- No habilitar fotos antes de cerrar seguridad por edificio.
+- No crear gráficos decorativos.
+- No agregar notificaciones, Redis o tiempo real sin necesidad medida.
+- No crear roles nuevos sin regla de negocio.
+- No permitir borrar historial.
+- No afirmar quién está dentro basándose solo en salida nula.
+- No hacer obligatoria la salida si el negocio dice que es opcional.
+- No mezclar capacitación con todos los edificios.
+- No mostrar importación JSON a usuarios no técnicos.
+- No agregar azul.
+- No ocultar texto importante detrás de iconos.
+- No cambiar base de datos sin migración versionada y prueba.
+
+
+21. ORDEN EXACTO PARA OTRO AGENTE DE IA
+================================================================================
+
+1. Leer este documento completo.
+2. Leer REVISION_FINAL_MVP_Y_PLAN_TRABAJO_CONTROL_ACCESO_2026-07-24.txt.
+3. Revisar el código actual; no asumir que versiones anteriores siguen vigentes.
+4. Crear una rama.
+5. Implementar Fase 1 sin tocar reportes.
+6. Compilar y probar Fase 1.
+7. Presentar capturas de escritorio y móvil.
+8. Implementar Fase 2 con migración nueva, nunca editando migraciones aplicadas.
+9. Agregar pruebas de filtros, permisos y exportación.
+10. Implementar Fases 3 y 4.
+11. Ejecutar build, lint, unitarias, E2E, API y SQL.
+12. Hacer prueba humana antes de producción.
+
+Cada entrega debe indicar:
+
+- Qué cambió para el usuario.
+- Qué archivo cambió.
+- Qué prueba se ejecutó.
+- Qué queda pendiente.
+- Cómo volver atrás.
+
+
+22. DEFINICIÓN DE TERMINADO
+================================================================================
+
+El rediseño estará terminado cuando:
+
+- Un CPF nuevo pueda registrar los casos principales sin manual.
+- La entrada frecuente tome menos de 15 segundos.
+- La salida normal esté separada y sea rápida.
+- Todos entiendan que salida es opcional.
+- Capacitación solo aparezca donde corresponde.
+- El reporte responda quién, cuándo, dónde, por qué y quién registró.
+- Existan filtros por persona y estado de salida.
+- El CSV represente exactamente los filtros.
+- CPF vea únicamente su edificio.
+- El menú muestre solo tareas permitidas y necesarias.
+- No existan botones operativos basados únicamente en iconos.
+- La interfaz funcione en móvil y teclado.
+- No se introduzca azul.
+- Build, lint y pruebas estén aprobados.
+- Una prueba con usuarios reales no revele bloqueos de comprensión.
+
+
+23. PRIORIDAD FINAL
+================================================================================
+
+Si solo hay tiempo para cinco cambios, hacer estos:
+
+1. Convertir Registro en un flujo progresivo de tres pasos.
+2. Separar Registrar salida en su propia pantalla.
+3. Fijar edificio y priorizar escaneo/búsqueda por carnet.
+4. Rediseñar Reportes con Hoy, búsqueda, estado de salida y resumen.
+5. Sustituir lenguaje técnico e iconos solos por acciones claras.
+
+Resultado esperado:
+
+El usuario no necesita comprender tablas, DTO, IDs, procedimientos ni categorías
+internas. Solo debe reconocer a la persona, elegir el motivo, confirmar la entrada o
+salida y encontrar después un historial que explique qué ocurrió.
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

@@ -7,9 +7,11 @@ import LoginPage from './pages/LoginPage';
 import SsoHandlerPage from './pages/SsoHandlerPage';
 import DashboardPage from './pages/DashboardPage';
 import RegistroPage from './pages/RegistroPage';
+import SalidasPage from './pages/SalidasPage';
 import ReportsPage from './pages/ReportsPage';
 import CatalogPage from './pages/CatalogPage';
 import AdminCpfPage from './pages/AdminCpfPage';
+import AdminPage from './pages/AdminPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -19,7 +21,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 function PublicRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
-  if (isAuthenticated) return <Navigate to="/control-acceso/" replace />;
+  if (isAuthenticated) return <Navigate to="/control-acceso/registro" replace />;
   return <>{children}</>;
 }
 
@@ -39,12 +41,14 @@ export default function App() {
           <Route path="/control-acceso/" element={<ProtectedRoute><LandingPage /></ProtectedRoute>} />
           <Route path="/control-acceso/dashboard" element={<ProtectedRoute><Shell><DashboardPage /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/registro" element={<ProtectedRoute><Shell><RegistroPage /></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/salidas" element={<ProtectedRoute><Shell><SalidasPage /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/reportes" element={<ProtectedRoute><Shell><ReportsPage /></Shell></ProtectedRoute>} />
-          <Route path="/control-acceso/edificios" element={<ProtectedRoute><Shell><CatalogPage tipo="edificios" /></Shell></ProtectedRoute>} />
-          <Route path="/control-acceso/proveedores" element={<ProtectedRoute><Shell><CatalogPage tipo="proveedores" /></Shell></ProtectedRoute>} />
-          <Route path="/control-acceso/instructores" element={<ProtectedRoute><Shell><CatalogPage tipo="instructores" /></Shell></ProtectedRoute>} />
-          <Route path="/control-acceso/cursos" element={<ProtectedRoute><Shell><CatalogPage tipo="cursos" /></Shell></ProtectedRoute>} />
-          <Route path="/control-acceso/personal-externo" element={<ProtectedRoute><Shell><CatalogPage tipo="personal-externo" /></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/admin" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><AdminPage /></RoleGuard></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/edificios" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="edificios" /></RoleGuard></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/proveedores" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="proveedores" /></RoleGuard></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/instructores" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="instructores" /></RoleGuard></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/cursos" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="cursos" /></RoleGuard></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/personal-externo" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="personal-externo" /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/admin-cpf" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><AdminCpfPage /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<Navigate to="/control-acceso/" replace />} />

@@ -1,21 +1,60 @@
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import { Search, DoorOpen, LogOut, Camera, X, Loader2, GraduationCap, Building2 } from 'lucide-react';
+import { Search, DoorOpen, Loader2, GraduationCap, Building2, Check } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 
 const TIPOS = [
-  { value: 'EMPLEADO', label: 'Colaborador' },
-  { value: 'PROVEEDOR', label: 'Proveedor' },
-  { value: 'INSTRUCTOR_EXTERNO', label: 'Facilitador Externo' },
-  { value: 'INSTRUCTOR_INTERNO', label: 'Facilitador Interno' },
-  { value: 'VISITANTE', label: 'Visitante' },
-  { value: 'SERVICIO_EXTERNO', label: 'Servicio Externo (PL, Cocina)' },
+  { value: 'EMPLEADO', label: 'Empleado', hint: 'Colaborador Claro con carnet' },
+  { value: 'VISITANTE', label: 'Visitante', hint: 'Persona no registrada previamente' },
+  { value: 'PROVEEDOR', label: 'Proveedor', hint: 'Persona asociada a una empresa proveedora' },
+  { value: 'SERVICIO_EXTERNO', label: 'Personal externo', hint: 'PL, cocina, carga, conductor u otro servicio' },
+  { value: 'INSTRUCTOR_INTERNO', label: 'Facilitador interno', hint: 'Persona que imparte una capacitación' },
+  { value: 'INSTRUCTOR_EXTERNO', label: 'Facilitador externo', hint: 'Persona que imparte una capacitación' },
 ];
 
-const MOTIVOS = [
-  'Comedor', 'Servicio de cocina', 'Carga y descarga', 'Conductor/transporte',
-  'Entrega', 'Mantenimiento', 'Reunión', 'Visita general', 'Capacitación', 'Otro',
+const MOTIVOS_POR_TIPO: Record<string, { label: string; value: string }[]> = {
+  EMPLEADO: [
+    { label: 'Comedor', value: 'Comedor' },
+    { label: 'Entrega', value: 'Entrega' },
+    { label: 'Reunión', value: 'Reunión' },
+    { label: 'Mantenimiento', value: 'Mantenimiento' },
+    { label: 'Otro', value: 'Otro' },
+  ],
+  PROVEEDOR: [
+    { label: 'Entrega', value: 'Entrega' },
+    { label: 'Reunión', value: 'Reunión' },
+    { label: 'Mantenimiento', value: 'Mantenimiento' },
+    { label: 'Carga/descarga', value: 'Carga y descarga' },
+    { label: 'Otro', value: 'Otro' },
+  ],
+  SERVICIO_EXTERNO: [
+    { label: 'Comedor', value: 'Comedor' },
+    { label: 'Servicio de cocina', value: 'Servicio de cocina' },
+    { label: 'Carga/descarga', value: 'Carga y descarga' },
+    { label: 'Transporte', value: 'Conductor/transporte' },
+    { label: 'Mantenimiento', value: 'Mantenimiento' },
+    { label: 'Otro', value: 'Otro' },
+  ],
+  VISITANTE: [
+    { label: 'Reunión', value: 'Reunión' },
+    { label: 'Visita general', value: 'Visita general' },
+    { label: 'Comedor', value: 'Comedor' },
+    { label: 'Otro', value: 'Otro' },
+  ],
+};
+
+const MOTIVOS_GENERAL = [
+  { label: 'Comedor', value: 'Comedor' },
+  { label: 'Servicio de cocina', value: 'Servicio de cocina' },
+  { label: 'Carga/descarga', value: 'Carga y descarga' },
+  { label: 'Transporte', value: 'Conductor/transporte' },
+  { label: 'Entrega', value: 'Entrega' },
+  { label: 'Mantenimiento', value: 'Mantenimiento' },
+  { label: 'Reunión', value: 'Reunión' },
+  { label: 'Visita general', value: 'Visita general' },
+  { label: 'Capacitación', value: 'Capacitación' },
+  { label: 'Otro', value: 'Otro' },
 ];
 
 export default function RegistroPage() {
@@ -29,7 +68,8 @@ export default function RegistroPage() {
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [edificioId, setEdificioId] = useState(user?.edificioIdDefecto ? String(user.edificioIdDefecto) : '');
-  const [motivo, setMotivo] = useState<'general' | 'capacitacion' | null>(null);
+  const [esCapacitacion, setEsCapacitacion] = useState(false);
+  const [vieneCapacitacion, setVieneCapacitacion] = useState<'si' | 'no' | null>(null);
   const [eventoCursoId, setEventoCursoId] = useState('');
   const [motivoAcceso, setMotivoAcceso] = useState('');
   const [motivoDetalle, setMotivoDetalle] = useState('');
@@ -38,13 +78,11 @@ export default function RegistroPage() {
   const [empresaManual, setEmpresaManual] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [registrando, setRegistrando] = useState(false);
-  const [foto, setFoto] = useState<File | null>(null);
   const [error, setError] = useState('');
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const searchRef = useRef<HTMLInputElement>(null);
-  const photosEnabled = import.meta.env.VITE_ENABLE_ACCESS_PHOTOS === 'true';
 
   const edificioSel = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
-  const esCapacitacion = edificioSel?.EsCapacitacion || edificioSel?.esCapacitacion;
 
   useEffect(() => {
     api.get('/edificios').then(r => {
@@ -54,38 +92,37 @@ export default function RegistroPage() {
       setEdificios(allowed);
       if (user?.rol !== 'admin' && user?.edificioIdDefecto) {
         setEdificioId(String(user.edificioIdDefecto));
-      } else if (allowed.length === 1 && (allowed[0]?.EsCapacitacion || allowed[0]?.esCapacitacion)) {
-        setMotivo('general');
       }
     }).catch(() => setError('No se pudieron cargar los edificios'));
   }, [user]);
 
-  // Load eventos when training building is selected
+  const isTraining = edificioSel?.EsCapacitacion || edificioSel?.esCapacitacion;
+
   useEffect(() => {
-    const selEdificio = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
-    if (selEdificio?.EsCapacitacion || selEdificio?.esCapacitacion) {
-      api.get(`/eventos-curso?edificioId=${edificioId}`).then(r => setEventos(r.data || [])).catch(() => setCourseError(true));
+    setEsCapacitacion(!!isTraining);
+    setVieneCapacitacion(null);
+    setEventoCursoId('');
+    if (isTraining && Number(edificioId)) {
+      api.get(`/eventos-curso?edificioId=${edificioId}`).then(r => {
+        setEventos(r.data || []);
+        if (r.data?.length === 1) setEventoCursoId(String(r.data[0].Id || r.data[0].id));
+      }).catch(() => setCourseError(true));
     } else {
       setEventos([]);
     }
-  }, [edificioId, edificios]);
+  }, [edificioId, isTraining]);
 
-  // Cuando cambia edificio y hay persona seleccionada, buscar si tiene curso
+  // Auto-buscar curso cuando se selecciona persona en edificio capacitación
   useEffect(() => {
-    if (!esCapacitacion || !selected) return;
+    if (!isTraining || !selected || !edificioId) return;
     const pTipo = selected.carnet ? 'EMPLEADO' : (selected.tipo || tipo);
     const pid = selected.carnet || selected.id;
     if (pTipo && pid) {
       api.get('/curso-participantes', { params: { tipoPersona: pTipo, personaId: String(pid) } })
-        .then(r => {
-          if (r.data && r.data.length > 0) {
-            setMotivo('capacitacion');
-            setEventoCursoId(String(r.data[0].EventoCursoId));
-          }
-        })
+        .then(r => { if (r.data && r.data.length > 0) { setVieneCapacitacion('si'); setEventoCursoId(String(r.data[0].EventoCursoId)); } })
         .catch(() => {});
     }
-  }, [edificioId, selected]);
+  }, [edificioId, selected, isTraining]);
 
   const buscar = async () => {
     if (!searchQ.trim()) return;
@@ -103,21 +140,7 @@ export default function RegistroPage() {
   };
 
   const seleccionar = (item: any) => {
-    setSelected(item); setResults(null); setSearchQ(''); setError('');
-    if (esCapacitacion && item) {
-      const pTipo = item.carnet ? 'EMPLEADO' : (item.tipo || tipo);
-      const pid = item.carnet || item.id;
-      if (pTipo && pid) {
-        api.get('/curso-participantes', { params: { tipoPersona: pTipo, personaId: String(pid) } })
-          .then(r => {
-            if (r.data && r.data.length > 0) {
-              setMotivo('capacitacion');
-              setEventoCursoId(String(r.data[0].EventoCursoId));
-            }
-          })
-          .catch(() => {});
-      }
-    }
+    setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2);
   };
 
   const puedeRegistrar = (): boolean => {
@@ -129,8 +152,9 @@ export default function RegistroPage() {
   const registrarEntrada = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!puedeRegistrar()) { showError('Complete los campos requeridos'); return; }
-    if (esCapacitacion && motivo === 'capacitacion' && !eventoCursoId) { showError('Seleccione el curso o evento de capacitación'); setRegistrando(false); return; }
-    setRegistrando(true); setError('');
+    if (!motivoAcceso) { showError('Seleccione un motivo de acceso'); return; }
+    if (isTraining && vieneCapacitacion === 'si' && !eventoCursoId) { showError('Seleccione el curso o evento de capacitación'); return; }
+    setRegistrando(true);
     try {
       const fd = new FormData();
       fd.append('edificioId', edificioId); fd.append('tipoPersona', tipo);
@@ -146,38 +170,40 @@ export default function RegistroPage() {
         fd.append('cedulaPersona', cedulaManual);
         fd.append('empresaPersona', empresaManual);
       }
-      if (foto) fd.append('foto', foto);
-      if (!motivoAcceso) { showError('Seleccione un motivo de acceso'); setRegistrando(false); return; }
       fd.append('motivoAcceso', motivoAcceso);
       if (motivoDetalle) fd.append('motivoDetalle', motivoDetalle);
       await api.post('/acceso/entrada', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showSuccess('Acceso registrado');
-      setSelected(null); setNombreManual(''); setCedulaManual(''); setEmpresaManual(''); setFoto(null);
-      setEventoCursoId(''); setMotivo(null); setMotivoAcceso(''); setMotivoDetalle('');
+      showSuccess(`Entrada registrada\n${selected?.nombre || nombreManual}\n${new Date().toLocaleTimeString()} · ${motivoAcceso}`);
+      setSelected(null); setNombreManual(''); setCedulaManual(''); setEmpresaManual('');
+      setVieneCapacitacion(null); setEventoCursoId(''); setMotivoAcceso(''); setMotivoDetalle(''); setStep(1);
       searchRef.current?.focus();
     } catch (err: any) { showError('Error', err?.response?.data?.message || 'No se pudo registrar el acceso'); }
     setRegistrando(false);
   };
 
+  const motivosDisponibles = MOTIVOS_POR_TIPO[tipo] || MOTIVOS_GENERAL;
+  if (esCapacitacion && !motivosDisponibles.find(m => m.value === 'Capacitación')) {
+    motivosDisponibles.push({ label: 'Capacitación', value: 'Capacitación' });
+  }
+
   return (
     <div>
-      <div className="page-header"><h1 className="page-header__title"><DoorOpen /> Registro de Acceso</h1></div>
-      {error && <div className="alert alert--error mb-3" role="alert">{error} <button className="btn btn--ghost btn--sm" onClick={() => setError('')}>✕</button></div>}
-      <p className="page-header__subtitle" style={{ marginBottom: 'var(--space-4)' }}>
-        Este sistema registra accesos físicos al edificio. No corresponde a marcación laboral.
-      </p>
+      <div className="page-header">
+        <h1 className="page-header__title"><DoorOpen /> Registrar Acceso</h1>
+      </div>
 
-      {/* Edificio - barra compacta */}
+      {error && <div className="alert alert--error mb-3" role="alert">{error} <button className="btn btn--ghost btn--sm" onClick={() => setError('')}>✕</button></div>}
+
+      {/* Barra edificio */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: 'var(--space-3) var(--space-4)',
+        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
         background: 'var(--white)', borderBottom: '2px solid var(--brand-red)',
-        marginBottom: 'var(--space-4)', borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
+        marginBottom: 16, borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
       }}>
-        <Building2 className="icon" style={{ color: 'var(--brand-red)' }} />
-        <strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>Edificio:</strong>
+        <Building2 className="icon icon--sm" style={{ color: 'var(--brand-red)' }} />
         {user?.rol === 'admin' ? (
           <select className="form-control" value={edificioId}
-            onChange={e => { const v = e.target.value; setEdificioId(v); const sel = edificios.find(ed => Number(ed.Id || ed.id) === Number(v)); setMotivo(sel?.EsCapacitacion || sel?.esCapacitacion ? 'general' : null); setEventoCursoId(''); }}
+            onChange={e => { setEdificioId(e.target.value); setSelected(null); setStep(1); }}
             style={{ maxWidth: 500, flex: 1, fontSize: 14, padding: '6px 8px' }}>
             <option value="">Seleccione un edificio…</option>
             {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
@@ -187,225 +213,192 @@ export default function RegistroPage() {
             {edificioSel?.Nombre || edificioSel?.nombre || 'Cargando…'}
           </span>
         )}
-        {edificioId && esCapacitacion && (
-          <span className="badge badge--neutral" style={{ marginLeft: 'auto', fontSize: 11 }}>
-            <GraduationCap className="icon icon--sm" /> Capacitación
-          </span>
-        )}
+        {esCapacitacion && <span className="badge badge--neutral" style={{ marginLeft: 'auto', fontSize: 11 }}><GraduationCap className="icon icon--sm" /> Capacitación</span>}
       </div>
 
-      <div className="registro-grid">
-        <form onSubmit={registrarEntrada} className="card">
-          <div className="card__header card__header--brand"><span className="card-title"><DoorOpen className="icon" /> Registrar Entrada al Edificio</span></div>
-          <div className="card__body">
-            <fieldset className="form-group" style={{ border: 'none', padding: 0 }}>
-              <legend className="form-label">Tipo de persona</legend>
-              <div className="tipo-grid">
-                {TIPOS.map(t => (
-                  <button key={t.value} type="button" role="radio" aria-checked={tipo === t.value}
-                    className={`btn ${tipo === t.value ? 'btn--primary' : 'btn--secondary'} btn--sm`}
-                    onClick={() => { setTipo(t.value); setSelected(null); setResults(null); setError(''); }}>{t.label}</button>
-                ))}
-              </div>
-            </fieldset>
-            {tipo !== 'VISITANTE' && (
-              <div className="form-group">
-                <label htmlFor="search-persona" className="form-label form-label--required">Buscar persona</label>
+      <form onSubmit={registrarEntrada} className="card">
+        <div className="card__body">
+          {/* Paso 1: ¿Quién entra? */}
+          <div className="form-group" style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span className="badge badge--neutral" style={{ borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, background: step >= 1 ? 'var(--brand-red)' : 'var(--gray-300)', color: '#fff' }}>1</span>
+              <strong style={{ fontSize: 16 }}>¿Quién entra?</strong>
+              {selected && <span style={{ marginLeft: 'auto', color: 'var(--success)', fontSize: 13 }}><Check className="icon icon--sm" /> Listo</span>}
+            </div>
+
+            {!selected && (
+              <>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {TIPOS.slice(0, 4).map(t => (
+                    <button key={t.value} type="button"
+                      className={`btn ${tipo === t.value ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                      onClick={() => { setTipo(t.value); setSelected(null); setResults(null); }}>
+                      {t.label}
+                    </button>
+                  ))}
+                  <button type="button" className="btn btn--ghost btn--sm" style={{ fontSize: 12, color: 'var(--gray-500)' }}
+                    onClick={() => { const m = document.getElementById('mas-opciones'); if (m) m.style.display = m.style.display === 'none' ? 'flex' : 'none'; }}>
+                    Más opciones ▾
+                  </button>
+                </div>
+                <div id="mas-opciones" style={{ display: 'none', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {TIPOS.slice(4).map(t => (
+                    <button key={t.value} type="button"
+                      className={`btn ${tipo === t.value ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                      onClick={() => { setTipo(t.value); setSelected(null); setResults(null); }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted" style={{ marginBottom: 12 }}>{TIPOS.find(t => t.value === tipo)?.hint}</p>
+              </>
+            )}
+
+            {tipo !== 'VISITANTE' && !selected && (
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <div className="form-row">
                   <input id="search-persona" type="text" className="form-control" value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscar(); } }} placeholder="Buscar por nombre o carnet…" ref={searchRef} autoFocus />
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscar(); } }}
+                    placeholder="Escanee o escriba el código del carnet" ref={searchRef} autoFocus />
                   <button type="button" onClick={buscar} className="btn btn--primary btn--sm" disabled={searchLoading}>
                     {searchLoading ? <Loader2 className="icon icon--sm icon--spin" /> : <Search className="icon icon--sm" />} Buscar
                   </button>
                 </div>
-                {results && results.length > 0 && (
-                  <div className="search-results">
-                    {results.map((r: any, i) => (
-                      <button key={i} type="button" onClick={() => seleccionar(r)} className="search-result-item">
-                        <div className="search-result-avatar">{r.nombre?.charAt(0) || '?'}</div>
-                        <div className="flex--1">
-                          <div className="font-bold text-sm">{r.nombre || r.nombreCompleto}</div>
-                          <div className="text-xs text-muted">{r.carnet || r.cedula || ''}</div>
-                        </div>
-                      </button>
+                <p className="form-hint" style={{ marginTop: 4 }}>También puede buscar por nombre.</p>
+              </div>
+            )}
+
+            {results && results.length > 0 && (
+              <div className="search-results" style={{ marginTop: 8 }}>
+                {results.map((r: any, i) => (
+                  <button key={i} type="button" onClick={() => seleccionar(r)} className="search-result-item">
+                    <div className="flex--1">
+                      <div className="font-bold">{r.nombre || r.nombreCompleto}</div>
+                      <div className="text-xs text-muted">Carnet {r.carnet || r.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searched && results?.length === 0 && (
+              <div className="alert alert--error" style={{ marginTop: 8, padding: '8px 12px', fontSize: 13 }}>
+                No encontramos a la persona. Revise el código o busque por nombre.
+              </div>
+            )}
+
+            {tipo === 'VISITANTE' && !selected && (
+              <div style={{ marginTop: 8 }}>
+                <div className="form-group"><label htmlFor="vis-nombre" className="form-label form-label--required">Nombre completo</label>
+                  <input id="vis-nombre" type="text" className="form-control" value={nombreManual} onChange={e => setNombreManual(e.target.value)} placeholder="Nombre del visitante" /></div>
+                <div className="form-group"><label htmlFor="vis-cedula" className="form-label">Cédula o identificación</label>
+                  <input id="vis-cedula" type="text" className="form-control" value={cedulaManual} onChange={e => setCedulaManual(e.target.value)} placeholder="Número de cédula" /></div>
+                <div className="form-group"><label htmlFor="vis-empresa" className="form-label">Empresa o procedencia</label>
+                  <input id="vis-empresa" type="text" className="form-control" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)} placeholder="Empresa" /></div>
+                <button type="button" onClick={() => { if (nombreManual.trim()) { setStep(2); } else { showError('Ingrese el nombre del visitante'); } }}
+                  className="btn btn--primary btn--sm">Continuar</button>
+              </div>
+            )}
+
+            {selected && (
+              <div className="selected-person" style={{ justifyContent: 'space-between', padding: '12px 16px', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
+                <div>
+                  <div className="font-bold">{selected.nombre || selected.nombreCompleto}</div>
+                  <div className="text-sm text-muted">{selected.carnet || selected.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
+                </div>
+                <button type="button" onClick={() => { setSelected(null); setStep(1); }} className="btn btn--ghost btn--sm">Cambiar</button>
+              </div>
+            )}
+          </div>
+
+          {/* Paso 2: ¿Por qué entra? */}
+          <div className="form-group" style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span className="badge badge--neutral" style={{ borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, background: step >= 2 ? 'var(--brand-red)' : 'var(--gray-300)', color: '#fff' }}>2</span>
+              <strong style={{ fontSize: 16 }}>¿Por qué entra?</strong>
+              {motivoAcceso && <span style={{ marginLeft: 'auto', color: 'var(--success)', fontSize: 13 }}><Check className="icon icon--sm" /> {motivoAcceso}</span>}
+            </div>
+
+            {step >= 1 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {motivosDisponibles.filter(m => m.value !== 'Capacitación').map(m => (
+                  <button key={m.value} type="button"
+                    className={`btn ${motivoAcceso === m.value ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                    onClick={() => { setMotivoAcceso(m.value); setMotivoDetalle(''); setStep(3); }}>
+                    {m.label}
+                  </button>
+                ))}
+                {esCapacitacion && (
+                  <button type="button"
+                    className={`btn ${motivoAcceso === 'Capacitación' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                    onClick={() => { setMotivoAcceso('Capacitación'); setVieneCapacitacion('no'); setStep(3); }}>
+                    <GraduationCap className="icon icon--sm" /> Capacitación
+                  </button>
+                )}
+              </div>
+            )}
+
+            {motivoAcceso && motivoAcceso !== 'Capacitación' && (
+              <input type="text" className="form-control" style={{ marginTop: 8, maxWidth: 300 }}
+                value={motivoDetalle} onChange={e => setMotivoDetalle(e.target.value)}
+                placeholder="Detalle adicional (opcional)" />
+            )}
+
+            {motivoAcceso === 'Capacitación' && esCapacitacion && (
+              <div style={{ marginTop: 12, padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
+                <p style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>¿Esta entrada es por una capacitación?</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <button type="button" className={`btn ${vieneCapacitacion === 'no' ? 'btn--dark' : 'btn--secondary'} btn--sm`}
+                    onClick={() => { setVieneCapacitacion('no'); setEventoCursoId(''); }}>No</button>
+                  <button type="button" className={`btn ${vieneCapacitacion === 'si' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
+                    onClick={() => { setVieneCapacitacion('si'); }}><GraduationCap className="icon icon--sm" /> Sí</button>
+                </div>
+                {vieneCapacitacion === 'si' && (
+                  <select className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError}>
+                    <option value="">{courseError ? 'Cursos no disponibles' : 'Seleccione un curso…'}</option>
+                    {!courseError && eventos.map((ev: any) => (
+                      <option key={ev.Id || ev.id} value={ev.Id || ev.id}>
+                        {ev.CursoNombre || ev.nombre} — {new Date(ev.FechaInicio).toLocaleDateString()}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 )}
-                {searched && results?.length === 0 && (
-                  <div className="alert alert--error" style={{ marginTop: 8, padding: '8px 12px', fontSize: 12 }}>
-                    No encontramos coincidencias para &quot;{searchQ}&quot;. Verificá el nombre o carnet.
-                  </div>
-                )}
-                {selected && (
-                  <div className="selected-person">
-                    <span>{selected.nombre || selected.nombreCompleto}</span>
-                    <button type="button" onClick={() => setSelected(null)} className="btn btn--ghost btn--sm btn--icon" aria-label="Quitar selección"><X className="icon icon--sm" /></button>
-                  </div>
-                )}
-                {!selected && <p className="form-hint">Seleccione una persona de la lista. Si no aparece, intente otra búsqueda.</p>}
               </div>
             )}
-            {tipo === 'VISITANTE' && (
-              <>
-                <div className="form-group"><label htmlFor="vis-nombre" className="form-label form-label--required">Nombre completo</label><input id="vis-nombre" type="text" className="form-control" value={nombreManual} onChange={e => setNombreManual(e.target.value)} placeholder="Nombre del visitante" /></div>
-                <div className="form-group"><label htmlFor="vis-cedula" className="form-label">Cédula</label><input id="vis-cedula" type="text" className="form-control" value={cedulaManual} onChange={e => setCedulaManual(e.target.value)} placeholder="Número de cédula" /></div>
-                <div className="form-group"><label htmlFor="vis-empresa" className="form-label">Empresa</label><input id="vis-empresa" type="text" className="form-control" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)} placeholder="Empresa" /></div>
-              </>
-            )}
+          </div>
 
-            {/* Capacitación: solo si edificio es de capacitación */}
-            {esCapacitacion && edificioId && (
-              <div className="form-group">
-                <label className="form-label">¿Viene a una capacitación?</label>
-                <div className="tipo-grid" role="radiogroup">
-                  <button type="button" role="radio" aria-checked={motivo === 'general'}
-                    className={`btn ${motivo === 'general' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
-                    onClick={() => { setMotivo('general'); setEventoCursoId(''); }}>
-                    No
-                  </button>
-                  <button type="button" role="radio" aria-checked={motivo === 'capacitacion'}
-                    className={`btn ${motivo === 'capacitacion' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
-                    onClick={() => { setMotivo('capacitacion'); }}>
-                    <GraduationCap className="icon icon--sm" /> Sí
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Curso solo si motivo = capacitación */}
-            {motivo === 'capacitacion' && (
-              <div className="form-group"><label htmlFor="curso" className="form-label">Curso o evento de capacitación</label>
-                <select id="curso" className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError}>
-                  <option value="">{courseError ? 'Cursos no disponibles' : 'Seleccione un curso…'}</option>
-                  {!courseError && eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre}</option>)}
-                </select>
-              </div>
-            )}
-
-            <div className="form-group">
-              <label htmlFor="motivo-acceso" className="form-label form-label--required">Motivo del acceso</label>
-              <div className="form-row">
-                <select id="motivo-acceso" className="form-control" value={motivoAcceso} onChange={e => setMotivoAcceso(e.target.value)} style={{ maxWidth: '60%' }}>
-                  <option value="">Seleccione un motivo…</option>
-                  {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <input type="text" className="form-control" value={motivoDetalle} onChange={e => setMotivoDetalle(e.target.value)} placeholder="Detalle (opcional)" style={{ maxWidth: '40%' }} />
-              </div>
+          {/* Paso 3: Confirmar */}
+          <div className="form-group">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span className="badge badge--neutral" style={{ borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, background: step >= 3 ? 'var(--brand-red)' : 'var(--gray-300)', color: '#fff' }}>3</span>
+              <strong style={{ fontSize: 16 }}>Confirmar entrada</strong>
             </div>
 
-            {photosEnabled && (
-            <div className="form-group"><label className="form-label">Foto <span className="form-hint inline">(opcional)</span></label>
-              <label className="foto-upload"><Camera className="icon text-muted" /><span className="text-muted text-sm">{foto ? foto.name : 'Subir foto'}</span><input type="file" accept="image/*" className="hidden" onChange={e => setFoto(e.target.files?.[0] || null)} /></label>
-            </div>
+            {step >= 2 && (selected || tipo === 'VISITANTE') && motivoAcceso && (
+              <div style={{ padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: 14 }}>
+                <div><strong>Persona:</strong> {selected?.nombre || nombreManual} · {selected?.carnet || selected?.cedula || cedulaManual || '—'}</div>
+                <div><strong>Edificio:</strong> {edificioSel?.Nombre || edificioSel?.nombre || '—'}</div>
+                <div><strong>Motivo:</strong> {motivoAcceso}{motivoDetalle ? ` · ${motivoDetalle}` : ''}</div>
+                {vieneCapacitacion === 'si' && eventoCursoId && (
+                  <div><strong>Capacitación:</strong> {eventos.find((ev: any) => String(ev.Id || ev.id) === eventoCursoId)?.CursoNombre || 'Seleccionado'}</div>
+                )}
+              </div>
             )}
-            <button type="submit" disabled={!puedeRegistrar() || registrando} className="btn btn--primary btn--block btn--lg">
+
+            <button type="submit" disabled={!puedeRegistrar() || !motivoAcceso || registrando}
+              className="btn btn--primary btn--block btn--lg" style={{ justifyContent: 'center' }}>
               {registrando ? <span className="spinner spinner--white" /> : <DoorOpen className="icon icon--sm" />}
-              {registrando ? 'Registrando…' : 'Registrar Entrada al Edificio'}
+              {registrando ? 'Registrando…' : 'Registrar entrada'}
             </button>
+            {(!puedeRegistrar() || !motivoAcceso) && (
+              <p className="form-hint" style={{ textAlign: 'center', marginTop: 8, color: 'var(--error)' }}>
+                {!selected && tipo !== 'VISITANTE' ? 'Falta seleccionar una persona' :
+                 tipo === 'VISITANTE' && !nombreManual ? 'Falta ingresar el nombre del visitante' :
+                 !motivoAcceso ? 'Falta seleccionar el motivo' : ''}
+              </p>
+            )}
           </div>
-        </form>
-        <SalidaPanel
-          edificioId={Number(edificioId) || Number(user?.edificioIdDefecto) || null}
-        />
-      </div>
-    </div>
-  );
-}
-
-function SalidaPanel({ edificioId: panelEdificioId }: { edificioId: number | null }) {
-  const [hoy, setHoy] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState(false);
-  const [search, setSearch] = useState('');
-  const [exitingId, setExitingId] = useState<number | null>(null);
-  const [showSalidaSinEntrada, setShowSalidaSinEntrada] = useState(false);
-  const [ssForm, setSsForm] = useState({ personaId: '', nombrePersona: '', observacion: '' });
-
-  const load = useCallback(async () => {
-    setLoading(true); setApiError(false);
-    try { const r = await api.get('/acceso/pendientes'); setHoy(r.data || []); } catch { setApiError(true); }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const salida = async (r: any) => {
-    const confirm = window.confirm(`¿Registrar salida de ${r.nombre}? (${r.edificio} - ${new Date(r.fechaEntrada).toLocaleTimeString()})`);
-    if (!confirm) return;
-    setExitingId(r.id);
-    try { await api.post(`/acceso/salida/${r.id}`); showSuccess('Salida registrada', r.nombre); load(); }
-    catch { showError('Error', 'No se pudo registrar la salida'); }
-    setExitingId(null);
-  };
-
-  const filtrados = search ? hoy.filter(r => r.nombre.toLowerCase().includes(search.toLowerCase())) : hoy;
-
-  return (
-    <div className="card">
-      <div className="card__header card__header--dark"><span className="card-title"><LogOut className="icon" /> Registrar Salida del Edificio</span></div>
-      <div className="card__body">
-        <div className="form-group"><label htmlFor="buscar-salida" className="form-label">Buscar persona dentro</label><input id="buscar-salida" type="text" className="form-control" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar persona dentro…" /></div>
-        {apiError ? (
-          <div className="alert alert--error" role="alert"><p>No pudimos consultar los accesos activos.</p><button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button></div>
-        ) : loading ? (
-          <div className="empty-state empty-state--compact"><div className="spinner mx-auto" /></div>
-        ) : filtrados.length === 0 ? (
-          <div className="empty-state empty-state--compact">
-            <LogOut className="icon--lg empty-state__icon" />
-            <p className="empty-state__desc">{search ? 'Sin resultados para esa búsqueda' : 'No hay personas con salida pendiente'}</p>
-          </div>
-        ) : (
-          <>
-            <p className="empty-state__desc mb-3">{hoy.length} persona(s) sin salida registrada</p>
-            <div className="salida-list">
-              {filtrados.map(r => (
-                <div key={r.id} className="salida-item">
-                  <div className="flex--1">
-                    <div className="font-bold text-sm">{r.nombre}</div>
-                    <div className="form-hint">{r.edificio} · {r.tipoPersona} · {new Date(r.fechaEntrada).toLocaleTimeString()}</div>
-                  </div>
-                  <button onClick={() => salida(r)} disabled={exitingId === r.id} className="btn btn--dark btn--sm">
-                    {exitingId === r.id ? '…' : <><LogOut className="icon icon--sm" /> Salida</>}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Salida independiente - siempre visible */}
-        <div style={{ marginTop: 16, borderTop: '1px solid var(--gray-200)', paddingTop: 12 }}>
-          <button onClick={() => setShowSalidaSinEntrada(v => !v)} className="btn btn--ghost btn--sm" style={{ marginBottom: 8 }}>
-            {showSalidaSinEntrada ? '✕ Cancelar' : '➕ Persona salió sin registrar entrada'}
-          </button>
-          {showSalidaSinEntrada && (
-            <div>
-              {!panelEdificioId && (
-                <div className="alert alert--warning" style={{ fontSize: 12, padding: '8px 12px', marginBottom: 8 }}>
-                  Seleccione un edificio en el formulario de entrada antes de registrar salida.
-                </div>
-              )}
-              <div className="form-group"><label htmlFor="ss-carnet" className="form-label form-label--required">Carnet / Código</label><input id="ss-carnet" type="text" className="form-control" value={ssForm.personaId} onChange={e => setSsForm({...ssForm, personaId: e.target.value})} placeholder="Carnet, cédula o código" /></div>
-              <div className="form-group"><label htmlFor="ss-nombre" className="form-label form-label--required">Nombre</label><input id="ss-nombre" type="text" className="form-control" value={ssForm.nombrePersona} onChange={e => setSsForm({...ssForm, nombrePersona: e.target.value})} placeholder="Nombre completo" /></div>
-              <div className="form-group"><label htmlFor="ss-obs" className="form-label form-label--required">Observación</label><input id="ss-obs" type="text" className="form-control" value={ssForm.observacion} onChange={e => setSsForm({...ssForm, observacion: e.target.value})} placeholder="Ej: Salió sin marcar entrada" /></div>
-              <button onClick={async () => {
-                if (!panelEdificioId) { showError('Seleccione el edificio'); return; }
-                if (!ssForm.personaId || !ssForm.nombrePersona || !ssForm.observacion) { showError('Complete todos los campos'); return; }
-                try {
-                  await api.post('/acceso/salida-independiente', {
-                    edificioId: panelEdificioId,
-                    personaId: ssForm.personaId.trim(),
-                    nombrePersona: ssForm.nombrePersona.trim(),
-                    observacion: ssForm.observacion.trim(),
-                  });
-                  showSuccess('Salida registrada sin entrada previa');
-                  setShowSalidaSinEntrada(false); setSsForm({ personaId: '', nombrePersona: '', observacion: '' }); load();
-                } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
-              }} disabled={!panelEdificioId} className="btn btn--dark btn--sm" style={{ width: '100%', marginBottom: 12 }}>Registrar Salida sin Entrada</button>
-            </div>
-          )}
         </div>
-      </div>
+      </form>
     </div>
   );
 }

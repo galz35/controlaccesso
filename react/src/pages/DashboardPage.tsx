@@ -1,143 +1,119 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { DoorOpen, LogOut, Building2, RefreshCw, Users, X, Camera } from 'lucide-react';
-import { showSuccess, showError } from '../lib/swal';
+import { DoorOpen, LogOut, RefreshCw, Users, FileText } from 'lucide-react';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [hoy, setHoy] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
-  const [exitingId, setExitingId] = useState<number | null>(null);
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
-
-  const BASE_URL = import.meta.env.VITE_API_URL || '';
-  const photoUrl = (url: string) => url ? `${BASE_URL}/acceso/foto/${url}` : '';
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const load = useCallback(async () => {
     setLoading(true); setApiError(false);
-    try { const res = await api.get('/acceso/hoy'); setHoy(res.data || []); } catch { setApiError(true); }
+    try { const res = await api.get('/acceso/hoy'); setHoy(res.data || []); setLastUpdate(new Date()); } catch { setApiError(true); }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const registrarSalida = async (r: any) => {
-    const confirm = window.confirm(`¿Registrar salida de ${r.nombre}? (${r.edificio} - ${new Date(r.fechaEntrada).toLocaleTimeString()})`);
-    if (!confirm) return;
-    setExitingId(r.id);
-    try { await api.post(`/acceso/salida/${r.id}`); showSuccess('Salida registrada', r.nombre); load(); }
-    catch { showError('Error', 'No se pudo registrar la salida'); }
-    setExitingId(null);
-  };
-
   const totalEntradas = hoy.length;
   const totalSalidas = hoy.filter(r => r.fechaSalida).length;
-  const dentro = totalEntradas - totalSalidas;
+  const sinSalida = totalEntradas - totalSalidas;
+
+  const lastUpdateStr = `Actualizado hace ${Math.floor((Date.now() - lastUpdate.getTime()) / 60000)} min`;
 
   return (
     <div>
       <div className="page-header">
         <div>
           <h1 className="page-header__title"><DoorOpen /> Resumen de accesos</h1>
-          <p className="page-header__subtitle">{new Date().toLocaleDateString('es-NI', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p className="page-header__subtitle">
+            {new Date().toLocaleDateString('es-NI', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <span className="text-muted text-xs" style={{ marginLeft: 8 }}>— {lastUpdateStr}</span>
+          </p>
         </div>
-        <button onClick={() => navigate('/control-acceso/registro')} className="btn btn--primary"><DoorOpen className="icon icon--sm" /> Registrar acceso</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={load} className="btn btn--ghost btn--sm" disabled={loading}>
+            <RefreshCw className={`icon icon--sm ${loading ? 'icon--spin' : ''}`} /> Actualizar
+          </button>
+        </div>
       </div>
 
-      <div className="kpi-grid">
-        <div className="kpi-card kpi-card--red"><DoorOpen className="icon--md kpi-card__icon" /><div className="kpi-card__value">{totalEntradas}</div><div className="kpi-card__label">Entradas hoy</div></div>
-        <div className="kpi-card kpi-card--dark"><LogOut className="icon--md kpi-card__icon" /><div className="kpi-card__value">{totalSalidas}</div><div className="kpi-card__label">Salidas</div></div>
-        <div className="kpi-card kpi-card--green"><Building2 className="icon--md kpi-card__icon" /><div className="kpi-card__value">{dentro}</div><div className="kpi-card__label">Sin salida registrada</div></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+        <button onClick={() => navigate('/control-acceso/reportes')} className="kpi-card kpi-card--red" style={{ cursor: 'pointer', border: 'none', width: '100%', textAlign: 'left' }}>
+          <DoorOpen className="icon--md kpi-card__icon" />
+          <div className="kpi-card__value">{totalEntradas}</div>
+          <div className="kpi-card__label">Entradas registradas hoy</div>
+        </button>
+        <button onClick={() => navigate('/control-acceso/reportes')} className="kpi-card kpi-card--dark" style={{ cursor: 'pointer', border: 'none', width: '100%', textAlign: 'left' }}>
+          <LogOut className="icon--md kpi-card__icon" />
+          <div className="kpi-card__value">{totalSalidas}</div>
+          <div className="kpi-card__label">Salidas registradas</div>
+        </button>
+        <button onClick={() => navigate('/control-acceso/salidas')} className="kpi-card kpi-card--green" style={{ cursor: 'pointer', border: 'none', width: '100%', textAlign: 'left' }}>
+          <Users className="icon--md kpi-card__icon" />
+          <div className="kpi-card__value">{sinSalida}</div>
+          <div className="kpi-card__label">Entradas sin salida registrada</div>
+        </button>
       </div>
 
       <div className="card">
         <div className="card__header">
-          <span className="card-title"><Users className="icon" /> Accesos de hoy</span>
-          <button onClick={load} className="btn btn--ghost btn--sm" disabled={loading}>
-            <RefreshCw className={`icon icon--sm ${loading ? 'icon--spin' : ''}`} /> {loading ? 'Cargando…' : 'Recargar'}
-          </button>
+          <span className="card-title"><DoorOpen className="icon" /> Movimientos de hoy</span>
         </div>
         <div className="card__body card__body--flush">
           {apiError ? (
-            <div className="empty-state"><p className="empty-state__desc">No pudimos consultar los accesos.</p><button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button></div>
+            <div className="empty-state">
+              <p className="empty-state__desc">No pudimos actualizar. Se muestran los últimos datos disponibles.</p>
+              <button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button>
+            </div>
           ) : loading ? (
             <div className="empty-state"><div className="spinner mx-auto" /></div>
           ) : hoy.length === 0 ? (
-            <div className="empty-state"><DoorOpen className="icon--lg empty-state__icon" /><p className="empty-state__desc">No hay accesos registrados hoy</p></div>
+            <div className="empty-state">
+              <DoorOpen className="icon--lg empty-state__icon" />
+              <p className="empty-state__desc">No hay movimientos registrados hoy</p>
+              <button onClick={() => navigate('/control-acceso/registro')} className="btn btn--primary btn--sm mt-2">
+                <DoorOpen className="icon icon--sm" /> Registrar entrada
+              </button>
+            </div>
           ) : (
-            <>
-              {/* Desktop table */}
-              <div className="table-wrapper access-table-desktop">
-                <table className="table">
-                  <caption className="visually-hidden">Accesos registrados hoy</caption>
-                  <thead><tr>
-                    <th scope="col">Tipo</th><th scope="col">Nombre</th><th scope="col">Cédula</th><th scope="col">Edificio</th>
-                    <th scope="col" className="text-center">Foto</th>
-                    <th scope="col" className="text-center">Entrada</th><th scope="col" className="text-center">Salida</th><th scope="col" className="text-center">Acción</th>
-                  </tr></thead>
-                  <tbody>
-                    {hoy.map(r => (
-                      <tr key={r.id}>
-                        <td><span className="badge badge--neutral">{r.tipoPersona}</span></td>
-                        <td className="font-bold">{r.nombre}</td>
-                        <td className="text-muted text-xs">{r.cedula || '-'}</td>
-                        <td className="text-muted text-xs">{r.edificio}</td>
-                        <td className="text-center">{r.fotoUrl ? <button onClick={() => setFotoPreview(r.fotoUrl)} className="btn btn--ghost btn--sm btn--icon" aria-label="Ver foto"><Camera className="icon icon--sm" /></button> : '-'}</td>
-                        <td className="text-center text-xs">{new Date(r.fechaEntrada).toLocaleTimeString()}</td>
-                        <td className="text-center">{r.fechaSalida ? <span className="badge badge--neutral">{new Date(r.fechaSalida).toLocaleTimeString()}</span> : <span className="badge badge--neutral">Sin salida</span>}</td>
-                        <td className="text-center">{!r.fechaSalida && (
-                          <button onClick={() => registrarSalida(r)} disabled={exitingId === r.id} className="btn btn--dark btn--sm">
-                            {exitingId === r.id ? '…' : <><LogOut className="icon icon--sm" /> Salida</>}
-                          </button>
-                        )}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Mobile cards */}
-              <div className="access-cards-mobile" style={{ padding: 'var(--space-3)' }}>
-                {hoy.map(r => (
-                  <div key={r.id} className="access-card">
-                    <div className="access-card__header">
-                      <div>
-                        <div className="access-card__name">{r.nombre}</div>
-                        <span className="badge badge--neutral">{r.tipoPersona}</span>
-                      </div>
-                      <div className="access-card__badge">{r.fechaSalida ? <span className="badge badge--neutral">Salió</span> : <span className="badge badge--neutral">Sin salida</span>}</div>
+            <div style={{ padding: 'var(--space-2) 0' }}>
+              {hoy.map(r => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--gray-100)' }}>
+                  <div className="flex--1">
+                    <div className="font-bold">{r.nombre}</div>
+                    <div className="text-xs text-muted" style={{ marginTop: 2 }}>
+                      {r.motivoAcceso || '—'} · {r.tipoPersona}
+                      {r.edificio ? ` · ${r.edificio}` : ''}
                     </div>
-                    <div className="access-card__details">{r.edificio} {r.cedula ? `· ${r.cedula}` : ''}</div>
-                    <div className="access-card__time">
-                      <span>Entrada: {new Date(r.fechaEntrada).toLocaleTimeString()}</span>
-                      {r.fechaSalida && <span>Salida: {new Date(r.fechaSalida).toLocaleTimeString()}</span>}
-                    </div>
-                    {!r.fechaSalida && (
-                      <button onClick={() => registrarSalida(r)} disabled={exitingId === r.id} className="btn btn--dark btn--block btn--sm">
-                        {exitingId === r.id ? 'Registrando…' : <><LogOut className="icon icon--sm" /> Registrar Salida</>}
-                      </button>
-                    )}
                   </div>
-                ))}
-              </div>
-            </>
+                  <div style={{ textAlign: 'right', fontSize: 12 }}>
+                    <div>{new Date(r.fechaEntrada).toLocaleTimeString()}</div>
+                    <div style={{ color: r.fechaSalida ? 'var(--success)' : 'var(--gray-400)' }}>
+                      {r.fechaSalida ? `Salida ${new Date(r.fechaSalida).toLocaleTimeString()}` : 'Sin salida registrada'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Foto Preview Modal */}
-      {fotoPreview && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
-          onClick={() => setFotoPreview(null)}>
-          <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }}>
-            <button onClick={() => setFotoPreview(null)} className="btn btn--primary btn--sm"><X className="icon icon--sm" /> Cerrar</button>
-          </div>
-          <img src={photoUrl(fotoPreview)} alt="Foto de acceso"
-            style={{ maxWidth: '90%', maxHeight: '85%', borderRadius: 8, objectFit: 'contain' }}
-            onClick={e => e.stopPropagation()} />
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+        <button onClick={() => navigate('/control-acceso/registro')} className="btn btn--primary" style={{ flex: 1, justifyContent: 'center' }}>
+          <DoorOpen className="icon icon--sm" /> Registrar entrada
+        </button>
+        <button onClick={() => navigate('/control-acceso/salidas')} className="btn btn--dark" style={{ flex: 1, justifyContent: 'center' }}>
+          <LogOut className="icon icon--sm" /> Registrar salida
+        </button>
+        <button onClick={() => navigate('/control-acceso/reportes')} className="btn btn--secondary" style={{ flex: 1, justifyContent: 'center' }}>
+          <FileText className="icon icon--sm" /> Ver reporte de hoy
+        </button>
+      </div>
     </div>
   );
 }
