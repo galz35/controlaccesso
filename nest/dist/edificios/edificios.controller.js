@@ -18,6 +18,7 @@ const passport_1 = require("@nestjs/passport");
 const edificios_service_1 = require("./edificios.service");
 const roles_decorator_1 = require("../common/roles.decorator");
 const roles_guard_1 = require("../common/roles.guard");
+const catalog_dto_1 = require("../common/dto/catalog.dto");
 let EdificiosController = class EdificiosController {
     constructor(service) {
         this.service = service;
@@ -39,7 +40,7 @@ __decorate([
     (0, roles_decorator_1.Roles)('admin'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [catalog_dto_1.EdificioDto]),
     __metadata("design:returntype", Promise)
 ], EdificiosController.prototype, "create", null);
 __decorate([
@@ -48,7 +49,7 @@ __decorate([
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, catalog_dto_1.EdificioDto]),
     __metadata("design:returntype", Promise)
 ], EdificiosController.prototype, "update", null);
 exports.EdificiosController = EdificiosController = __decorate([

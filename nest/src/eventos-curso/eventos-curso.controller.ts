@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { EventosCursoService } from './eventos-curso.service';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
+import { EventoCursoDto } from '../common/dto/catalog.dto';
 
 @Controller('eventos-curso')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -17,9 +18,9 @@ export class EventosCursoController {
 
   @Post()
   @Roles('admin')
-  async create(@Body() dto: any) { return this.service.create(dto); }
+  async create(@Body() dto: EventoCursoDto) { return this.service.create(dto); }
 
   @Put(':id')
   @Roles('admin')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: any) { return this.service.update(id, dto); }
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: EventoCursoDto) { return this.service.update(id, dto); }
 }

@@ -140,7 +140,9 @@ export default function ReportsPage() {
         ) : loading ? (
           <div className="empty-state"><div className="spinner mx-auto" /></div>
         ) : (
-          <div className="table-wrapper">
+          <>
+          {/* Desktop table */}
+          <div className="table-wrapper report-table-desktop">
             <table className="table">
               <caption className="visually-hidden">Historial de accesos a edificios</caption>
               <thead><tr>
@@ -170,6 +172,41 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+          {/* Mobile cards */}
+          <div className="report-cards-mobile">
+            {data.map((r: any) => (
+              <div key={r.id} className="access-card">
+                <div className="access-card__header">
+                  <div>
+                    <div className="access-card__name">{r.nombre}</div>
+                    <span className="badge badge--neutral">{r.tipoPersona}</span>
+                  </div>
+                  <div className="access-card__badge">
+                    <span className="text-xs">{new Date(r.fechaEntrada).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="access-card__details">
+                  {r.edificio} {r.motivoAcceso ? `· ${r.motivoAcceso}` : ''}
+                </div>
+                <div className="access-card__time">
+                  <span>Entrada: {new Date(r.fechaEntrada).toLocaleTimeString()}</span>
+                  {r.fechaSalida && <span>Salida: {new Date(r.fechaSalida).toLocaleTimeString()}</span>}
+                  {!r.fechaSalida && <span className="badge badge--neutral">Sin salida</span>}
+                </div>
+                <div className="text-xs text-muted" style={{ marginTop: 4 }}>
+                  {r.cedula ? `Cédula: ${r.cedula} · ` : ''}
+                  {r.empresa ? `Empresa: ${r.empresa} · ` : ''}
+                  Registró: {r.usuarioRegistra || '-'}
+                </div>
+              </div>
+            ))}
+            {data.length === 0 && (
+              <div className="empty-state empty-state--compact">
+                <p className="empty-state__desc">Sin resultados. Ajuste los filtros.</p>
+              </div>
+            )}
+          </div>
+          </>
         )}
 
         {totalPag > 1 && (

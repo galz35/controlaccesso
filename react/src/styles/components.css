@@ -203,10 +203,14 @@
   .access-table-desktop { display: none; }
   .access-cards-mobile { display: block; }
   .catalog-cards-mobile { display: block; }
+  .report-table-desktop { display: none; }
+  .report-cards-mobile { display: block; }
 }
 @media (min-width: 701px) {
   .access-cards-mobile { display: none; }
 .catalog-cards-mobile { display: none; }
+.report-cards-mobile { display: none; }
+.report-table-desktop { display: block; }
 }
 .access-card {
   background: white;
