@@ -11,6 +11,7 @@ import { PersonalExternoModule } from './personal-externo/personal-externo.modul
 import { AccesoModule } from './acceso/acceso.module';
 import { SearchModule } from './search/search.module';
 import { AdminModule } from './admin/admin.module';
+import { CursoParticipantesModule } from './curso-participantes/curso-participantes.module';
 import { AppController } from './app.controller';
 import { RateLimiterMiddleware } from './common/rate-limiter.middleware';
 
@@ -28,6 +29,7 @@ import { RateLimiterMiddleware } from './common/rate-limiter.middleware';
     AccesoModule,
     SearchModule,
     AdminModule,
+    CursoParticipantesModule,
   ],
   controllers: [AppController],
   providers: [],

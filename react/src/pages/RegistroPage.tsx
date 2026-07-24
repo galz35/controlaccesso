@@ -85,7 +85,23 @@ export default function RegistroPage() {
     setSearchLoading(false);
   };
 
-  const seleccionar = (item: any) => { setSelected(item); setResults(null); setSearchQ(''); setError(''); };
+  const seleccionar = (item: any) => {
+    setSelected(item); setResults(null); setSearchQ(''); setError('');
+    if (esCapacitacion && item) {
+      const pTipo = item.carnet ? 'EMPLEADO' : (item.tipo || tipo);
+      const pid = item.carnet || item.id;
+      if (pTipo && pid) {
+        api.get('/curso-participantes', { params: { tipoPersona: pTipo, personaId: String(pid) } })
+          .then(r => {
+            if (r.data && r.data.length > 0) {
+              setMotivo('capacitacion');
+              setEventoCursoId(String(r.data[0].EventoCursoId));
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  };
 
   const puedeRegistrar = (): boolean => {
     if (!edificioId) return false;
@@ -134,31 +150,31 @@ export default function RegistroPage() {
         Este sistema registra accesos físicos al edificio. No corresponde a marcación laboral.
       </p>
 
-      {/* Selector de edificio en la parte superior */}
-      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-        <div className="card__body" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Building2 className="icon" style={{ color: 'var(--brand-red)' }} />
-          <strong style={{ minWidth: 80 }}>Edificio:</strong>
-          {user?.rol === 'admin' ? (
-            <select id="edificio-top" className="form-control" value={edificioId}
-              onChange={e => { const v = e.target.value; setEdificioId(v); const sel = edificios.find(ed => Number(ed.Id || ed.id) === Number(v)); setMotivo(sel?.EsCapacitacion || sel?.esCapacitacion ? 'general' : null); setEventoCursoId(''); }}
-              style={{ maxWidth: 400, flex: 1 }}>
-              <option value="">Seleccione un edificio…</option>
-              {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
-            </select>
-          ) : edificioSel ? (
-            <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--brand-red)' }}>
-              {edificioSel.Nombre || edificioSel.nombre}
-            </span>
-          ) : (
-            <span className="text-muted">Cargando…</span>
-          )}
-          {edificioId && esCapacitacion && (
-            <span className="badge badge--neutral" style={{ marginLeft: 'auto' }}>
-              <GraduationCap className="icon icon--sm" /> Edificio de capacitación
-            </span>
-          )}
-        </div>
+      {/* Edificio - barra compacta */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: 'var(--space-3) var(--space-4)',
+        background: 'var(--white)', borderBottom: '2px solid var(--brand-red)',
+        marginBottom: 'var(--space-4)', borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
+      }}>
+        <Building2 className="icon" style={{ color: 'var(--brand-red)' }} />
+        <strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>Edificio:</strong>
+        {user?.rol === 'admin' ? (
+          <select className="form-control" value={edificioId}
+            onChange={e => { const v = e.target.value; setEdificioId(v); const sel = edificios.find(ed => Number(ed.Id || ed.id) === Number(v)); setMotivo(sel?.EsCapacitacion || sel?.esCapacitacion ? 'general' : null); setEventoCursoId(''); }}
+            style={{ maxWidth: 500, flex: 1, fontSize: 14, padding: '6px 8px' }}>
+            <option value="">Seleccione un edificio…</option>
+            {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
+          </select>
+        ) : (
+          <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--brand-red)' }}>
+            {edificioSel?.Nombre || edificioSel?.nombre || 'Cargando…'}
+          </span>
+        )}
+        {edificioId && esCapacitacion && (
+          <span className="badge badge--neutral" style={{ marginLeft: 'auto', fontSize: 11 }}>
+            <GraduationCap className="icon icon--sm" /> Capacitación
+          </span>
+        )}
       </div>
 
       <div className="registro-grid">

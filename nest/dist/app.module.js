@@ -20,6 +20,7 @@ const personal_externo_module_1 = require("./personal-externo/personal-externo.m
 const acceso_module_1 = require("./acceso/acceso.module");
 const search_module_1 = require("./search/search.module");
 const admin_module_1 = require("./admin/admin.module");
+const curso_participantes_module_1 = require("./curso-participantes/curso-participantes.module");
 const app_controller_1 = require("./app.controller");
 const rate_limiter_middleware_1 = require("./common/rate-limiter.middleware");
 let AppModule = class AppModule {
@@ -43,6 +44,7 @@ exports.AppModule = AppModule = __decorate([
             acceso_module_1.AccesoModule,
             search_module_1.SearchModule,
             admin_module_1.AdminModule,
+            curso_participantes_module_1.CursoParticipantesModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [],
