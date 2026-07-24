@@ -177,6 +177,7 @@ export default function RegistroPage() {
   const seleccionar = (item: any) => {
     setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2); setEmpleadoDetalle(item);
     if (item.carnet) {
+      // Empleado: foto y estado desde HCM
       const cached = fotosMap[item.carnet];
       if (cached) {
         setFotoHcm(cached);
@@ -363,7 +364,7 @@ export default function RegistroPage() {
             {selected && (
               <div style={{ padding: 'var(--space-4)', background: 'var(--white)', borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-200)', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                  {/* Foto grande */}
+                  {/* Foto o avatar */}
                   {loadingFoto ? (
                     <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Loader2 className="icon icon--spin" />
@@ -379,25 +380,40 @@ export default function RegistroPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <div className="font-bold" style={{ fontSize: 18 }}>{empleadoDetalle?.nombre || empleadoDetalle?.nombreCompleto}</div>
-                        <span className="badge badge--neutral" style={{ fontSize: 11 }}>
-                          {empleadoDetalle?.carnet ? `Carnet ${empleadoDetalle.carnet}` : empleadoDetalle?.cedula || ''}
-                        </span>
-                        {empleadoDetalle?.activo !== undefined && (
-                          <span className={`badge ${empleadoDetalle.activo ? 'badge--success' : 'badge--danger'}`} style={{ fontSize: 11, marginLeft: 6 }}>
-                            {empleadoDetalle.activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                          {empleadoDetalle?.carnet ? (
+                            <span className="badge badge--neutral" style={{ fontSize: 11 }}>Carnet {empleadoDetalle.carnet}</span>
+                          ) : empleadoDetalle?.codigo ? (
+                            <span className="badge badge--neutral" style={{ fontSize: 11 }}>Código {empleadoDetalle.codigo}</span>
+                          ) : empleadoDetalle?.cedula ? (
+                            <span className="badge badge--neutral" style={{ fontSize: 11 }}>Cédula {empleadoDetalle.cedula}</span>
+                          ) : null}
+                          <span className="badge badge--neutral" style={{ fontSize: 11 }}>{TIPOS.find(t => t.value === tipo)?.label}</span>
+                          {empleadoDetalle?.activo !== undefined && (
+                            <span className={`badge ${empleadoDetalle.activo ? 'badge--success' : 'badge--danger'}`} style={{ fontSize: 11 }}>
+                              {empleadoDetalle.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <button type="button" onClick={() => { setSelected(null); setStep(1); setFotoHcm(null); setEmpleadoDetalle(null); }}
                         className="btn btn--ghost btn--sm">Cambiar</button>
                     </div>
                     <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '4px 16px', fontSize: 13 }}>
+                      {/* Campos segun tipo */}
                       {empleadoDetalle?.cargo && <div><span className="text-muted">Cargo:</span> {empleadoDetalle.cargo}</div>}
                       {empleadoDetalle?.gerencia && <div><span className="text-muted">Gerencia:</span> {empleadoDetalle.gerencia}</div>}
                       {empleadoDetalle?.area && <div><span className="text-muted">Área:</span> {empleadoDetalle.area}</div>}
                       {empleadoDetalle?.ubicacion && <div><span className="text-muted">Ubicación:</span> {empleadoDetalle.ubicacion}</div>}
                       {empleadoDetalle?.departamento && <div><span className="text-muted">Departamento:</span> {empleadoDetalle.departamento}</div>}
                       {empleadoDetalle?.empresa && <div><span className="text-muted">Empresa:</span> {empleadoDetalle.empresa}</div>}
+                      {empleadoDetalle?.servicio && <div><span className="text-muted">Servicio:</span> {empleadoDetalle.servicio}</div>}
+                      {empleadoDetalle?.especialidad && <div><span className="text-muted">Especialidad:</span> {empleadoDetalle.especialidad}</div>}
+                      {empleadoDetalle?.ruc && <div><span className="text-muted">RUC:</span> {empleadoDetalle.ruc}</div>}
+                      {empleadoDetalle?.telefono && <div><span className="text-muted">Teléfono:</span> {empleadoDetalle.telefono}</div>}
+                      {!empleadoDetalle?.cargo && !empleadoDetalle?.gerencia && !empleadoDetalle?.empresa && !empleadoDetalle?.servicio && (
+                        <div className="text-muted text-xs">Sin datos adicionales registrados</div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -47,9 +47,13 @@ export class CursoParticipantesService {
     const wb = XLSX.utils.book_new();
     const wsData = [
       ['eventoCursoId', 'tipoPersona', 'carnet', 'nombrePersona', 'cedulaPersona', 'empresaPersona'],
-      ['1', 'EMPLEADO', '500708', 'Ejemplo: GUSTAVO ADOLFO LIRA SALAZAR', '001-123456-7', 'CLARO NICARAGUA'],
-      ['1', 'PROVEEDOR', '3', 'Ejemplo: Proveedor ABC', '001-765432-1', 'ABC S.A.'],
-      ['2', 'SERVICIO_EXTERNO', 'PL001', 'Ejemplo: Juan Perez Lopez', '', 'Servicios Generales'],
+      ['1', 'EMPLEADO', '500708', 'Ej: GUSTAVO ADOLFO LIRA SALAZAR', '001-123456-7', 'CLARO NICARAGUA'],
+      ['1', 'PROVEEDOR', '3', 'Ej: Proveedor ABC', '001-765432-1', 'ABC S.A.'],
+      ['2', 'SERVICIO_EXTERNO', 'PL001', 'Ej: Juan Perez Lopez', '', 'Servicios Generales S.A.'],
+      ['', '', '', '', '', ''],
+      ['', 'ⓘ TIPOS:', 'EMPLEADO / PROVEEDOR / INSTRUCTOR_EXTERNO / INSTRUCTOR_INTERNO / VISITANTE / SERVICIO_EXTERNO', '', '', ''],
+      ['', 'ⓘ eventoCursoId:', 'ID del evento de curso (ver eventos de curso)', '', '', ''],
+      ['', 'ⓘ empresaPersona:', 'Nombre de la empresa del proveedor/externo', '', '', ''],
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 10 }, { wch: 40 }, { wch: 16 }, { wch: 20 }];
