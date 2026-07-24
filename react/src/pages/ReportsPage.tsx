@@ -41,6 +41,13 @@ export default function ReportsPage() {
   const [filtroDesde, setFiltroDesde] = useState('');
   const [filtroHasta, setFiltroHasta] = useState('');
 
+  // Draft filters (cambian sin consultar)
+  const [draftEdificio, setDraftEdificio] = useState('');
+  const [draftTipo, setDraftTipo] = useState('');
+  const [draftMotivo, setDraftMotivo] = useState('');
+  const [draftDesde, setDraftDesde] = useState('');
+  const [draftHasta, setDraftHasta] = useState('');
+
   useEffect(() => {
     api.get('/edificios').then(r => {
       const all = r.data || [];
@@ -48,7 +55,9 @@ export default function ReportsPage() {
         Number(item.Id || item.id) === Number(user?.edificioIdDefecto));
       setEdificios(allowed);
       if (!isAdmin && user?.edificioIdDefecto) {
-        setFiltroEdificio(String(user.edificioIdDefecto));
+        const v = String(user.edificioIdDefecto);
+        setFiltroEdificio(v);
+        setDraftEdificio(v);
       }
     }).catch(() => {});
   }, [isAdmin, user]);
@@ -71,7 +80,18 @@ export default function ReportsPage() {
 
   useEffect(() => { load(pagina); }, [pagina, load]);
 
-  const buscar = () => { setPagina(1); load(1); };
+  const buscar = () => {
+    setFiltroEdificio(draftEdificio);
+    setFiltroTipo(draftTipo);
+    setFiltroMotivo(draftMotivo);
+    setFiltroDesde(draftDesde);
+    setFiltroHasta(draftHasta);
+    setPagina(1);
+  };
+  const limpiar = () => {
+    setDraftEdificio(isAdmin ? '' : String(user?.edificioIdDefecto || ''));
+    setDraftTipo(''); setDraftMotivo(''); setDraftDesde(''); setDraftHasta('');
+  };
   const totalPag = Math.max(1, Math.ceil(total / porPagina));
 
   const exportCSV = async () => {
@@ -140,16 +160,16 @@ export default function ReportsPage() {
           <div className="form-grid form-grid--3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
             <div className="form-group">
               <label htmlFor="f-desde" className="form-label">Desde</label>
-              <input id="f-desde" type="date" className="form-control" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} />
+              <input id="f-desde" type="date" className="form-control" value={draftDesde} onChange={e => setDraftDesde(e.target.value)} />
             </div>
             <div className="form-group">
               <label htmlFor="f-hasta" className="form-label">Hasta</label>
-              <input id="f-hasta" type="date" className="form-control" value={filtroHasta} onChange={e => setFiltroHasta(e.target.value)} />
+              <input id="f-hasta" type="date" className="form-control" value={draftHasta} onChange={e => setDraftHasta(e.target.value)} />
             </div>
             {isAdmin && (
             <div className="form-group">
               <label htmlFor="f-edificio" className="form-label">Edificio</label>
-              <select id="f-edificio" className="form-control" value={filtroEdificio} onChange={e => setFiltroEdificio(e.target.value)}>
+              <select id="f-edificio" className="form-control" value={draftEdificio} onChange={e => setDraftEdificio(e.target.value)}>
                 <option value="">Todos</option>
                 {edificios.map((e: any) => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
               </select>
@@ -157,13 +177,13 @@ export default function ReportsPage() {
             )}
             <div className="form-group">
               <label htmlFor="f-tipo" className="form-label">Tipo de persona</label>
-              <select id="f-tipo" className="form-control" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
+              <select id="f-tipo" className="form-control" value={draftTipo} onChange={e => setDraftTipo(e.target.value)}>
                 {TIPOS.map(t => <option key={t} value={t}>{t ? (TYPE_LABELS[t] || t) : 'Todos'}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label htmlFor="f-motivo" className="form-label">Motivo</label>
-              <select id="f-motivo" className="form-control" value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)}>
+              <select id="f-motivo" className="form-control" value={draftMotivo} onChange={e => setDraftMotivo(e.target.value)}>
                 {MOTIVOS.map(m => <option key={m} value={m}>{m || 'Todos'}</option>)}
               </select>
             </div>
@@ -171,7 +191,7 @@ export default function ReportsPage() {
               <button onClick={buscar} className="btn btn--primary" disabled={loading} style={{ flex: 1 }}>
                 <Search className="icon icon--sm" /> {loading ? 'Buscando…' : 'Buscar'}
               </button>
-              <button onClick={() => { setFiltroEdificio(''); setFiltroTipo(''); setFiltroMotivo(''); setFiltroDesde(''); setFiltroHasta(''); }} className="btn btn--ghost btn--sm" style={{ marginLeft: 8 }} aria-label="Limpiar filtros"><X className="icon icon--sm" /></button>
+              <button onClick={limpiar} className="btn btn--ghost btn--sm" style={{ marginLeft: 8 }} aria-label="Limpiar filtros"><X className="icon icon--sm" /></button>
             </div>
           </div>
         </div>
