@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
-import { Search, DoorOpen, LogOut, Camera, X, Loader2, GraduationCap } from 'lucide-react';
+import { Search, DoorOpen, LogOut, Camera, X, Loader2, GraduationCap, Building2 } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 
 const TIPOS = [
@@ -133,6 +133,34 @@ export default function RegistroPage() {
       <p className="page-header__subtitle" style={{ marginBottom: 'var(--space-4)' }}>
         Este sistema registra accesos físicos al edificio. No corresponde a marcación laboral.
       </p>
+
+      {/* Selector de edificio en la parte superior */}
+      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
+        <div className="card__body" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Building2 className="icon" style={{ color: 'var(--brand-red)' }} />
+          <strong style={{ minWidth: 80 }}>Edificio:</strong>
+          {user?.rol === 'admin' ? (
+            <select id="edificio-top" className="form-control" value={edificioId}
+              onChange={e => { const v = e.target.value; setEdificioId(v); const sel = edificios.find(ed => Number(ed.Id || ed.id) === Number(v)); setMotivo(sel?.EsCapacitacion || sel?.esCapacitacion ? 'general' : null); setEventoCursoId(''); }}
+              style={{ maxWidth: 400, flex: 1 }}>
+              <option value="">Seleccione un edificio…</option>
+              {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
+            </select>
+          ) : edificioSel ? (
+            <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--brand-red)' }}>
+              {edificioSel.Nombre || edificioSel.nombre}
+            </span>
+          ) : (
+            <span className="text-muted">Cargando…</span>
+          )}
+          {edificioId && esCapacitacion && (
+            <span className="badge badge--neutral" style={{ marginLeft: 'auto' }}>
+              <GraduationCap className="icon icon--sm" /> Edificio de capacitación
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="registro-grid">
         <form onSubmit={registrarEntrada} className="card">
           <div className="card__header card__header--brand"><span className="card-title"><DoorOpen className="icon" /> Registrar Entrada al Edificio</span></div>
@@ -188,19 +216,9 @@ export default function RegistroPage() {
               <>
                 <div className="form-group"><label htmlFor="vis-nombre" className="form-label form-label--required">Nombre completo</label><input id="vis-nombre" type="text" className="form-control" value={nombreManual} onChange={e => setNombreManual(e.target.value)} placeholder="Nombre del visitante" /></div>
                 <div className="form-group"><label htmlFor="vis-cedula" className="form-label">Cédula</label><input id="vis-cedula" type="text" className="form-control" value={cedulaManual} onChange={e => setCedulaManual(e.target.value)} placeholder="Número de cédula" /></div>
-                <div className="form-group"><label htmlFor="vis-empresa" className="form-label">Empresa / Motivo</label><input id="vis-empresa" type="text" className="form-control" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)} placeholder="Empresa o motivo del acceso" /></div>
+                <div className="form-group"><label htmlFor="vis-empresa" className="form-label">Empresa</label><input id="vis-empresa" type="text" className="form-control" value={empresaManual} onChange={e => setEmpresaManual(e.target.value)} placeholder="Empresa" /></div>
               </>
             )}
-            <div className="form-group"><label htmlFor="edificio" className="form-label form-label--required">Edificio</label>
-              {user?.rol === 'admin' ? (
-                <select id="edificio" className="form-control" value={edificioId} onChange={e => { const v = e.target.value; setEdificioId(v); const sel = edificios.find(ed => Number(ed.Id || ed.id) === Number(v)); setMotivo(sel?.EsCapacitacion || sel?.esCapacitacion ? 'general' : null); setEventoCursoId(''); }}>
-                  <option value="">Seleccione un edificio…</option>
-                  {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
-                </select>
-              ) : (
-                <div className="selected-person" style={{ fontWeight: 600 }}>{edificioSel?.Nombre || edificioSel?.nombre || 'Cargando…'}</div>
-              )}
-            </div>
 
             {/* Capacitación: solo si edificio es de capacitación */}
             {esCapacitacion && edificioId && (
@@ -226,7 +244,7 @@ export default function RegistroPage() {
               <div className="form-group"><label htmlFor="curso" className="form-label">Curso o evento de capacitación</label>
                 <select id="curso" className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError}>
                   <option value="">{courseError ? 'Cursos no disponibles' : 'Seleccione un curso…'}</option>
-                  {!courseError && eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre} — {ev.EdificioNombre || ''}</option>)}
+                  {!courseError && eventos.map((ev: any) => <option key={ev.Id || ev.id} value={ev.Id || ev.id}>{ev.CursoNombre || ev.nombre}</option>)}
                 </select>
               </div>
             )}
