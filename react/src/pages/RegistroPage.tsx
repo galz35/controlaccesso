@@ -48,13 +48,21 @@ export default function RegistroPage() {
     api.get('/edificios').then(r => {
       const items = r.data || [];
       setEdificios(items);
-      // Si solo hay un edificio y es de capacitación, preseleccionar motivo
       if (items.length === 1 && (items[0]?.EsCapacitacion || items[0]?.esCapacitacion)) {
         setMotivo('general');
       }
     }).catch(() => setError('No se pudieron cargar los edificios'));
-    api.get('/eventos-curso').then(r => setEventos(r.data || [])).catch(() => setCourseError(true));
   }, []);
+
+  // Load eventos when training building is selected
+  useEffect(() => {
+    const selEdificio = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
+    if (selEdificio?.EsCapacitacion || selEdificio?.esCapacitacion) {
+      api.get(`/eventos-curso?edificioId=${edificioId}`).then(r => setEventos(r.data || [])).catch(() => setCourseError(true));
+    } else {
+      setEventos([]);
+    }
+  }, [edificioId, edificios]);
 
   const buscar = async () => {
     if (!searchQ.trim()) return;
@@ -240,6 +248,8 @@ function SalidaPanel() {
   const [apiError, setApiError] = useState(false);
   const [search, setSearch] = useState('');
   const [exitingId, setExitingId] = useState<number | null>(null);
+  const [showSalidaSinEntrada, setShowSalidaSinEntrada] = useState(false);
+  const [ssForm, setSsForm] = useState({ personaId: '', nombre: '', observacion: '' });
 
   const load = useCallback(async () => {
     setLoading(true); setApiError(false);
@@ -277,6 +287,24 @@ function SalidaPanel() {
         ) : (
           <>
             <p className="empty-state__desc mb-3">{hoy.length} persona(s) sin salida registrada</p>
+            <button onClick={() => setShowSalidaSinEntrada(!showSalidaSinEntrada)} className="btn btn--ghost btn--sm" style={{ marginBottom: 12 }}>
+              {showSalidaSinEntrada ? '✕ Cancelar' : '➕ Persona salió sin registrar entrada'}
+            </button>
+            {showSalidaSinEntrada && (
+              <div style={{ padding: '12px 0', borderTop: '1px solid var(--gray-200)', marginBottom: 12 }}>
+                <div className="form-group"><label htmlFor="ss-carnet" className="form-label form-label--required">Carnet / Código</label><input id="ss-carnet" type="text" className="form-control" value={ssForm.personaId} onChange={e => setSsForm({...ssForm, personaId: e.target.value})} placeholder="Carnet, cédula o código" /></div>
+                <div className="form-group"><label htmlFor="ss-nombre" className="form-label form-label--required">Nombre</label><input id="ss-nombre" type="text" className="form-control" value={ssForm.nombre} onChange={e => setSsForm({...ssForm, nombre: e.target.value})} placeholder="Nombre completo" /></div>
+                <div className="form-group"><label htmlFor="ss-obs" className="form-label form-label--required">Observación</label><input id="ss-obs" type="text" className="form-control" value={ssForm.observacion} onChange={e => setSsForm({...ssForm, observacion: e.target.value})} placeholder="Ej: Salió sin marcar entrada" /></div>
+                <button onClick={async () => {
+                  if (!ssForm.personaId || !ssForm.nombre || !ssForm.observacion) { showError('Complete todos los campos'); return; }
+                  try {
+                    await api.post('/acceso/salida-independiente', { ...ssForm, edificioId: 1 });
+                    showSuccess('Salida registrada sin entrada previa');
+                    setShowSalidaSinEntrada(false); setSsForm({ personaId: '', nombre: '', observacion: '' }); load();
+                  } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
+                }} className="btn btn--dark btn--sm" style={{ width: '100%', marginBottom: 12 }}>Registrar Salida sin Entrada</button>
+              </div>
+            )}
             <div className="salida-list">
               {filtrados.map(r => (
                 <div key={r.id} className="salida-item">

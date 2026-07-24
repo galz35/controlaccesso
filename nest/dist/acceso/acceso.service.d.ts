@@ -45,7 +45,7 @@ export declare class AccesoService {
         usuarioRegistra: any;
         motivoAcceso: any;
         motivoDetalle: any;
-        antiguedadHoras: number;
+        antiguedadHoras: any;
     }[]>;
     registrarSalidaIndependiente(dto: {
         edificioId: number;

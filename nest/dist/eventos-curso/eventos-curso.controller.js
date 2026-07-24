@@ -22,7 +22,9 @@ let EventosCursoController = class EventosCursoController {
     constructor(service) {
         this.service = service;
     }
-    async getAll() { return this.service.getAll(); }
+    async getAll(edificioId) {
+        return this.service.getAll(edificioId ? parseInt(edificioId) : undefined);
+    }
     async create(dto) { return this.service.create(dto); }
     async update(id, dto) { return this.service.update(id, dto); }
 };
@@ -30,8 +32,9 @@ exports.EventosCursoController = EventosCursoController;
 __decorate([
     (0, common_1.Get)(),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
+    __param(0, (0, common_1.Query)('edificioId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], EventosCursoController.prototype, "getAll", null);
 __decorate([

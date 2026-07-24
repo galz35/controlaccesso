@@ -5,9 +5,11 @@ import { DatabaseService } from '../database/database.service';
 export class EventosCursoService {
   constructor(private db: DatabaseService) {}
 
-  async getAll(): Promise<any[]> {
+  async getAll(edificioId?: number): Promise<any[]> {
     const pool = await this.db.getPool();
-    const result = await pool.request().execute('sp_EventosCurso_Listar');
+    const request = pool.request();
+    request.input('EdificioId', edificioId || null);
+    const result = await request.execute('sp_EventosCurso_ListarPorEdificio');
     return result.recordset;
   }
 

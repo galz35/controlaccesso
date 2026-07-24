@@ -16,9 +16,11 @@ let EventosCursoService = class EventosCursoService {
     constructor(db) {
         this.db = db;
     }
-    async getAll() {
+    async getAll(edificioId) {
         const pool = await this.db.getPool();
-        const result = await pool.request().execute('sp_EventosCurso_Listar');
+        const request = pool.request();
+        request.input('EdificioId', edificioId || null);
+        const result = await request.execute('sp_EventosCurso_ListarPorEdificio');
         return result.recordset;
     }
     async create(dto) {

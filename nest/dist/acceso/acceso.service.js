@@ -73,25 +73,15 @@ let AccesoService = class AccesoService {
     async accesosPendientes(edificioId) {
         const pool = await this.db.getPool();
         const request = pool.request();
-        let where = 'WHERE r.FechaSalida IS NULL AND (r.TipoMovimiento IS NULL OR r.TipoMovimiento = \'ENTRADA\')';
-        if (edificioId) {
-            request.input('edificioId', edificioId);
-            where += ' AND r.EdificioId = @edificioId';
-        }
-        const result = await request.query(`
-      SELECT r.*, e.Nombre AS EdificioNombre
-      FROM dbo.tblRegistroAcceso r
-      INNER JOIN dbo.tblEdificios e ON r.EdificioId = e.Id
-      ${where}
-      ORDER BY r.FechaEntrada DESC
-    `);
+        request.input('EdificioId', edificioId || null);
+        const result = await request.execute('sp_Acceso_Pendientes');
         return result.recordset.map(r => ({
             id: r.Id, tipoPersona: r.TipoPersona, personaId: r.PersonaId,
             nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
             edificio: r.EdificioNombre, fotoUrl: r.FotoUrl,
             fechaEntrada: r.FechaEntrada, fechaSalida: r.FechaSalida,
             usuarioRegistra: r.UsuarioRegistra, motivoAcceso: r.MotivoAcceso, motivoDetalle: r.MotivoDetalle,
-            antiguedadHoras: Math.floor((Date.now() - new Date(r.FechaEntrada).getTime()) / 3600000),
+            antiguedadHoras: r.AntiguedadHoras,
         }));
     }
     async registrarSalidaIndependiente(dto, usuario) {
@@ -102,12 +92,8 @@ let AccesoService = class AccesoService {
             .input('PersonaId', dto.personaId)
             .input('NombrePersona', dto.nombrePersona)
             .input('UsuarioRegistra', usuario)
-            .input('MotivoAcceso', dto.observacion)
-            .query(`
-        INSERT INTO dbo.tblRegistroAcceso (EdificioId, TipoPersona, PersonaId, NombrePersona, UsuarioRegistra, MotivoAcceso, TipoMovimiento, FechaSalida)
-        OUTPUT INSERTED.Id, INSERTED.NombrePersona AS Nombre, INSERTED.FechaSalida, INSERTED.MotivoAcceso, INSERTED.TipoMovimiento
-        VALUES (@EdificioId, @TipoPersona, @PersonaId, @NombrePersona, @UsuarioRegistra, @MotivoAcceso, 'SALIDA_NOCTROL', GETDATE())
-      `);
+            .input('Observacion', dto.observacion)
+            .execute('sp_Acceso_SalidaIndependiente');
         return { ...result.recordset[0], tipo: 'SALIDA_NOCTROL' };
     }
     async reporte(edificioId, tipoPersona, desde, hasta, pagina = 1, porPagina = 50, motivoAcceso) {

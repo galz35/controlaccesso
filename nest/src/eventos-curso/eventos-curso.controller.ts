@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { EventosCursoService } from './eventos-curso.service';
 import { Roles } from '../common/roles.decorator';
@@ -11,7 +11,9 @@ export class EventosCursoController {
 
   @Get()
   @Roles('admin', 'registrador')
-  async getAll() { return this.service.getAll(); }
+  async getAll(@Query('edificioId') edificioId?: string) {
+    return this.service.getAll(edificioId ? parseInt(edificioId) : undefined);
+  }
 
   @Post()
   @Roles('admin')

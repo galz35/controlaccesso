@@ -35,7 +35,7 @@ export declare class AccesoController {
         usuarioRegistra: any;
         motivoAcceso: any;
         motivoDetalle: any;
-        antiguedadHoras: number;
+        antiguedadHoras: any;
     }[]>;
     reporte(query: ReporteQueryDto): Promise<{
         data: any;
