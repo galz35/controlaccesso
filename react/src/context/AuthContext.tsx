@@ -21,12 +21,19 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { localStorage.removeItem('user'); }
-    }
+    const token = localStorage.getItem('token');
+    if (!token) { setReady(true); return; }
+    api.get('/auth/me').then(r => {
+      const u = r.data;
+      setUser(u);
+      localStorage.setItem('user', JSON.stringify(u));
+    }).catch(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }).finally(() => setReady(true));
   }, []);
 
   const login = async (credential: string, password?: string, isCpf = false) => {
@@ -52,6 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     window.location.href = '/control-acceso/login';
   };
+
+  if (!ready) {
+    return <div className="login-page"><div className="spinner mx-auto" /></div>;
+  }
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>

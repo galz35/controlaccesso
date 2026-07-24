@@ -37,7 +37,7 @@ let AccesoService = class AccesoService {
             .input('EmpresaPersona', dto.empresaPersona || null)
             .input('FotoUrl', fotoUrl)
             .input('UsuarioRegistra', usuario)
-            .input('MotivoAcceso', dto.motivoAcceso || null)
+            .input('MotivoAcceso', dto.motivoAcceso)
             .input('MotivoDetalle', dto.motivoDetalle || null)
             .execute('sp_Acceso_RegistrarEntrada');
         return result.recordset[0];
@@ -120,6 +120,14 @@ let AccesoService = class AccesoService {
         };
     }
     async savePhoto(file) {
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!allowedMimes.includes(file.mimetype)) {
+            throw new common_1.BadRequestException('Formato de foto no permitido. Use JPG, PNG, WebP o GIF.');
+        }
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            throw new common_1.BadRequestException('La foto excede 5MB.');
+        }
         const uploadPath = this.config.get('UPLOAD_PATH', './uploads');
         const dir = path.join(uploadPath, 'fotos_acceso');
         if (!fs.existsSync(dir))

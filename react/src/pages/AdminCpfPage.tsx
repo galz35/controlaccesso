@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { KeyRound, Plus, Eye, EyeOff, Shield } from 'lucide-react';
+import { KeyRound, Plus, Eye, EyeOff, Shield, UserX, UserCheck, Building2 } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 import Swal from 'sweetalert2';
 
@@ -42,6 +42,31 @@ export default function AdminCpfPage() {
     const { value: newPwd } = await Swal.fire({ title: 'Nueva contraseña', text: `Para: ${username}`, input: 'password', inputPlaceholder: 'Nueva contraseña (mín. 6 caracteres)', showCancelButton: true, confirmButtonText: 'Cambiar', confirmButtonColor: '#DA291C' });
     if (!newPwd || newPwd.length < 6) return;
     try { await api.post('/auth/admin-reset-password', { username, newPassword: newPwd }); showSuccess('Contraseña cambiada'); } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
+  };
+
+  const deactivate = async (username: string) => {
+    const confirm = await Swal.fire({ title: '¿Desactivar usuario?', text: username, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, desactivar', confirmButtonColor: '#DA291C' });
+    if (!confirm.isConfirmed) return;
+    try { await api.post('/admin/cpf-deactivate', { username }); showSuccess('Usuario desactivado'); load(); } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
+  };
+
+  const activate = async (username: string) => {
+    try { await api.post('/admin/cpf-activate', { username }); showSuccess('Usuario activado'); load(); } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
+  };
+
+  const changeBuilding = async (username: string, currentBuildingId: number | null) => {
+    const opts = edificios.map(e => ({ value: String(e.Id || e.id), text: e.Nombre || e.nombre }));
+    opts.unshift({ value: '', text: 'Sin edificio fijo' });
+    const { value } = await Swal.fire({
+      title: 'Cambiar edificio por defecto',
+      text: `Para: ${username}`,
+      input: 'select',
+      inputOptions: Object.fromEntries(opts.map(o => [o.value, o.text])),
+      inputValue: currentBuildingId ? String(currentBuildingId) : '',
+      showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#DA291C',
+    });
+    if (value === undefined) return;
+    try { await api.post('/admin/cpf-change-building', { username, edificioIdDefecto: value ? parseInt(value) : null }); showSuccess('Edificio actualizado'); load(); } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
   };
 
   if (!isAdmin) return <div className="restricted-page"><h2>Acceso restringido</h2><p className="empty-state__desc">No tenés permisos para administrar usuarios CPF.</p></div>;
@@ -90,7 +115,7 @@ export default function AdminCpfPage() {
           <div className="table-wrapper">
             <table className="table">
                 <caption className="visually-hidden">Usuarios CPF registrados</caption>
-              <thead><tr><th scope="col">Usuario</th><th scope="col">Nombre</th><th scope="col" className="text-center">Tipo</th><th scope="col" className="text-center">Edificio</th><th scope="col" className="text-center">Rol</th><th scope="col" className="text-center">Activo</th><th scope="col" className="text-center">Acción</th></tr></thead>
+              <thead><tr><th scope="col">Usuario</th><th scope="col">Nombre</th><th scope="col" className="text-center">Tipo</th><th scope="col" className="text-center">Edificio</th><th scope="col" className="text-center">Rol</th><th scope="col" className="text-center">Estado</th><th scope="col" className="text-center">Acciones</th></tr></thead>
               <tbody>
                 {users.map((u: any) => (
                   <tr key={u.Id}>
@@ -98,8 +123,18 @@ export default function AdminCpfPage() {
                     <td className="text-center"><span className="badge badge--neutral">{u.Tipo}</span></td>
                     <td className="text-center text-muted text-xs">{u.EdificioDefectoNombre || u.edificioDefectoNombre || '-'}</td>
                     <td className="text-center">{u.Rol}</td>
-                    <td className="text-center"><span className={`badge ${u.Activo ? 'badge--success' : 'badge--danger'}`}>{u.Activo ? 'Sí' : 'No'}</span></td>
-                    <td className="text-center"><button onClick={() => resetPassword(u.Username)} className="btn btn--ghost btn--sm"><KeyRound className="icon icon--sm" /> Cambiar contraseña</button></td>
+                    <td className="text-center"><span className={`badge ${u.Activo ? 'badge--success' : 'badge--danger'}`}>{u.Activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td className="text-center">
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                        <button onClick={() => resetPassword(u.Username)} className="btn btn--ghost btn--sm" title="Cambiar contraseña"><KeyRound className="icon icon--sm" /></button>
+                        <button onClick={() => changeBuilding(u.Username, u.EdificioIdDefecto)} className="btn btn--ghost btn--sm" title="Cambiar edificio"><Building2 className="icon icon--sm" /></button>
+                        {u.Activo ? (
+                          <button onClick={() => deactivate(u.Username)} className="btn btn--ghost btn--sm" title="Desactivar"><UserX className="icon icon--sm" /></button>
+                        ) : (
+                          <button onClick={() => activate(u.Username)} className="btn btn--ghost btn--sm" title="Activar"><UserCheck className="icon icon--sm" /></button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {users.length === 0 && <tr className="catalog-empty"><td colSpan={7}>Sin usuarios CPF registrados</td></tr>}

@@ -31,9 +31,9 @@ export class RegistrarEntradaDto {
   @IsString()
   empresaPersona?: string;
 
-  @IsOptional()
   @IsString()
-  motivoAcceso?: string;
+  @IsIn(['Comedor', 'Servicio de cocina', 'Carga y descarga', 'Conductor/transporte', 'Entrega', 'Mantenimiento', 'Reunión', 'Visita general', 'Capacitación', 'Otro'])
+  motivoAcceso: string;
 
   @IsOptional()
   @IsString()
@@ -91,8 +91,4 @@ export class SalidaIndependienteDto {
   @IsString()
   @MinLength(5)
   observacion: string;
-
-  @IsOptional()
-  @IsString()
-  motivoAcceso?: string;
 }

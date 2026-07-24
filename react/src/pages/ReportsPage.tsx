@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { FileText, Download, Search, X } from 'lucide-react';
 
-const TIPOS = ['', 'EMPLEADO', 'PROVEEDOR', 'INSTRUCTOR_EXTERNO', 'VISITANTE', 'SERVICIO_EXTERNO'];
+const TIPOS = ['', 'EMPLEADO', 'PROVEEDOR', 'INSTRUCTOR_EXTERNO', 'INSTRUCTOR_INTERNO', 'VISITANTE', 'SERVICIO_EXTERNO', 'SALIDA_INDEPENDIENTE'];
 const MOTIVOS = ['', 'Comedor', 'Servicio de cocina', 'Carga y descarga', 'Conductor/transporte', 'Entrega', 'Mantenimiento', 'Reunión', 'Visita general', 'Capacitación', 'Otro'];
 
 export default function ReportsPage() {
@@ -10,10 +10,10 @@ export default function ReportsPage() {
   const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [apiError, setApiError] = useState(false);
   const porPagina = 25;
 
-  // Filters
   const [edificios, setEdificios] = useState<any[]>([]);
   const [filtroEdificio, setFiltroEdificio] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
@@ -46,32 +46,54 @@ export default function ReportsPage() {
   const buscar = () => { setPagina(1); load(1); };
   const totalPag = Math.max(1, Math.ceil(total / porPagina));
 
-  const exportCSV = () => {
-    const headers = ['Fecha', 'Hora', 'Persona', 'Tipo', 'Cédula', 'Empresa', 'Motivo', 'Edificio', 'Entrada', 'Salida', 'Registró'];
-    const rows = data.map(r => [
-      new Date(r.fechaEntrada).toLocaleDateString(),
-      new Date(r.fechaEntrada).toLocaleTimeString(),
-      r.nombre, r.tipoPersona, r.cedula || '', r.empresa || '',
-      r.motivoAcceso || '', r.edificio,
-      new Date(r.fechaEntrada).toLocaleString(),
-      r.fechaSalida ? new Date(r.fechaSalida).toLocaleString() : 'Pendiente',
-      r.usuarioRegistra || '',
-    ]);
-    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'reporte_accesos.csv'; link.click();
+  const sanitizeCSV = (val: string): string => {
+    if (typeof val !== 'string') return val;
+    if (/^[=+\-@]/.test(val)) return `\t${val}`;
+    return val;
+  };
+
+  const exportCSV = async () => {
+    setExporting(true);
+    try {
+      const params: any = { pagina: 1, porPagina: 1000000 };
+      if (filtroEdificio) params.edificioId = filtroEdificio;
+      if (filtroTipo) params.tipoPersona = filtroTipo;
+      if (filtroMotivo) params.motivoAcceso = filtroMotivo;
+      if (filtroDesde) params.desde = filtroDesde;
+      if (filtroHasta) params.hasta = filtroHasta;
+      const res = await api.get('/acceso/reporte', { params });
+      const allData = res.data.data || [];
+
+      const headers = ['Fecha', 'Hora', 'Persona', 'Tipo', 'Cédula', 'Empresa', 'Motivo', 'Edificio', 'Entrada', 'Salida', 'Registró'];
+      const rows = allData.map((r: any) => [
+        new Date(r.fechaEntrada).toLocaleDateString(),
+        new Date(r.fechaEntrada).toLocaleTimeString(),
+        r.nombre, r.tipoPersona, r.cedula || '', r.empresa || '',
+        r.motivoAcceso || '', r.edificio,
+        new Date(r.fechaEntrada).toLocaleString(),
+        r.fechaSalida ? new Date(r.fechaSalida).toLocaleString() : 'Pendiente',
+        r.usuarioRegistra || '',
+      ]);
+      const csv = [headers.join(','), ...rows.map((r: string[]) => r.map((v: string) => `"${sanitizeCSV(v)}"`).join(','))].join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'reporte_accesos_completo.csv';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+    } catch { /* silencioso */ }
+    setExporting(false);
   };
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-header__title"><FileText className="icon" /> Reporte de Accesos</h1>
-        <button onClick={exportCSV} disabled={data.length === 0} className="btn btn--primary">
-          <Download className="icon icon--sm" /> Exportar CSV
+        <button onClick={exportCSV} disabled={exporting} className="btn btn--primary">
+          <Download className="icon icon--sm" /> {exporting ? 'Exportando…' : 'Exportar CSV completo'}
         </button>
       </div>
 
-      {/* Filters */}
       <div className="card" style={{ marginBottom: 'var(--space-5)' }}>
         <div className="card__body">
           <div className="form-grid form-grid--3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
@@ -112,7 +134,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="card">
         {apiError ? (
           <div className="empty-state"><p className="empty-state__desc">Error al cargar el reporte.</p><button onClick={() => load(pagina)} className="btn btn--primary btn--sm mt-2">Reintentar</button></div>

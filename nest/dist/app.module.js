@@ -21,7 +21,11 @@ const acceso_module_1 = require("./acceso/acceso.module");
 const search_module_1 = require("./search/search.module");
 const admin_module_1 = require("./admin/admin.module");
 const app_controller_1 = require("./app.controller");
+const rate_limiter_middleware_1 = require("./common/rate-limiter.middleware");
 let AppModule = class AppModule {
+    configure(consumer) {
+        consumer.apply(rate_limiter_middleware_1.RateLimiterMiddleware).forRoutes('*');
+    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([

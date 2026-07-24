@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
 import { Search, DoorOpen, LogOut, Camera, X, Loader2, GraduationCap } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
@@ -40,6 +40,7 @@ export default function RegistroPage() {
   const [registrando, setRegistrando] = useState(false);
   const [foto, setFoto] = useState<File | null>(null);
   const [error, setError] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const edificioSel = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
   const esCapacitacion = edificioSel?.EsCapacitacion || edificioSel?.esCapacitacion;
@@ -98,6 +99,8 @@ export default function RegistroPage() {
       if (selected) {
         fd.append('personaId', String(selected.carnet || selected.id));
         fd.append('nombrePersona', selected.nombre || selected.nombreCompleto || '');
+        if (selected.cedula) fd.append('cedulaPersona', selected.cedula);
+        if (selected.empresa || selected.empresaPersona) fd.append('empresaPersona', selected.empresa || selected.empresaPersona);
       } else {
         fd.append('personaId', 'manual');
         fd.append('nombrePersona', nombreManual);
@@ -105,12 +108,14 @@ export default function RegistroPage() {
         fd.append('empresaPersona', empresaManual);
       }
       if (foto) fd.append('foto', foto);
-      if (motivoAcceso) fd.append('motivoAcceso', motivoAcceso);
+      if (!motivoAcceso) { showError('Seleccione un motivo de acceso'); setRegistrando(false); return; }
+      fd.append('motivoAcceso', motivoAcceso);
       if (motivoDetalle) fd.append('motivoDetalle', motivoDetalle);
       await api.post('/acceso/entrada', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       showSuccess('Acceso registrado');
       setSelected(null); setNombreManual(''); setCedulaManual(''); setEmpresaManual(''); setFoto(null);
       setEventoCursoId(''); setMotivo(null); setMotivoAcceso(''); setMotivoDetalle('');
+      searchRef.current?.focus();
     } catch (err: any) { showError('Error', err?.response?.data?.message || 'No se pudo registrar el acceso'); }
     setRegistrando(false);
   };
@@ -141,7 +146,7 @@ export default function RegistroPage() {
                 <label htmlFor="search-persona" className="form-label form-label--required">Buscar persona</label>
                 <div className="form-row">
                   <input id="search-persona" type="text" className="form-control" value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && buscar()} placeholder="Buscar por nombre o carnet…" />
+                    onKeyDown={e => e.key === 'Enter' && buscar()} placeholder="Buscar por nombre o carnet…" ref={searchRef} autoFocus />
                   <button type="button" onClick={buscar} className="btn btn--primary btn--sm" disabled={searchLoading}>
                     {searchLoading ? <Loader2 className="icon icon--sm icon--spin" /> : <Search className="icon icon--sm" />} Buscar
                   </button>
@@ -217,7 +222,7 @@ export default function RegistroPage() {
             )}
 
             <div className="form-group">
-              <label htmlFor="motivo-acceso" className="form-label">Motivo del acceso <span className="form-hint inline">(opcional)</span></label>
+              <label htmlFor="motivo-acceso" className="form-label form-label--required">Motivo del acceso</label>
               <div className="form-row">
                 <select id="motivo-acceso" className="form-control" value={motivoAcceso} onChange={e => setMotivoAcceso(e.target.value)} style={{ maxWidth: '60%' }}>
                   <option value="">Seleccione un motivo…</option>

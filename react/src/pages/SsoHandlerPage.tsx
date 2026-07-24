@@ -7,7 +7,8 @@ export default function SsoHandlerPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.replace('#', '');
+    const params = new URLSearchParams(hash);
     const token = params.get('token');
     if (!token) { setState('error'); setError('Token SSO no encontrado en la URL.'); return; }
     api.post('/auth/sso-login', { token })

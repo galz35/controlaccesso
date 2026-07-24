@@ -12,6 +12,9 @@ export default function DashboardPage() {
   const [exitingId, setExitingId] = useState<number | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
 
+  const BASE_URL = import.meta.env.VITE_API_URL || '';
+  const photoUrl = (url: string) => url.startsWith('http') ? url : `${BASE_URL}${url}`;
+
   const load = useCallback(async () => {
     setLoading(true); setApiError(false);
     try { const res = await api.get('/acceso/hoy'); setHoy(res.data || []); } catch { setApiError(true); }
@@ -130,7 +133,7 @@ export default function DashboardPage() {
           <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }}>
             <button onClick={() => setFotoPreview(null)} className="btn btn--primary btn--sm"><X className="icon icon--sm" /> Cerrar</button>
           </div>
-          <img src={fotoPreview.startsWith('http') ? fotoPreview : `https://rhclaroni.com${fotoPreview}`} alt="Foto de acceso"
+          <img src={photoUrl(fotoPreview)} alt="Foto de acceso"
             style={{ maxWidth: '90%', maxHeight: '85%', borderRadius: 8, objectFit: 'contain' }}
             onClick={e => e.stopPropagation()} />
         </div>

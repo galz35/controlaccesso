@@ -1,26 +1,48 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import { DatabaseService } from './../src/database/database.service';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+const mockDb = {
+  getPool: jest.fn().mockResolvedValue({
+    request: jest.fn().mockReturnThis(),
+    query: jest.fn().mockResolvedValue({ recordset: [] }),
+    input: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({ recordset: [] }),
+  }),
+};
+
+describe('ControlAcceso (e2e)', () => {
+  let app: INestApplication;
 
   beforeEach(async () => {
+    const { AppModule } = await import('./../src/app.module');
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(DatabaseService).useValue(mockDb)
+      .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('GET /api/health should return ok', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect(res => {
+        expect(res.body.status).toBe('ok');
+        expect(res.body.database).toBe('connected');
+      });
+  });
+
+  it('GET /api/edificios should return 401 without token', () => {
+    return request(app.getHttpServer())
+      .get('/api/edificios')
+      .expect(401);
   });
 
   afterEach(async () => {
