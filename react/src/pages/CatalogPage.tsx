@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Pencil, Building2, Users, BookOpen, Save, Search } from 'lucide-react';
+import { Plus, Pencil, Building2, Users, BookOpen, Save, Search, Upload } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 
 interface FieldDef { key: string; label: string; type?: string }
@@ -29,6 +29,9 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
   const [form, setForm] = useState<Record<string, any>>({});
   const [search, setSearch] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
   const Icon = cfg.icon;
 
   const load = useCallback(async () => {
@@ -80,7 +83,10 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
     <div>
       <div className="page-header">
         <h1 className="page-header__title"><Icon /> {cfg.title}</h1>
-        {isAdmin && <button onClick={openNew} className="btn btn--primary"><Plus className="icon icon--sm" /> Nuevo</button>}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {isAdmin && tipo === 'cursos' && <button onClick={() => setShowImport(true)} className="btn btn--secondary"><Upload className="icon icon--sm" /> Importar</button>}
+          {isAdmin && <button onClick={openNew} className="btn btn--primary"><Plus className="icon icon--sm" /> Nuevo</button>}
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
@@ -95,6 +101,38 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
         <div className="alert alert--error" role="alert">
           <p>Error al cargar los datos.</p>
           <button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button>
+        </div>
+      ) : showImport && isAdmin && tipo === 'cursos' ? (
+        <div className="card mb-3">
+          <div className="card__header"><span className="card-title"><Upload className="icon" /> Importar cursos</span></div>
+          <div className="card__body">
+            <div className="form-group">
+              <label htmlFor="import-json" className="form-label">Lista de cursos (JSON)</label>
+              <textarea id="import-json" className="form-control" rows={10} value={importText}
+                onChange={e => setImportText(e.target.value)}
+                placeholder='[
+  {"nombre": "Curso de seguridad", "descripcion": "...", "duracionHoras": 8},
+  {"nombre": "Curso de alturas", "descripcion": "...", "duracionHoras": 16}
+]' style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }} />
+              <p className="form-hint">Formato: arreglo JSON con campos: nombre (requerido), descripcion, duracionHoras</p>
+            </div>
+            <div className="form-actions">
+              <button onClick={async () => {
+                try {
+                  const parsed = JSON.parse(importText);
+                  if (!Array.isArray(parsed) || parsed.length === 0) { showError('Debe ser un arreglo no vacío'); return; }
+                  setImporting(true);
+                  const res = await api.post('/cursos/importar', { cursos: parsed });
+                  showSuccess(`Importados ${res.data.importados} curso(s)`);
+                  setShowImport(false); setImportText(''); load();
+                } catch (err: any) { showError('Error', err?.response?.data?.message || 'JSON inválido'); }
+                setImporting(false);
+              }} disabled={importing || !importText.trim()} className="btn btn--primary">
+                {importing ? 'Importando…' : 'Importar cursos'}
+              </button>
+              <button type="button" onClick={() => { setShowImport(false); setImportText(''); }} className="btn btn--secondary">Cancelar</button>
+            </div>
+          </div>
         </div>
       ) : showForm && isAdmin ? (
         <form onSubmit={save} className="card mb-3">

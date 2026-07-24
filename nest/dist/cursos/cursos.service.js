@@ -38,6 +38,13 @@ let CursosService = class CursosService {
             throw new common_1.NotFoundException('Registro no encontrado.');
         return result.recordset[0];
     }
+    async importar(cursos) {
+        const pool = await this.db.getPool();
+        const result = await pool.request()
+            .input('CursosJSON', JSON.stringify(cursos))
+            .execute('sp_Cursos_Importar');
+        return { importados: result.recordset.length, cursos: result.recordset };
+    }
 };
 exports.CursosService = CursosService;
 exports.CursosService = CursosService = __decorate([

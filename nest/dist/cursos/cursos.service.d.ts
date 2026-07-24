@@ -5,4 +5,9 @@ export declare class CursosService {
     getAll(): Promise<any[]>;
     create(dto: any): Promise<any>;
     update(id: number, dto: any): Promise<any>;
+    importar(cursos: {
+        nombre: string;
+        descripcion?: string;
+        duracionHoras?: number;
+    }[]): Promise<any>;
 }

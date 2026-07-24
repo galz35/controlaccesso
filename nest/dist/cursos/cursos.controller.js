@@ -19,12 +19,16 @@ const cursos_service_1 = require("./cursos.service");
 const roles_decorator_1 = require("../common/roles.decorator");
 const roles_guard_1 = require("../common/roles.guard");
 const catalog_dto_1 = require("../common/dto/catalog.dto");
+const importar_cursos_dto_1 = require("./dto/importar-cursos.dto");
 let CursosController = class CursosController {
     constructor(service) {
         this.service = service;
     }
     async getAll() { return this.service.getAll(); }
     async create(dto) { return this.service.create(dto); }
+    async importar(dto) {
+        return this.service.importar(dto.cursos);
+    }
     async update(id, dto) { return this.service.update(id, dto); }
 };
 exports.CursosController = CursosController;
@@ -43,6 +47,14 @@ __decorate([
     __metadata("design:paramtypes", [catalog_dto_1.CursoDto]),
     __metadata("design:returntype", Promise)
 ], CursosController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('importar'),
+    (0, roles_decorator_1.Roles)('admin'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [importar_cursos_dto_1.ImportarCursosDto]),
+    __metadata("design:returntype", Promise)
+], CursosController.prototype, "importar", null);
 __decorate([
     (0, common_1.Put)(':id'),
     (0, roles_decorator_1.Roles)('admin'),

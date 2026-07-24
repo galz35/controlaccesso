@@ -28,4 +28,12 @@ export class CursosService {
     if (!result.recordset[0]) throw new NotFoundException('Registro no encontrado.');
     return result.recordset[0];
   }
+
+  async importar(cursos: { nombre: string; descripcion?: string; duracionHoras?: number }[]): Promise<any> {
+    const pool = await this.db.getPool();
+    const result = await pool.request()
+      .input('CursosJSON', JSON.stringify(cursos))
+      .execute('sp_Cursos_Importar');
+    return { importados: result.recordset.length, cursos: result.recordset };
+  }
 }
