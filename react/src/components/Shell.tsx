@@ -1,32 +1,22 @@
 import { useAuth } from '../context/AuthContext';
 import { NavLink, useLocation } from 'react-router-dom';
-import { DoorOpen, LogOut, Menu, X, FileText, Home, Shield } from 'lucide-react';
+import { DoorOpen, LogOut, Menu, X, FileText, Home, Building2, Users, BookOpen, KeyRound } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-const navSections = [
-  {
-    label: 'Operación',
-    items: [
-      { label: 'Registrar acceso', icon: DoorOpen, to: '/control-acceso/registro' },
-      { label: 'Registrar salida', icon: LogOut, to: '/control-acceso/salidas' },
-    ],
-    minRole: 'registrador' as const,
-  },
-  {
-    label: 'Consultas',
-    items: [
-      { label: 'Historial y reportes', icon: FileText, to: '/control-acceso/reportes' },
-    ],
-    minRole: 'registrador' as const,
-  },
-  {
-    label: 'Administración',
-    items: [
-      { label: 'Inicio', icon: Home, to: '/control-acceso/' },
-      { label: 'Administración', icon: Shield, to: '/control-acceso/admin' },
-    ],
-    minRole: 'admin' as const,
-  },
+const navCPF = [
+  { label: 'Registrar acceso', icon: DoorOpen, to: '/control-acceso/registro' },
+  { label: 'Registrar salida', icon: LogOut, to: '/control-acceso/salidas' },
+  { label: 'Historial y reportes', icon: FileText, to: '/control-acceso/reportes' },
+];
+
+const navAdmin = [
+  { label: 'Inicio', icon: Home, to: '/control-acceso/' },
+  { label: 'Edificios', icon: Building2, to: '/control-acceso/edificios' },
+  { label: 'Proveedores', icon: Users, to: '/control-acceso/proveedores' },
+  { label: 'Facilitadores', icon: Users, to: '/control-acceso/instructores' },
+  { label: 'Cursos', icon: BookOpen, to: '/control-acceso/cursos' },
+  { label: 'Personal Externo', icon: Users, to: '/control-acceso/personal-externo' },
+  { label: 'Cuentas de Acceso', icon: KeyRound, to: '/control-acceso/admin-cpf' },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -41,12 +31,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     if (open) document.body.style.overflow = 'hidden'; else document.body.style.overflow = '';
     return () => { document.removeEventListener('keydown', handleEscape); document.body.style.overflow = ''; };
   }, [open]);
-
-  const isActive = (to: string) => {
-    if (to === '/control-acceso/') return location.pathname === '/control-acceso/' || location.pathname === '/control-acceso/dashboard';
-    if (to === '/control-acceso/admin') return location.pathname.startsWith('/control-acceso/admin') || ['/control-acceso/edificios', '/control-acceso/proveedores', '/control-acceso/instructores', '/control-acceso/cursos', '/control-acceso/personal-externo', '/control-acceso/admin-cpf'].includes(location.pathname);
-    return location.pathname === to;
-  };
 
   return (
     <div className="app-layout">
@@ -63,32 +47,46 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="sidebar__nav" aria-label="Navegación">
-          {navSections.map((section) => {
-            if (section.minRole === 'admin' && !isAdmin) return null;
-            return (
-              <div key={section.label} className="sidebar__section">
-                <span className="sidebar__section-label">{section.label}</span>
-                {section.items.map((item) => {
-                  const active = isActive(item.to);
-                  return (
-                    <NavLink key={item.to} to={item.to}
-                      className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`}
-                      onClick={() => setOpen(false)} aria-current={active ? 'page' : undefined}>
-                      <item.icon className="sidebar__link-icon" aria-hidden="true" />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            );
-          })}
+          {/* Sección: Operación */}
+          <div className="sidebar__section">
+            <span className="sidebar__section-label">Operación</span>
+            {navCPF.map((item) => {
+              const isActive = location.pathname === item.to;
+              return (
+                <NavLink key={item.to} to={item.to}
+                  className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
+                  onClick={() => setOpen(false)} aria-current={isActive ? 'page' : undefined}>
+                  <item.icon className="sidebar__link-icon" aria-hidden="true" />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+
+          {/* Sección: Administración (solo admin) */}
+          {isAdmin && (
+            <div className="sidebar__section">
+              <span className="sidebar__section-label">Administración</span>
+              {navAdmin.map((item) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <NavLink key={item.to} to={item.to}
+                    className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
+                    onClick={() => setOpen(false)} aria-current={isActive ? 'page' : undefined}>
+                    <item.icon className="sidebar__link-icon" aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          )}
         </nav>
 
         <div className="sidebar__footer">
           <div className="sidebar__user">
             <div className="sidebar__avatar">{user?.nombre?.charAt(0) || 'U'}</div>
             <div className="sidebar__user-info">
-              <span className="sidebar__user-name">{user?.nombre || 'Usuario'}</span>
+              <span className="sidebar__name">{user?.nombre || 'Usuario'}</span>
               <span className="sidebar__user-role">{isAdmin ? 'Administrador' : 'Registrador'}</span>
             </div>
             <button onClick={logout} className="btn btn--ghost btn--icon" aria-label="Cerrar sesión" title="Cerrar sesión"><LogOut className="icon" /></button>
