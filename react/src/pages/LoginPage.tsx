@@ -46,6 +46,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="login-tabs" role="tablist">
+            {allowDev && (
             <button
               type="button"
               role="tab"
@@ -55,6 +56,7 @@ export default function LoginPage() {
             >
               <User className="icon icon--sm" /> Empleado
             </button>
+            )}
             <button
               type="button"
               role="tab"
@@ -137,10 +139,12 @@ export default function LoginPage() {
             </div>
           )}
 
+          {(mode === 'externo' || (mode === 'empleado' && allowDev)) && (
           <button type="submit" className="btn btn--primary login-btn" disabled={loading}>
             {loading ? <span className="spinner spinner--white" /> : <DoorOpen className="icon icon--sm" />}
             {loading ? 'Ingresando…' : 'Ingresar'}
           </button>
+          )}
         </form>
       </div>
     </div>
