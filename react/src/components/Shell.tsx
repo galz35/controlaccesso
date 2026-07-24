@@ -1,17 +1,32 @@
 import { useAuth } from '../context/AuthContext';
 import { NavLink, useLocation } from 'react-router-dom';
-import { DoorOpen, LogOut, Menu, X, FileText, Home, Building2 } from 'lucide-react';
+import { DoorOpen, LogOut, Menu, X, FileText, Home, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-const navCPF = [
-  { label: 'Registrar acceso', icon: DoorOpen, to: '/control-acceso/registro' },
-  { label: 'Registrar salida', icon: LogOut, to: '/control-acceso/salidas' },
-  { label: 'Historial y reportes', icon: FileText, to: '/control-acceso/reportes' },
-];
-
-const navAdminExtra = [
-  { label: 'Inicio', icon: Home, to: '/control-acceso/' },
-  { label: 'Administración', icon: Building2, to: '/control-acceso/admin' },
+const navSections = [
+  {
+    label: 'Operación',
+    items: [
+      { label: 'Registrar acceso', icon: DoorOpen, to: '/control-acceso/registro' },
+      { label: 'Registrar salida', icon: LogOut, to: '/control-acceso/salidas' },
+    ],
+    minRole: 'registrador' as const,
+  },
+  {
+    label: 'Consultas',
+    items: [
+      { label: 'Historial y reportes', icon: FileText, to: '/control-acceso/reportes' },
+    ],
+    minRole: 'registrador' as const,
+  },
+  {
+    label: 'Administración',
+    items: [
+      { label: 'Inicio', icon: Home, to: '/control-acceso/' },
+      { label: 'Administración', icon: Shield, to: '/control-acceso/admin' },
+    ],
+    minRole: 'admin' as const,
+  },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -20,14 +35,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const isAdmin = user?.rol === 'admin';
 
-  const navItems = isAdmin ? [...navAdminExtra, ...navCPF] : navCPF;
-
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape' && open) setOpen(false); };
     document.addEventListener('keydown', handleEscape);
     if (open) document.body.style.overflow = 'hidden'; else document.body.style.overflow = '';
     return () => { document.removeEventListener('keydown', handleEscape); document.body.style.overflow = ''; };
   }, [open]);
+
+  const isActive = (to: string) => {
+    if (to === '/control-acceso/') return location.pathname === '/control-acceso/' || location.pathname === '/control-acceso/dashboard';
+    if (to === '/control-acceso/admin') return location.pathname.startsWith('/control-acceso/admin') || ['/control-acceso/edificios', '/control-acceso/proveedores', '/control-acceso/instructores', '/control-acceso/cursos', '/control-acceso/personal-externo', '/control-acceso/admin-cpf'].includes(location.pathname);
+    return location.pathname === to;
+  };
 
   return (
     <div className="app-layout">
@@ -44,15 +63,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="sidebar__nav" aria-label="Navegación">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.to;
+          {navSections.map((section) => {
+            if (section.minRole === 'admin' && !isAdmin) return null;
             return (
-              <NavLink key={item.to} to={item.to}
-                className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
-                onClick={() => setOpen(false)} aria-current={isActive ? 'page' : undefined}>
-                <item.icon className="sidebar__link-icon" aria-hidden="true" />
-                <span>{item.label}</span>
-              </NavLink>
+              <div key={section.label} className="sidebar__section">
+                <span className="sidebar__section-label">{section.label}</span>
+                {section.items.map((item) => {
+                  const active = isActive(item.to);
+                  return (
+                    <NavLink key={item.to} to={item.to}
+                      className={`sidebar__link ${active ? 'sidebar__link--active' : ''}`}
+                      onClick={() => setOpen(false)} aria-current={active ? 'page' : undefined}>
+                      <item.icon className="sidebar__link-icon" aria-hidden="true" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
@@ -77,10 +104,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className="topbar__spacer" />
           {user?.edificioIdDefecto && !isAdmin && (
             <span className="topbar__edificio" style={{ fontSize: 13, fontWeight: 600, color: 'var(--brand-red)', marginRight: 12 }}>
-              {(() => {
-                const edificio = user.edificioIdDefecto;
-                return `Edificio: ${edificio}`;
-              })()}
+              Edificio: {user.edificioIdDefecto}
             </span>
           )}
           <span className="topbar__user">{user?.nombre}</span>
@@ -88,21 +112,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <LogOut className="icon icon--sm" /> <span className="topbar__logout-text">Salir</span>
           </button>
         </header>
-
-        {isAdmin && (
-          <div className="task-bar" style={{
-            display: 'flex', gap: 4, padding: '4px var(--space-4)',
-            background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)',
-            flexWrap: 'wrap'
-          }}>
-            <NavLink to="/control-acceso/registro" className="btn btn--sm btn--primary"
-              style={{ fontSize: 12, padding: '4px 10px' }}><DoorOpen className="icon icon--sm" /> Registrar entrada</NavLink>
-            <NavLink to="/control-acceso/salidas" className="btn btn--sm btn--dark"
-              style={{ fontSize: 12, padding: '4px 10px' }}><LogOut className="icon icon--sm" /> Registrar salida</NavLink>
-            <NavLink to="/control-acceso/reportes" className="btn btn--sm btn--secondary"
-              style={{ fontSize: 12, padding: '4px 10px' }}><FileText className="icon icon--sm" /> Ver historial</NavLink>
-          </div>
-        )}
 
         <main id="main-content" className="main-content">{children}</main>
       </div>

@@ -118,8 +118,8 @@
 .sidebar__link--active {
   background: var(--brand-red-soft);
   color: var(--brand-red);
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--brand-red);
+  font-weight: 700;
+  border-right: 3px solid var(--brand-red);
 }
 
 .sidebar__link-icon {
