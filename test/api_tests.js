@@ -160,7 +160,7 @@ async function publicAndSecurityTests() {
     );
   }
 
-  const genericExit = await safeRequest('acceso/salida', {
+  const genericExit = await safeRequest('acceso/salida-independiente', {
     method: 'POST',
     body: {},
     token: '',
@@ -169,8 +169,22 @@ async function publicAndSecurityTests() {
   gap(
     'Existe contrato para registrar salida sin una entrada previa',
     genericExit.status !== 404,
-    'la API solo expone /acceso/salida/:id; no cubre la salida independiente solicitada',
+    'la API expone /acceso/salida-independiente',
   );
+
+  // Probar payload inválido (body vacío) -> esperar 400 sin escribir
+  const invalidPayload = await safeRequest('acceso/salida-independiente', {
+    method: 'POST',
+    body: {},
+    token: TOKEN || '',
+  });
+  if (invalidPayload) {
+    check(
+      'salida-independiente con body vacío rechaza con 400',
+      invalidPayload.status === 400,
+      `status ${invalidPayload.status}; esperado 400`,
+    );
+  }
 }
 
 async function authenticatedReadOnlyTests() {

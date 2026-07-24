@@ -319,6 +319,8 @@ async function procedureTests(pool) {
     'sp_Acceso_RegistrarEntrada',
     'sp_Acceso_RegistrarSalida',
     'sp_Acceso_Hoy',
+    'sp_Acceso_Pendientes',
+    'sp_Acceso_SalidaIndependiente',
     'sp_Acceso_Reporte',
     'sp_Buscar_Empleado',
     'sp_Buscar_PersonalExterno',
