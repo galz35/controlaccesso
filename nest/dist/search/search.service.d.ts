@@ -12,4 +12,9 @@ export declare class SearchService {
     obtenerFoto(carnet: string): Promise<{
         foto: string | null;
     }>;
+    obtenerEstado(carnet: string): Promise<{
+        activo: boolean;
+        cargo?: string;
+        empresa?: string;
+    } | null>;
 }

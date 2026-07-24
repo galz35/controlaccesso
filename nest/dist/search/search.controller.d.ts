@@ -10,4 +10,9 @@ export declare class SearchController {
     foto(carnet: string): Promise<{
         foto: string | null;
     }>;
+    estado(carnet: string): Promise<{
+        activo: boolean;
+        cargo?: string;
+        empresa?: string;
+    }>;
 }

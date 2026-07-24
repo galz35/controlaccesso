@@ -55,6 +55,9 @@ let SearchService = class SearchService {
         const foto = await this.hcm.obtenerFotoEmpleado(carnet);
         return { foto };
     }
+    async obtenerEstado(carnet) {
+        return this.hcm.obtenerEstadoEmpleado(carnet);
+    }
 };
 exports.SearchService = SearchService;
 exports.SearchService = SearchService = __decorate([

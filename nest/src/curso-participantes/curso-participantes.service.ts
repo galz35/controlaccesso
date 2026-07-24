@@ -10,11 +10,18 @@ export class CursoParticipantesService {
 
   async importar(participantes: any[], usuario?: string) {
     const pool = await this.db.getPool();
-    const result = await pool.request()
-      .input('ParticipantesJSON', JSON.stringify(participantes))
-      .input('UsuarioRegistra', usuario || null)
-      .execute('sp_CursoParticipantes_Importar');
-    return { importados: result.recordset.length, participantes: result.recordset };
+    try {
+      const result = await pool.request()
+        .input('ParticipantesJSON', JSON.stringify(participantes))
+        .input('UsuarioRegistra', usuario || null)
+        .execute('sp_CursoParticipantes_Importar');
+      return { importados: result.recordset.length, participantes: result.recordset };
+    } catch (err: any) {
+      if (err.number === 547) {
+        throw new BadRequestException('Error de clave foránea: verifique que eventoCursoId existe y es válido');
+      }
+      throw err;
+    }
   }
 
   async importarExcel(buffer: Buffer, usuario?: string) {
@@ -45,15 +52,23 @@ export class CursoParticipantesService {
 
   async generarPlantilla(): Promise<Buffer> {
     const wb = XLSX.utils.book_new();
+    // Obtener IDs reales de eventos activos
+    let ids = '';
+    try {
+      const pool = await this.db.getPool();
+      const r = await pool.request().query("SELECT TOP 3 Id FROM dbo.tblEventosCurso WHERE Activo=1 ORDER BY Id");
+      ids = r.recordset.map((x: any) => x.Id).join(', ');
+    } catch { ids = '(ver ID en eventos)'; }
     const wsData = [
       ['eventoCursoId', 'tipoPersona', 'carnet', 'nombrePersona', 'cedulaPersona', 'empresaPersona'],
-      ['1', 'EMPLEADO', '500708', 'Ej: GUSTAVO ADOLFO LIRA SALAZAR', '001-123456-7', 'CLARO NICARAGUA'],
-      ['1', 'PROVEEDOR', '3', 'Ej: Proveedor ABC', '001-765432-1', 'ABC S.A.'],
-      ['2', 'SERVICIO_EXTERNO', 'PL001', 'Ej: Juan Perez Lopez', '', 'Servicios Generales S.A.'],
+      [ids.split(', ')[0] || '2', 'EMPLEADO', '500708', 'Ej: GUSTAVO ADOLFO LIRA SALAZAR', '001-123456-7', 'CLARO NICARAGUA'],
+      [ids.split(', ')[0] || '2', 'PROVEEDOR', '3', 'Ej: Proveedor ABC', '001-765432-1', 'ABC S.A.'],
+      [ids.split(', ')[1] || '2', 'SERVICIO_EXTERNO', 'PL001', 'Ej: Juan Perez Lopez', '', 'Servicios Generales S.A.'],
       ['', '', '', '', '', ''],
       ['', 'ⓘ TIPOS:', 'EMPLEADO / PROVEEDOR / INSTRUCTOR_EXTERNO / INSTRUCTOR_INTERNO / VISITANTE / SERVICIO_EXTERNO', '', '', ''],
-      ['', 'ⓘ eventoCursoId:', 'ID del evento de curso (ver eventos de curso)', '', '', ''],
-      ['', 'ⓘ empresaPersona:', 'Nombre de la empresa del proveedor/externo', '', '', ''],
+      ['ⓘ eventoCursoId:', `IDs validos: ${ids}`, '', '', '', ''],
+      ['', 'ⓘ carnet:', 'Carnet del empleado o Id del proveedor/externo', '', '', ''],
+      ['', 'ⓘ empresaPersona:', 'Nombre de la empresa (visible al registrar acceso)', '', '', ''],
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 10 }, { wch: 40 }, { wch: 16 }, { wch: 20 }];
