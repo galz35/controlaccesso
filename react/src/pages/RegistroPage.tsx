@@ -96,6 +96,7 @@ export default function RegistroPage() {
   const registrarEntrada = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!puedeRegistrar()) { showError('Complete los campos requeridos'); return; }
+    if (esCapacitacion && motivo === 'capacitacion' && !eventoCursoId) { showError('Seleccione el curso o evento de capacitación'); setRegistrando(false); return; }
     setRegistrando(true); setError('');
     try {
       const fd = new FormData();
@@ -192,7 +193,7 @@ export default function RegistroPage() {
             )}
             <div className="form-group"><label htmlFor="edificio" className="form-label form-label--required">Edificio</label>
               {user?.rol === 'admin' ? (
-                <select id="edificio" className="form-control" value={edificioId} onChange={e => { setEdificioId(e.target.value); setMotivo(null); setEventoCursoId(''); }}>
+                <select id="edificio" className="form-control" value={edificioId} onChange={e => { const v = e.target.value; setEdificioId(v); const sel = edificios.find(ed => Number(ed.Id || ed.id) === Number(v)); setMotivo(sel?.EsCapacitacion || sel?.esCapacitacion ? 'general' : null); setEventoCursoId(''); }}>
                   <option value="">Seleccione un edificio…</option>
                   {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
                 </select>
@@ -201,20 +202,20 @@ export default function RegistroPage() {
               )}
             </div>
 
-            {/* Motivo del acceso (solo para edificio de capacitación) */}
+            {/* Capacitación: solo si edificio es de capacitación */}
             {esCapacitacion && edificioId && (
               <div className="form-group">
-                <label className="form-label">Motivo del acceso</label>
+                <label className="form-label">¿Viene a una capacitación?</label>
                 <div className="tipo-grid" role="radiogroup">
                   <button type="button" role="radio" aria-checked={motivo === 'general'}
                     className={`btn ${motivo === 'general' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
                     onClick={() => { setMotivo('general'); setEventoCursoId(''); }}>
-                    Acceso general
+                    No
                   </button>
                   <button type="button" role="radio" aria-checked={motivo === 'capacitacion'}
                     className={`btn ${motivo === 'capacitacion' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
                     onClick={() => { setMotivo('capacitacion'); }}>
-                    <GraduationCap className="icon icon--sm" /> Capacitación
+                    <GraduationCap className="icon icon--sm" /> Sí
                   </button>
                 </div>
               </div>

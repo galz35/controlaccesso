@@ -4,8 +4,24 @@ import { FileText, Download, Search, X } from 'lucide-react';
 import { showError } from '../lib/swal';
 import { useAuth } from '../context/AuthContext';
 
-const TIPOS = ['', 'EMPLEADO', 'PROVEEDOR', 'INSTRUCTOR_EXTERNO', 'INSTRUCTOR_INTERNO', 'VISITANTE', 'SERVICIO_EXTERNO', 'SALIDA_INDEPENDIENTE'];
+const TYPE_LABELS: Record<string, string> = {
+  EMPLEADO: 'Colaborador',
+  PROVEEDOR: 'Proveedor',
+  INSTRUCTOR_EXTERNO: 'Facilitador externo',
+  INSTRUCTOR_INTERNO: 'Facilitador interno',
+  VISITANTE: 'Visitante',
+  SERVICIO_EXTERNO: 'Personal externo',
+  SALIDA_INDEPENDIENTE: 'Salida sin entrada',
+};
+
+const TIPOS = ['', ...Object.keys(TYPE_LABELS)];
 const MOTIVOS = ['', 'Comedor', 'Servicio de cocina', 'Carga y descarga', 'Conductor/transporte', 'Entrega', 'Mantenimiento', 'Reunión', 'Visita general', 'Capacitación', 'Otro'];
+
+const csvCell = (value: unknown): string => {
+  let text = value == null ? '' : String(value);
+  if (/^[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+};
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -58,12 +74,6 @@ export default function ReportsPage() {
   const buscar = () => { setPagina(1); load(1); };
   const totalPag = Math.max(1, Math.ceil(total / porPagina));
 
-  const sanitizeCSV = (val: string): string => {
-    if (typeof val !== 'string') return val;
-    if (/^[=+\-@]/.test(val)) return `\t${val}`;
-    return val;
-  };
-
   const exportCSV = async () => {
     setExporting(true);
     try {
@@ -87,17 +97,21 @@ export default function ReportsPage() {
         currentPage += 1;
       }
 
-      const headers = ['Fecha', 'Hora', 'Persona', 'Tipo', 'Cédula', 'Empresa', 'Motivo', 'Detalle', 'Edificio', 'Entrada', 'Salida', 'Registró'];
+      const headers = ['Fecha', 'Persona', 'Tipo', 'Código', 'Empresa', 'Motivo', 'Detalle', 'Edificio', 'Entrada', 'Salida', 'Registró'];
       const rows = all.map((r: any) => [
         new Date(r.fechaEntrada).toLocaleDateString(),
-        new Date(r.fechaEntrada).toLocaleTimeString(),
-        r.nombre, r.tipoPersona, r.cedula || '', r.empresa || '',
-        r.motivoAcceso || '', r.motivoDetalle || '', r.edificio,
+        r.nombre,
+        TYPE_LABELS[r.tipoPersona] || r.tipoPersona,
+        r.cedula || '',
+        r.empresa || '',
+        r.motivoAcceso || '',
+        r.motivoDetalle || '',
+        r.edificio,
         new Date(r.fechaEntrada).toLocaleString(),
         r.fechaSalida ? new Date(r.fechaSalida).toLocaleString() : 'Pendiente',
         r.usuarioRegistra || '',
       ]);
-      const csv = [headers.join(','), ...rows.map((r: string[]) => r.map((v: string) => `"${sanitizeCSV(v)}"`).join(','))].join('\n');
+      const csv = [headers.map(csvCell).join(','), ...rows.map(row => row.map(csvCell).join(','))].join('\r\n');
       const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -109,6 +123,8 @@ export default function ReportsPage() {
     }
     setExporting(false);
   };
+
+  const tipoLabel = (t: string) => TYPE_LABELS[t] || t;
 
   return (
     <div>
@@ -142,7 +158,7 @@ export default function ReportsPage() {
             <div className="form-group">
               <label htmlFor="f-tipo" className="form-label">Tipo de persona</label>
               <select id="f-tipo" className="form-control" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
-                {TIPOS.map(t => <option key={t} value={t}>{t || 'Todos'}</option>)}
+                {TIPOS.map(t => <option key={t} value={t}>{t ? (TYPE_LABELS[t] || t) : 'Todos'}</option>)}
               </select>
             </div>
             <div className="form-group">
@@ -168,14 +184,13 @@ export default function ReportsPage() {
           <div className="empty-state"><div className="spinner mx-auto" /></div>
         ) : (
           <>
-          {/* Desktop table */}
           <div className="table-wrapper report-table-desktop">
             <table className="table">
               <caption className="visually-hidden">Historial de accesos a edificios</caption>
               <thead><tr>
-                <th scope="col">Fecha</th><th scope="col">Hora</th><th scope="col">Persona</th>
-                <th scope="col">Tipo</th><th scope="col">Cédula</th><th scope="col">Empresa</th>
-                <th scope="col">Motivo</th><th scope="col">Edificio</th>
+                <th scope="col">Fecha</th><th scope="col">Persona</th>
+                <th scope="col">Tipo</th><th scope="col">Código</th><th scope="col">Empresa</th>
+                <th scope="col">Motivo</th><th scope="col">Detalle</th><th scope="col">Edificio</th>
                 <th scope="col" className="text-center">Entrada</th><th scope="col" className="text-center">Salida</th>
                 <th scope="col">Registró</th>
               </tr></thead>
@@ -183,12 +198,12 @@ export default function ReportsPage() {
                 {data.map((r: any) => (
                   <tr key={r.id}>
                     <td className="text-xs">{new Date(r.fechaEntrada).toLocaleDateString()}</td>
-                    <td className="text-xs">{new Date(r.fechaEntrada).toLocaleTimeString()}</td>
                     <td className="font-bold">{r.nombre}</td>
-                    <td><span className="badge badge--neutral">{r.tipoPersona}</span></td>
+                    <td><span className="badge badge--neutral">{tipoLabel(r.tipoPersona)}</span></td>
                     <td className="text-muted text-xs">{r.cedula || '-'}</td>
                     <td className="text-xs text-muted">{r.empresa || '-'}</td>
                     <td className="text-xs">{r.motivoAcceso || '-'}</td>
+                    <td className="text-xs text-muted">{r.motivoDetalle || '-'}</td>
                     <td className="text-xs">{r.edificio}</td>
                     <td className="text-center text-xs">{new Date(r.fechaEntrada).toLocaleTimeString()}</td>
                     <td className="text-center">{r.fechaSalida ? <span className="badge badge--neutral">{new Date(r.fechaSalida).toLocaleTimeString()}</span> : <span className="badge badge--neutral">—</span>}</td>
@@ -199,14 +214,13 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
-          {/* Mobile cards */}
           <div className="report-cards-mobile">
             {data.map((r: any) => (
               <div key={r.id} className="access-card">
                 <div className="access-card__header">
                   <div>
                     <div className="access-card__name">{r.nombre}</div>
-                    <span className="badge badge--neutral">{r.tipoPersona}</span>
+                    <span className="badge badge--neutral">{tipoLabel(r.tipoPersona)}</span>
                   </div>
                   <div className="access-card__badge">
                     <span className="text-xs">{new Date(r.fechaEntrada).toLocaleDateString()}</span>
@@ -221,8 +235,9 @@ export default function ReportsPage() {
                   {!r.fechaSalida && <span className="badge badge--neutral">Sin salida</span>}
                 </div>
                 <div className="text-xs text-muted" style={{ marginTop: 4 }}>
-                  {r.cedula ? `Cédula: ${r.cedula} · ` : ''}
+                  {r.cedula ? `Código: ${r.cedula} · ` : ''}
                   {r.empresa ? `Empresa: ${r.empresa} · ` : ''}
+                  {r.motivoDetalle ? `Detalle: ${r.motivoDetalle} · ` : ''}
                   Registró: {r.usuarioRegistra || '-'}
                 </div>
               </div>
