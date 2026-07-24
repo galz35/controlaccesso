@@ -1,0 +1,1281 @@
+AUDITORÍA V4 POST-EJECUCIÓN REAL
+SISTEMA CONTROL DE ACCESO — CLARO NICARAGUA
+
+Fecha: 2026-07-24
+Repositorio: /opt/apps/control-acceso
+Commit auditado: 77c9d2728e698d498e1a01d77bd09649a1f0b5cb
+Commit anterior auditado: f173ab9d400f416bef41c5d5c0aca5f94af840f3
+Documento de referencia:
+AUDITORIA_COMPLETA_V3_Y_CODIGO_RAPIDO_CONTROL_ACCESO_2026-07-24.txt
+
+Motivo:
+Se informó que supuestamente “ya se corrió todo”. Esta auditoría no acepta esa
+frase como evidencia. Se volvió a revisar código, base, despliegue y resultados
+de ejecución por separado.
+
+Regla de negocio:
+El sistema registra entrada y salida física de edificios. No es asistencia ni
+marcación laboral. La salida normal puede quedar sin registrar. Debe admitir una
+salida observada sin entrada previa. Solo un edificio es de capacitación y entrar
+a ese edificio no significa necesariamente asistir a un curso.
+
+Alcance:
+- commits V5 y V6;
+- React, HTML y CSS;
+- NestJS y DTO;
+- autorización por edificio;
+- SQL Server y migración 007;
+- salida normal e independiente;
+- fotos;
+- reportes y CSV;
+- login SSO/CPF;
+- pruebas;
+- scripts de operación, backup y restore;
+- proceso real y assets desplegados.
+
+Esta auditoría no modificó código productivo ni datos. No se reinició la API, no
+se registraron movimientos y no se ejecutó restore ni backup destructivo.
+
+======================================================================
+1. RESPUESTA DIRECTA: ¿SE CORRIÓ TODO?
+======================================================================
+
+NO.
+
+Se ejecutaron o aplicaron varias cosas, pero no todo terminó satisfactoriamente.
+
+Matriz real:
+
+REPOSITORIO
+- Git limpio: SÍ.
+- HEAD coincide con origin/master: SÍ.
+- Commits V5 y V6 presentes: SÍ.
+
+COMPILACIÓN
+- Nest build: PASS.
+- React build: PASS.
+- React lint: PASS con 1 warning.
+
+PRUEBAS
+- Unitarias Nest: 4 PASS.
+- E2E Nest: 2 PASS y ahora termina correctamente.
+- SQL estricto: 41 PASS, 6 GAP, exit code 1.
+- API estricta: 33 PASS, 1 GAP, 2 SKIP, exit code 1.
+- Pruebas nuevas para V5/V6: NO.
+- Test de aislamiento por edificio: NO existe en la suite.
+- Test de salida independiente: sigue equivocado.
+- Test de exportación: NO existe.
+- Test de fotos: NO existe.
+
+BASE
+- Migración 007 aplicada al menos parcialmente: SÍ.
+- FK EdificioIdDefecto: SÍ.
+- longitudes 100/500: SÍ.
+- SP de pendientes y salida independiente: SÍ.
+- tabla de auditoría: SÍ.
+- auditoría con registros: NO, tiene 0.
+- instalación limpia desde Git demostrada: NO.
+
+DESPLIEGUE
+- Frontend V6 desplegado: SÍ.
+- Frontend desplegado coincide con react/dist: SÍ.
+- Backend V5/V6 reiniciado: NO.
+- Proceso API activo empezó a las 05:05:30.
+- Commit V5 fue creado a las 05:47:16.
+- Commit V6 fue creado a las 05:51:41.
+- dist/main.js fue recompilado después, pero Node mantiene el código cargado en
+  memoria hasta reinicio.
+
+OPERACIÓN
+- health-check responde OK: SÍ.
+- health-check valida realmente el contenido/database: NO, solo HTTP 200.
+- script backup existe: SÍ.
+- backup ejecutable en este servidor: NO.
+- sqlcmd instalado: NO.
+- mssql-cli instalado: NO.
+- directorio de backups existente: NO.
+- restore probado: NO, y no debía probarse sobre producción.
+
+Conclusión:
+“Se crearon archivos y se ejecutaron builds” es correcto.
+“Todo fue probado, desplegado y quedó OK” es falso.
+
+======================================================================
+2. CALIFICACIÓN NUEVA
+======================================================================
+
+Calificación del código en Git:          7.2 / 10
+Calificación del despliegue activo:      6.4 / 10
+Calificación operativa global V4:        6.9 / 10
+
+V3:                                      6.8 / 10
+Avance neto comprobado:                  +0.1
+
+No corresponde una calificación “9+”.
+
+Razón:
+Hay mejoras importantes, pero se compensan con un backend sin reiniciar, un
+reporte todavía sin aislamiento, exportación incompatible con el DTO nuevo,
+fotos con autorización ficticia, scripts operativos no ejecutables y pruebas
+sin actualizar.
+
+Estado:
+- piloto técnico: posible;
+- retirar papel en operación general: todavía no aprobado;
+- reescritura completa: no necesaria;
+- reinicio inmediato sin corregir compatibilidad: no recomendado.
+
+======================================================================
+3. CAMBIOS DESDE V3
+======================================================================
+
+Commits:
+
+3fc50c7a:
+“fix: V5 - todos los P0/P1 resueltos, 6.8 a 9+”
+
+77c9d272:
+“fix: V6 - P2 estabilizacion completa (DTOs, mobile reportes, ops)”
+
+Estadística desde f173ab9d:
+- 53 archivos cambiados.
+- aproximadamente 2,645 líneas agregadas.
+- aproximadamente 148 eliminadas.
+
+Mejoras reales:
+
+1. Salida independiente React:
+- usa nombrePersona;
+- dejó de usar edificioId=1;
+- botón visible aun sin pendientes;
+- valida edificio;
+- backend devuelve SALIDA_INDEPENDIENTE.
+
+2. Edificio CPF:
+- se firma edificioIdDefecto;
+- JwtStrategy lo conserva;
+- existe resolveBuilding;
+- entrada, hoy, pendientes y salida independiente lo usan.
+
+3. Rate limit:
+- cleanupTimer.unref();
+- E2E ya termina;
+- trust proxy configurado.
+
+4. DTO:
+- acceso tiene longitudes y tipos;
+- reporte limita porPagina a 500;
+- catálogos recibieron DTO básicos.
+
+5. SQL:
+- 007 versiona pendientes y salida independiente;
+- FK aplicada;
+- longitudes alineadas;
+- SP salida normal recibe edificio autorizado;
+- tabla de auditoría creada.
+
+6. Fotos:
+- Multer limita 5 MB;
+- se quitó useStaticAssets;
+- existe ruta autenticada /acceso/foto/:fileName.
+
+7. Login:
+- VITE_ALLOW_DEV_LOGIN=false;
+- LoginPage contempla URL del Portal.
+
+8. Responsive:
+- reporte tiene tarjetas móviles.
+
+9. Operación:
+- ecosystem.config.js;
+- check-health.sh;
+- backup-db.sh;
+- restore-db.sh.
+
+Estas mejoras son valiosas, pero varias están incompletas o no desplegadas.
+
+======================================================================
+4. ESTADO REAL DESPLEGADO
+======================================================================
+
+4.1 Frontend
+
+react/dist/index.html y /var/www/control-acceso/index.html:
+- SHA-256 idéntico.
+- asset JS: index-BxJopcDo.js, 422,834 bytes.
+- asset CSS: index-BW14g3SQ.css, 18,070 bytes.
+
+Conclusión:
+El frontend V6 sí está desplegado.
+
+4.2 Backend
+
+Proceso:
+- PID observado: 1198973.
+- inicio: 2026-07-24 05:05:30 UTC.
+- script: /opt/apps/control-acceso/nest/dist/main.js.
+
+Los commits nuevos son posteriores. Sobrescribir dist/main.js no actualiza un
+proceso Node ya iniciado.
+
+Prueba funcional del backend activo con JWT temporal de registrador asignado al
+edificio 121:
+
+- /auth/me: HTTP 200, sin edificioIdDefecto retornado.
+- reporte sin filtro: total 34.
+- reporte edificio 121: total 8.
+- reporte edificio 1: HTTP 200, total 26.
+- reporte porPagina=1,000,000: HTTP 200.
+- /acceso/foto/<uuid>: HTTP 404.
+
+Esto demuestra que el backend activo es la versión anterior:
+- no limita otro edificio;
+- no aplica @Max(500);
+- no tiene la ruta nueva de foto;
+- no conserva el edificio CPF.
+
+4.3 PM2
+
+Se observaron dos procesos daemon PM2:
+- uno iniciado el 22 de julio;
+- otro iniciado a las 05:46.
+
+El proceso API es hijo del daemon antiguo.
+
+Riesgo:
+Un comando pm2 realizado contra el daemon/socket equivocado puede mostrar una
+lista vacía, iniciar un duplicado o no reiniciar el proceso real.
+
+No debe ejecutarse “pm2 start” a ciegas. Primero se debe resolver qué daemon
+posee el proceso y consolidar PM2_HOME/sockets.
+
+4.4 Mezcla de versiones
+
+Actualmente:
+- frontend: V6;
+- SQL: cambios V5/007;
+- backend en memoria: versión previa a V5.
+
+Esta mezcla puede ocultar errores:
+- exportar CSV funciona hoy porque el backend viejo acepta un millón;
+- al reiniciar, el DTO nuevo rechazará esa misma llamada con HTTP 400;
+- el frontend nuevo construye ruta de foto nueva, pero backend viejo responde
+  404;
+- la interfaz espera aislamiento, pero backend viejo permite otros edificios.
+
+======================================================================
+5. RESULTADOS DE PRUEBAS
+======================================================================
+
+5.1 Nest build
+
+PASS.
+
+5.2 React build
+
+PASS.
+
+- 1,848 módulos.
+- JS 422.83 KB.
+- JS gzip 126.72 KB.
+- CSS 18.07 KB.
+
+Warning:
+/control-acceso/fonts/fonts.css no existe durante build y se resuelve al servir
+public/. No bloquea el build.
+
+5.3 Lint React
+
+PASS con warning:
+AuthContext mezcla componente y hook, lo que limita Fast Refresh.
+
+5.4 Unitarias
+
+- 2 suites.
+- 4 casos.
+- PASS.
+
+Cobertura sigue siendo insuficiente. No se añadieron tests para V5/V6.
+
+5.5 E2E
+
+En sandbox restringido falla por EPERM al abrir puerto, lo cual es una limitación
+del entorno de auditoría.
+
+Con permiso local:
+- 2 PASS.
+- comando finaliza.
+- detectOpenHandles no reporta el temporizador anterior.
+
+Mejora confirmada:
+cleanupTimer.unref() resolvió el proceso Jest colgado.
+
+Pero E2E solo prueba:
+- health;
+- edificios sin token devuelve 401.
+
+5.6 SQL estricto
+
+- 41 PASS.
+- 6 GAP.
+- exit code 1.
+
+La suite está desactualizada:
+- no reconoce correctamente salida independiente;
+- solo inspecciona scripts base 002/004;
+- no interpreta completamente 007;
+- no comprueba TipoMovimiento;
+- no comprueba tabla de auditoría;
+- no comprueba SP de salida con edificio autorizado.
+
+5.7 API estricta
+
+- 33 PASS.
+- 1 GAP.
+- 2 SKIP.
+- exit code 1.
+
+El GAP sigue siendo falso porque prueba /acceso/salida en vez de
+/acceso/salida-independiente.
+
+No hubo cambios en test/api_tests.js, test/sql_tests.js ni test/README.md con
+los commits V5/V6.
+
+Conclusión:
+Los mensajes de commit “todos resueltos” no están respaldados por pruebas nuevas.
+
+======================================================================
+6. HALLAZGOS CRÍTICOS
+======================================================================
+
+C-01. BACKEND NUEVO NO ESTÁ ACTIVO
+
+Severidad: CRÍTICA.
+
+Evidencia:
+- proceso iniciado 05:05;
+- V5 05:47;
+- V6 05:51;
+- prueba autenticada conserva comportamiento antiguo.
+
+Impacto:
+- aislamiento de edificios no funciona en producción;
+- ruta segura de fotos no existe;
+- JWT CPF pierde edificio tras recarga;
+- las validaciones nuevas no están activas;
+- el código auditado no coincide con el servicio real.
+
+Corrección:
+No reiniciar aún de forma improvisada. Primero corregir C-02, C-03, C-04 y
+resolver los dos daemons PM2. Después hacer despliegue controlado con smoke test.
+
+C-02. REPORTE SIN FILTRO SIGUE EXPONIENDO TODOS LOS EDIFICIOS
+
+Severidad: CRÍTICA.
+
+Código:
+
+  let edificioId = query.edificioId;
+  if (query.edificioId) {
+    edificioId = resolveBuilding(req.user, query.edificioId);
+  } else {
+    resolveBuilding(req.user, undefined);
+  }
+
+En el else se descarta el valor retornado.
+
+Para un registrador, resolveBuilding retorna el edificio asignado, pero
+edificioId permanece undefined. El servicio consulta todos.
+
+Corrección:
+
+  const edificioId = resolveBuilding(
+    req.user,
+    query.edificioId,
+  );
+
+  return this.acceso.reporte(
+    edificioId,
+    query.tipoPersona,
+    query.desde,
+    query.hasta,
+    query.pagina,
+    query.porPagina,
+    query.motivoAcceso,
+  );
+
+Pruebas obligatorias:
+- CPF 121 sin filtro solo obtiene 121.
+- CPF 121 con edificio 1 recibe 403.
+- admin sin filtro obtiene todos.
+
+C-03. FRONTEND DE EXPORTACIÓN ES INCOMPATIBLE CON BACKEND NUEVO
+
+Severidad: CRÍTICA FUNCIONAL.
+
+React:
+
+  porPagina: 1000000
+
+DTO nuevo:
+
+  @Max(500)
+
+Después del reinicio:
+- API devolverá HTTP 400;
+- catch es silencioso;
+- usuario pulsa “Exportar CSV completo” y no ocurre nada.
+
+Además:
+- CSV no duplica comillas internas;
+- consulta completa se dispara en una sola respuesta;
+- fórmula se mitiga con tab, solución parcial.
+
+Corrección rápida por lotes:
+
+  const PAGE_SIZE = 500;
+  let pagina = 1;
+  const allData = [];
+
+  while (true) {
+    const res = await api.get('/acceso/reporte', {
+      params: {
+        ...filtrosAplicados,
+        pagina,
+        porPagina: PAGE_SIZE,
+      },
+    });
+
+    const batch = res.data.data ?? [];
+    allData.push(...batch);
+
+    if (
+      batch.length === 0 ||
+      allData.length >= res.data.total
+    ) break;
+
+    pagina += 1;
+  }
+
+Celda CSV:
+
+  function csvCell(value: unknown): string {
+    let text = value == null ? '' : String(value);
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+Catch:
+
+  catch (error: any) {
+    showError(
+      'No se pudo exportar',
+      error?.response?.data?.message ||
+      'Intente nuevamente.',
+    );
+  }
+
+C-04. PROTECCIÓN DE FOTOS ES SOLO APARENTE Y LA RUTA NO COINCIDE
+
+Severidad: CRÍTICA DE PRIVACIDAD/FUNCIÓN.
+
+Mejora:
+- useStaticAssets fue eliminado;
+- endpoint requiere JWT;
+- Cache-Control private.
+
+Problema 1:
+
+  assertPhotoAccess(fileName, user)
+
+no consulta SQL, no verifica el edificio y no usa user. Solo devuelve el
+directorio.
+
+Cualquier autenticado que conozca un UUID puede solicitarlo.
+
+Problema 2:
+savePhoto devuelve:
+
+  fotos_acceso/<uuid>.webp
+
+Dashboard construye:
+
+  /acceso/foto/fotos_acceso/<uuid>.webp
+
+La ruta Nest acepta un solo parámetro:
+
+  /acceso/foto/:fileName
+
+El slash adicional impide coincidir.
+
+Problema 3:
+las URL históricas documentadas tienen:
+
+  /control-acceso-uploads/fotos_acceso/<uuid>.webp
+
+Tampoco son compatibles con el constructor actual.
+
+Base activa:
+No hay fotografías actualmente, por lo que el error todavía no se manifiesta
+con datos reales.
+
+Corrección:
+- guardar solo <uuid>.webp en FotoUrl o crear PhotoId;
+- Dashboard usar basename validado;
+- assertPhotoAccess buscar el registro y resolver edificio;
+- verificar existencia;
+- admin puede ver todos;
+- CPF solo su edificio.
+
+Ejemplo:
+
+  async assertPhotoAccess(fileName: string, user: any) {
+    const pool = await this.db.getPool();
+    const result = await pool.request()
+      .input('FileName', fileName)
+      .execute('sp_Acceso_FotoAutorizar');
+
+    const row = result.recordset[0];
+    if (!row) throw new NotFoundException();
+
+    resolveBuilding(user, row.EdificioId);
+    return this.photoDirectory;
+  }
+
+C-05. MODELO TIPO MOVIMIENTO NO ES REPRODUCIBLE NI COHERENTE
+
+Severidad: CRÍTICA DE DATOS.
+
+Base activa:
+- tblRegistroAcceso.TipoMovimiento existe, VARCHAR(20), NOT NULL.
+- 31 movimientos normales se observan como ENTRADA.
+- 3 salidas independientes conservan SALIDA_NOCTROL.
+- 1 salida independiente todavía tiene FechaSalida NULL.
+
+Git:
+- ningún script crea ni agrega TipoMovimiento;
+- 007 lo usa directamente en sp_Acceso_RegistrarSalida;
+- una instalación limpia fallará o quedará distinta.
+
+007 salida normal:
+
+  TipoMovimiento = 'SALIDA_EDITOR'
+
+El valor no está definido en el negocio y parece un typo.
+
+007 salida independiente:
+- inserta TipoPersona SALIDA_INDEPENDIENTE;
+- no asigna TipoMovimiento;
+- dependerá del default no versionado, probablemente ENTRADA.
+
+Resultado:
+Una salida independiente nueva puede quedar tipada como ENTRADA.
+Una salida normal cambia el registro completo a SALIDA_EDITOR, perdiendo el
+significado original de entrada.
+
+Corrección:
+Definir primero el modelo.
+
+Opción compatible:
+- TipoMovimientoRegistro:
+  ACCESO_NORMAL | SALIDA_SIN_ENTRADA.
+- FechaEntrada/FechaSalida conservan evento.
+
+Opción correcta:
+Tabla separada de movimientos:
+- ENTRADA;
+- SALIDA;
+- NOVEDAD.
+
+No migrar los 3 registros históricos automáticamente sin revisión.
+
+Migration debe:
+- crear columna si falta;
+- crear default con nombre estable;
+- crear CHECK;
+- usar valores documentados;
+- actualizar SP;
+- incluir prueba de instalación limpia.
+
+======================================================================
+7. HALLAZGOS ALTOS
+======================================================================
+
+A-01. SALIDA NORMAL NO RECHAZA CPF SIN EDIFICIO
+
+AccesoController llama registrarSalida directamente.
+
+AccesoService:
+- solo envía EdificioIdAutorizado si el claim es válido;
+- si falta, no envía parámetro;
+- SP tiene parámetro opcional NULL;
+- NULL permite cualquier edificio.
+
+Debe llamarse resolveBuilding antes:
+
+  const edificioId = resolveBuilding(req.user, undefined);
+  return this.acceso.registrarSalida(
+    id,
+    edificioId,
+    actor,
+  );
+
+Admin puede enviar null de forma explícita.
+Registrador nunca debe llegar con null.
+
+A-02. RATE LIMIT SIGUE SIENDO POR IP, NO POR USUARIO
+
+Middleware corre antes de AuthGuard. En ese momento req.user normalmente no
+existe. identity termina siendo req.ip.
+
+Aunque el código intenta username/carnet, no lo obtiene.
+
+Con trust proxy=true y puerto 3001 escuchando en todas las interfaces:
+- un cliente directo puede manipular X-Forwarded-For;
+- puede evadir límites;
+- o crear muchas entradas en Map.
+
+Configurar:
+
+  app.set('trust proxy', 1);
+
+solo si hay exactamente un proxy confiable.
+
+Preferir @nestjs/throttler:
+- login por IP: 10/min;
+- API por sub/carnet: 300/min;
+- Redis si hay más de una instancia.
+
+A-03. LOGIN EMPLEADO SIGUE INUTILIZABLE
+
+.env.production:
+- VITE_ALLOW_DEV_LOGIN=false.
+- VITE_PORTAL_SSO_URL no está configurada.
+
+La pantalla muestra:
+“Ingreso por Portal no está configurado”.
+
+Pero el botón submit “Ingresar” sigue visible. Al pulsarlo ejecuta handleSubmit,
+pide carnet y muestra “Ingrese su carnet”, aunque el campo no existe.
+
+Corrección:
+
+  const employeeCanSubmit = allowDev;
+
+  {mode === 'externo' || employeeCanSubmit ? (
+    <button type="submit">Ingresar</button>
+  ) : null}
+
+Configurar la URL SSO corporativa real o eliminar la pestaña Empleado de esta
+página. No inventar URL.
+
+A-04. 120 EDIFICIOS ACTIVOS EN EL SELECTOR
+
+Base observada:
+- IDs activos: aproximadamente 120.
+- solo edificios 1 y 121 tienen movimientos.
+- exactamente uno es capacitación.
+
+README explica que 119 fueron seed desde ubicaciones.
+
+Para CPF no técnico, un dropdown con 120 opciones es mala experiencia.
+
+Peor:
+- frontend permite seleccionar cualquiera;
+- backend activo viejo lo acepta;
+- backend nuevo lo rechazará genéricamente si no es asignado.
+
+Solución:
+- registrador recibe solo su edificio desde /edificios;
+- selector bloqueado o texto fijo;
+- admin sí ve catálogo completo;
+- separar “ubicación” de “edificio operativo” si no son equivalentes.
+
+A-05. CAPACITACIÓN SIGUE SIN REGLA DE BACKEND
+
+No se agregó modalidadAcceso.
+No se exige general/capacitación.
+No se exige evento si capacitación.
+No se valida que evento pertenezca al edificio y esté vigente.
+
+La UI sigue mostrando dos bloques “Motivo del acceso”.
+
+A-06. AUDITORÍA ADMINISTRATIVA NO ESTÁ CONECTADA
+
+La tabla y SP existen, pero ningún servicio Nest llama sp_Auditoria_Registrar.
+
+Conteo activo:
+0 registros.
+
+Crear tabla no equivale a auditar.
+
+Registrar:
+- reset contraseña;
+- activar/desactivar CPF;
+- cambio de edificio;
+- altas/cambios de catálogo;
+- actor;
+- IP;
+- antes/después sin guardar contraseñas.
+
+A-07. BACKUP Y RESTORE NO SON OPERATIVOS
+
+backup-db.sh y restore-db.sh contienen:
+
+  -P 'TuPasswordFuerte!2026'
+
+Es un placeholder hardcodeado.
+
+Además:
+- sqlcmd no está instalado;
+- mssql-cli no está instalado;
+- /var/backups/control-acceso no existe;
+- SQL Server está en Docker;
+- BACKUP TO DISK escribe desde el contenedor, no necesariamente ve la ruta host;
+- se usa eval;
+- output_dir puede inyectarse en comando/SQL;
+- no hay cifrado;
+- no hay verificación RESTORE VERIFYONLY;
+- no hay copia fuera del servidor.
+
+No afirmar que backup fue probado.
+
+Corrección:
+- usar variables/secret store;
+- docker exec o volumen montado conocido;
+- no usar eval;
+- validar ruta;
+- ejecutar VERIFYONLY;
+- probar restore en base temporal;
+- documentar RPO/RTO.
+
+A-08. HEALTH-CHECK PUEDE DAR FALSO OK
+
+AppController devuelve HTTP 200 aunque database=disconnected.
+check-health.sh solo mira HTTP 200.
+
+Debe comprobar JSON:
+
+  body=$(curl --fail --silent ...)
+  jq -e '
+    .status == "ok" and
+    .database == "connected"
+  ' <<< "$body"
+
+Y AppController debería lanzar 503 cuando SQL falla.
+
+El manejo Slack también está invertido:
+- comentario: --slack webhook;
+- código pone $1 como webhook y comprueba si $2 es --slack.
+
+A-09. CURSO DTO ROMPE FORMULARIO NUMÉRICO
+
+CatalogPage guarda inputs HTML como string.
+CursoDto exige @IsInt() duracionHoras, pero no usa:
+
+  @Type(() => Number)
+
+Después del reinicio, crear/editar curso con duración desde React puede devolver
+HTTP 400.
+
+EventoCursoDto tiene el mismo riesgo en cursoId/edificioId para clientes que
+envían strings.
+
+A-10. DOCUMENTACIÓN PRINCIPAL ESTÁ DESACTUALIZADA
+
+README y API_FLUTTER todavía enseñan:
+- dev-login;
+- fotos públicas /control-acceso-uploads;
+- URL de foto antigua;
+- PM2 start manual;
+- selector de todos los edificios;
+- contratos previos.
+
+Otro agente Flutter puede implementar seguridad y rutas incorrectas siguiendo
+esa documentación.
+
+Actualizar después de estabilizar contratos.
+
+======================================================================
+8. HALLAZGOS MEDIOS
+======================================================================
+
+M-01. Reportes sigue consultando automáticamente y con botón Buscar.
+
+M-02. CSV no incluye motivoDetalle ni evento.
+
+M-03. Tipos técnicos siguen visibles en tabla/tarjetas.
+
+M-04. Reporte móvil mejoró, pero repite Fecha/Hora/Entrada en desktop.
+
+M-05. Enter en búsqueda sigue sin preventDefault().
+
+M-06. “Acceso general/Capacitación” y razón se llaman igual.
+
+M-07. Foto puede quedar huérfana si SQL falla después de escribir archivo.
+
+M-08. assertPhotoAccess no valida existencia antes de sendFile.
+
+M-09. AdminController sigue usando body interface sin DTO runtime.
+
+M-10. CpfChangePassword sigue recibiendo username del body.
+
+M-11. JWT de CPF desactivado sigue válido hasta expirar.
+
+M-12. health no diferencia readiness/liveness.
+
+M-13. Configuración de base está escrita como ControlAcceso en DatabaseService.
+
+M-14. 007 usa SET XACT_ABORT, pero no inicia transacción.
+
+M-15. 007 no agrega Correo si falta, aunque 006 la consulta.
+
+M-16. 007 no crea tblPersonalExterno en instalación limpia.
+
+M-17. Tabla auditoría no tiene FK/índices/retención.
+
+M-18. No hay check constraint documentado para fechas/tipos.
+
+M-19. Puerto 3001 escucha en * y SQL 1433 en 0.0.0.0/[::].
+
+M-20. Dos daemons PM2 dificultan operación y reinicio confiable.
+
+======================================================================
+9. DISEÑO Y FACILIDAD PARA USUARIO NO TÉCNICO
+======================================================================
+
+Diseño visual:                         8.1 / 10
+Identidad Claro:                       9.0 / 10
+Responsive:                            7.8 / 10
+Facilidad operativa:                   6.9 / 10
+
+Puntos positivos:
+- rojo/blanco/gris/negro;
+- verde para éxito;
+- no se detectó azul;
+- botones táctiles;
+- salida independiente siempre visible;
+- reporte móvil con tarjetas;
+- sidebar clara;
+- mensaje “no es marcación laboral”;
+- entrada y salida en una pantalla.
+
+Problemas:
+- 120 edificios en dropdown;
+- seis tipos antes de buscar;
+- dos motivos con igual nombre;
+- empleado ve login no configurado;
+- submit inútil en pestaña empleado;
+- capacitación no obligatoria;
+- códigos técnicos;
+- salida independiente pide escribir nombre en vez de buscar carnet;
+- reportes disparan solicitudes al cambiar filtros;
+- export falla silenciosamente después del reinicio;
+- menú CPF conserva catálogos de solo lectura innecesarios.
+
+Diseño recomendado:
+
+CPF:
+- edificio fijo;
+- pestañas Entrada/Salida;
+- campo principal escáner/carnet;
+- tipo detectado;
+- razón en botones;
+- pregunta capacitación Sí/No solo en sede correspondiente;
+- salida excepcional como acción secundaria;
+- confirmación y foco automático.
+
+Admin:
+- catálogos;
+- usuarios;
+- reportes globales;
+- auditoría;
+- configuración de edificios.
+
+======================================================================
+10. FLUJO FUNCIONAL REVISADO
+======================================================================
+
+Entrada empleado:
+- búsqueda existe;
+- carnet físico puede buscarse;
+- Enter todavía puede enviar form accidentalmente;
+- backend activo permite escoger cualquier edificio;
+- backend nuevo bloqueará, pero UI no filtra.
+
+Visitante:
+- nombre obligatorio;
+- cédula/empresa opcional;
+- razón obligatoria;
+- etiqueta “Empresa / Motivo” sigue mezclando conceptos.
+
+PL/cocina/conductor/carga:
+- SERVICIO_EXTERNO existe;
+- cédula/empresa se conservan;
+- catálogo existe;
+- no hay búsqueda guiada en salida independiente.
+
+Capacitación:
+- un edificio marcado;
+- eventos filtrados en UI;
+- reglas no protegidas en backend.
+
+Salida normal:
+- pendientes de cualquier fecha;
+- SP ya acepta edificio;
+- backend activo no envía edificio;
+- backend nuevo no prohíbe claim ausente.
+
+Salida sin entrada:
+- UI payload corregido;
+- acción visible;
+- SP activo;
+- un histórico sigue pendiente;
+- TipoMovimiento continúa incoherente.
+
+Reporte:
+- pantalla y móvil existen;
+- quién/dónde/cuándo/por qué básico;
+- aislamiento roto sin filtro;
+- export incompatible;
+- no muestra detalle/evento.
+
+======================================================================
+11. PLAN DE CORRECCIÓN
+======================================================================
+
+FASE 0 — ANTES DE REINICIAR BACKEND
+
+1. Corregir reporte para asignar retorno de resolveBuilding.
+2. Corregir exportación por lotes <=500.
+3. Corregir ruta y autorización de fotos.
+4. Corregir salida normal sin edificio.
+5. Definir/arreglar TipoMovimiento y migración.
+6. Agregar tests de esos cinco puntos.
+
+FASE 1 — VALIDAR CÓDIGO
+
+1. Nest build.
+2. React build.
+3. Unitarias.
+4. E2E.
+5. API de integración con AppModule nuevo en puerto alterno o entorno QA.
+6. SQL estricto actualizado.
+7. instalación limpia 001-007 en base temporal.
+
+FASE 2 — DESPLIEGUE CONTROLADO
+
+1. Identificar daemon PM2 propietario.
+2. Consolidar PM2; evitar proceso duplicado.
+3. Guardar estado actual y rollback.
+4. Reiniciar una sola instancia.
+5. Verificar PID/start time nuevo.
+6. health body y database.
+7. smoke JWT admin/CPF.
+8. comprobar edificio propio/ajeno.
+9. probar export.
+10. probar entrada/salida con datos autorizados.
+
+FASE 3 — OPERACIÓN
+
+1. reparar SSO empleado;
+2. backup real Docker;
+3. restore en base temporal;
+4. health 503;
+5. auditoría conectada;
+6. actualizar README/API Flutter.
+
+======================================================================
+12. CÓDIGO RÁPIDO RECOMENDADO
+======================================================================
+
+12.1 Reporte
+
+Reemplazar todo el if:
+
+  const edificioId = resolveBuilding(
+    req.user,
+    query.edificioId,
+  );
+
+12.2 Salida normal
+
+Controller:
+
+  const edificioId = resolveBuilding(req.user, undefined);
+  return this.acceso.registrarSalida(
+    id,
+    edificioId,
+  );
+
+Servicio:
+
+  async registrarSalida(
+    id: number,
+    edificioId?: number,
+  ) {
+    return pool.request()
+      .input('Id', id)
+      .input('EdificioIdAutorizado', edificioId ?? null)
+      .execute('sp_Acceso_RegistrarSalida');
+  }
+
+Para diferenciar admin, controller puede pasar undefined únicamente cuando
+rol=admin. Registrador siempre debe pasar entero.
+
+12.3 Foto
+
+Guardar:
+
+  return fileName;
+
+No:
+
+  return `fotos_acceso/${fileName}`;
+
+Para históricos:
+
+  const fileName = fotoUrl.split('/').pop();
+
+validar regex antes de usar.
+
+12.4 Curso DTO
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  duracionHoras?: number;
+
+Evento:
+
+  @Type(() => Number)
+  @IsInt()
+  cursoId: number;
+
+12.5 Enter
+
+  onKeyDown={(event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    void buscar();
+  }}
+
+12.6 Login
+
+Renderizar submit solo para:
+- externo;
+- empleado con allowDev.
+
+No mostrar dos acciones rojas simultáneas para Portal.
+
+12.7 Health
+
+Backend:
+
+  if (!databaseOk) {
+    throw new ServiceUnavailableException({
+      status: 'error',
+      database: 'disconnected',
+    });
+  }
+
+Script:
+
+  body=$(curl --fail --silent "$API_URL") || exit 1
+  jq -e '.status=="ok" and .database=="connected"' \
+    <<< "$body" >/dev/null || exit 1
+
+12.8 Backup
+
+No hardcodear credencial.
+No usar eval.
+
+Variables:
+- SQL_HOST;
+- SQL_USER;
+- SQL_PASSWORD desde archivo 600/secret;
+- BACKUP_CONTAINER_PATH;
+- BACKUP_HOST_PATH montado.
+
+Usar una orden explícita y comprobar:
+- archivo existe;
+- tamaño >0;
+- RESTORE VERIFYONLY;
+- checksum;
+- copia externa.
+
+======================================================================
+13. PRUEBAS QUE FALTAN
+======================================================================
+
+Backend:
+
+[ ] report CPF sin filtro fuerza edificio.
+[ ] report CPF ajeno 403.
+[ ] entrada CPF ajena 403.
+[ ] salida CPF ajena 403.
+[ ] CPF sin edificio 403.
+[ ] admin global funciona.
+[ ] porPagina 501 devuelve 400.
+[ ] export React pagina en 500.
+[ ] salida independiente no pendiente.
+[ ] TipoMovimiento correcto.
+[ ] foto propia 200.
+[ ] foto ajena 403.
+[ ] foto inexistente 404.
+[ ] curso string se transforma.
+[ ] cuenta inactiva no opera.
+[ ] auditoría registra actor.
+
+SQL:
+
+[ ] 001-007 base vacía.
+[ ] TipoMovimiento existe desde script.
+[ ] check de valores.
+[ ] Correo existe antes de 006.
+[ ] PersonalExterno reproducible.
+[ ] SP salida independiente tipa movimiento.
+[ ] SP salida normal no pierde semántica.
+[ ] FK.
+[ ] longitudes.
+
+Frontend:
+
+[ ] salida independiente con lista vacía.
+[ ] edificio correcto.
+[ ] export >500.
+[ ] comillas CSV.
+[ ] error export visible.
+[ ] login empleado sin submit fantasma.
+[ ] Enter búsqueda.
+[ ] reporte móvil.
+
+Operación:
+
+[ ] solo un daemon PM2.
+[ ] proceso tiene start time posterior al deploy.
+[ ] backup verificable.
+[ ] restore temporal.
+[ ] health falla sin DB.
+[ ] rollback probado.
+
+======================================================================
+14. CRITERIOS PARA DECLARAR “TODO OK”
+======================================================================
+
+No basta:
+- commit;
+- build;
+- archivos dist;
+- tabla creada;
+- endpoint existente;
+- cantidad alta de PASS antiguos.
+
+Se podrá declarar OK cuando:
+
+[ ] código, dist, proceso y producción tienen misma versión;
+[ ] backend fue reiniciado una sola vez;
+[ ] frontend/backend son compatibles;
+[ ] CPF no puede ver edificio ajeno;
+[ ] reporte sin filtro está limitado;
+[ ] export funciona con límite 500;
+[ ] fotos se sirven y autorizan correctamente;
+[ ] salida independiente no crea pendiente ni ENTRADA falsa;
+[ ] TipoMovimiento está versionado;
+[ ] instalación limpia pasa;
+[ ] pruebas nuevas cubren V5/V6;
+[ ] API y SQL estrictas terminan exit 0 sin GAP falso;
+[ ] backup real fue creado y verificado;
+[ ] restore se probó en base temporal;
+[ ] health detecta SQL caído;
+[ ] SSO empleado está configurado o pestaña eliminada;
+[ ] documentación coincide con API.
+
+======================================================================
+15. CALIFICACIÓN POR ÁREA
+======================================================================
+
+Funcionalidad básica:                    7.4 / 10
+Flujo CPF:                               6.7 / 10
+Diseño visual:                           8.1 / 10
+Facilidad no técnico:                    6.9 / 10
+Backend en Git:                          7.2 / 10
+Backend desplegado:                      5.9 / 10
+SQL activo:                              7.4 / 10
+SQL reproducible:                        5.0 / 10
+Reportes:                                6.4 / 10
+Seguridad:                               6.1 / 10
+Pruebas:                                 5.0 / 10
+Operación/backup/monitor:                4.8 / 10
+Documentación:                           5.5 / 10
+
+PROMEDIO OPERATIVO:                      6.9 / 10
+
+======================================================================
+16. INSTRUCCIÓN PARA EL SIGUIENTE AGENTE
+======================================================================
+
+No reinicies primero.
+
+Lee esta auditoría y corrige antes:
+
+1. AccesoController.reporte descarta edificio resuelto.
+2. ReportsPage exporta 1,000,000 contra Max(500).
+3. assertPhotoAccess no autoriza y FotoUrl contiene slash.
+4. salida normal permite null para registrador.
+5. 007 usa TipoMovimiento sin crearlo y valores incoherentes.
+
+Después:
+- agrega tests;
+- inicia backend nuevo en ambiente/puerto de validación;
+- prueba con CPF de edificio 121 y otro de edificio 1;
+- resuelve PM2 duplicado;
+- despliega una sola instancia;
+- comprueba start time.
+
+No ejecutes restore en producción.
+No borres movimientos históricos.
+No cambies los 3 SALIDA_NOCTROL sin revisión.
+No uses credenciales hardcodeadas.
+No declares backup probado sin archivo y VERIFYONLY.
+No declares aislamiento probado solo porque existe resolveBuilding.
+No declares fotos seguras solo porque la ruta tiene AuthGuard.
+
+======================================================================
+17. CONCLUSIÓN FINAL
+======================================================================
+
+Sí hubo trabajo real y varias mejoras de V3 fueron implementadas.
+
+Lo mejor:
+- salida independiente UI corregida;
+- FK y longitudes aplicadas;
+- DTO mejorados;
+- E2E termina;
+- reporte móvil;
+- frontend desplegado.
+
+Lo que invalida “9+”:
+- backend no reiniciado;
+- CPF todavía ve otro edificio en producción;
+- reporte nuevo también filtra mal cuando no recibe edificio;
+- export se romperá al reiniciar;
+- foto segura no autoriza y la URL no coincide;
+- TipoMovimiento no se crea desde Git y usa valores incorrectos;
+- backup no puede ejecutarse;
+- pruebas estrictas continúan en exit 1;
+- tests no cubren los cambios;
+- documentación sigue vieja.
+
+Veredicto:
+
+NO está todo OK.
+NO conviene reiniciar sin corregir incompatibilidades.
+SÍ puede terminarse sobre React/Nest actuales.
+SÍ hay un camino corto y específico.
+
+Calificación final V4:
+6.9 / 10.
+
+FIN DE AUDITORÍA V4

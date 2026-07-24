@@ -15,7 +15,7 @@ export declare class AccesoService {
         motivoAcceso?: string;
         motivoDetalle?: string;
     }, usuario: string, fotoFile?: Express.Multer.File): Promise<any>;
-    registrarSalida(id: number, user?: any): Promise<any>;
+    registrarSalida(id: number, usuario?: string, edificioId?: number): Promise<any>;
     accesosHoy(edificioId?: number): Promise<{
         id: any;
         tipoPersona: any;

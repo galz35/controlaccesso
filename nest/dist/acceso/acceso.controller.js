@@ -30,7 +30,8 @@ let AccesoController = class AccesoController {
         return this.acceso.registrarEntrada({ ...dto, edificioId: edificioId }, req.user.carnet || req.user.username || 'cpf', foto);
     }
     async salida(id, req) {
-        return this.acceso.registrarSalida(id, req.user);
+        const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, undefined);
+        return this.acceso.registrarSalida(id, req.user.carnet || req.user.username || 'cpf', edificioId);
     }
     async salidaIndependiente(dto, req) {
         const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, dto.edificioId);
@@ -47,23 +48,18 @@ let AccesoController = class AccesoController {
         return this.acceso.accesosPendientes(edificioId);
     }
     async reporte(query, req) {
-        let edificioId = query.edificioId;
-        if (query.edificioId) {
-            edificioId = (0, building_resolver_1.resolveBuilding)(req.user, query.edificioId);
-        }
-        else {
-            (0, building_resolver_1.resolveBuilding)(req.user, undefined);
-        }
+        const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, query.edificioId);
         return this.acceso.reporte(edificioId, query.tipoPersona, query.desde, query.hasta, query.pagina || 1, query.porPagina || 50, query.motivoAcceso);
     }
     async getFoto(fileName, req, res) {
-        if (!/^[0-9a-f-]{36}\.webp$/i.test(fileName)) {
+        const cleaned = fileName.split('/').pop() || fileName;
+        if (!/^[0-9a-f-]{36}\.webp$/i.test(cleaned)) {
             throw new common_1.BadRequestException('Archivo inválido.');
         }
-        const uploadPath = await this.acceso.assertPhotoAccess(fileName, req.user);
+        const uploadPath = await this.acceso.assertPhotoAccess(cleaned, req.user);
         res.setHeader('Cache-Control', 'private, no-store');
         res.setHeader('X-Content-Type-Options', 'nosniff');
-        return res.sendFile(fileName, { root: uploadPath });
+        return res.sendFile(cleaned, { root: uploadPath });
     }
 };
 exports.AccesoController = AccesoController;

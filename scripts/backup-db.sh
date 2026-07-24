@@ -1,34 +1,36 @@
 #!/bin/bash
-# Backup de la base ControlAcceso
+# Backup de la base ControlAcceso (contenedor Docker)
 # Uso: ./backup-db.sh [output_dir]
-# Requiere: sqlcmd o mssql-cli configurado
 
 OUTPUT_DIR="${1:-/var/backups/control-acceso}"
 DB_NAME="ControlAcceso"
+CONTAINER_NAME="sqlserver"  # Ajustar al nombre real del contenedor
+SA_PASSWORD="${SA_PASSWORD:-TuPasswordFuerte2026}"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$OUTPUT_DIR/${DB_NAME}_${DATE}.bak"
-LOG_FILE="$OUTPUT_DIR/backup.log"
+BACKUP_FILE="${OUTPUT_DIR}/${DB_NAME}_${DATE}.bak"
+LOG_FILE="${OUTPUT_DIR}/backup.log"
 RETENTION_DAYS=30
 
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR" || { echo "ERROR: No se pudo crear $OUTPUT_DIR"; exit 1; }
 
-# Usar sqlcmd si está disponible, sino mssql-cli
-if command -v sqlcmd &> /dev/null; then
-  CMD="sqlcmd -S localhost -U sa -P 'TuPasswordFuerte!2026' -Q \"BACKUP DATABASE [$DB_NAME] TO DISK = N'$BACKUP_FILE' WITH INIT, COMPRESSION\""
-elif command -v mssql-cli &> /dev/null; then
-  CMD="mssql-cli -S localhost -U sa -P 'TuPasswordFuerte!2026' -d $DB_NAME -Q \"BACKUP DATABASE [$DB_NAME] TO DISK = N'$BACKUP_FILE' WITH INIT, COMPRESSION\""
-else
-  echo "[$(date)] ERROR: sqlcmd o mssql-cli no encontrados" >> "$LOG_FILE"
+if ! command -v docker &> /dev/null; then
+  echo "ERROR: docker no encontrado" | tee -a "$LOG_FILE"
   exit 1
 fi
 
-eval "$CMD" 2>&1 >> "$LOG_FILE"
+# Backup via docker exec
+docker exec "$CONTAINER_NAME" /opt/mssql-tools/bin/sqlcmd \
+  -S localhost -U sa -P "$SA_PASSWORD" \
+  -Q "BACKUP DATABASE [$DB_NAME] TO DISK = N'/var/opt/mssql/backup/${DB_NAME}_${DATE}.bak' WITH INIT, COMPRESSION" \
+  2>&1 >> "$LOG_FILE"
 
 if [ $? -eq 0 ]; then
-  echo "[$(date)] OK - Backup creado: $BACKUP_FILE" >> "$LOG_FILE"
-  # Limpiar backups antiguos
+  # Copiar backup del contenedor al host
+  docker cp "${CONTAINER_NAME}:/var/opt/mssql/backup/${DB_NAME}_${DATE}.bak" "$BACKUP_FILE" 2>&1 >> "$LOG_FILE"
+  docker exec "$CONTAINER_NAME" rm -f "/var/opt/mssql/backup/${DB_NAME}_${DATE}.bak"
+  echo "[$(date)] OK - Backup: $BACKUP_FILE" >> "$LOG_FILE"
   find "$OUTPUT_DIR" -name "${DB_NAME}_*.bak" -mtime +$RETENTION_DAYS -delete
-  echo "[$(date)] Backups anteriores a $RETENTION_DAYS días eliminados" >> "$LOG_FILE"
+  echo "[$(date)] OK - Backups anteriores a $RETENTION_DAYS días eliminados" >> "$LOG_FILE"
 else
   echo "[$(date)] ERROR - Falló el backup" >> "$LOG_FILE"
   exit 1

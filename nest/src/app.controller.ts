@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { DatabaseService } from './database/database.service';
 
 @Controller()
@@ -11,7 +11,7 @@ export class AppController {
       await (await this.db.getPool()).request().query('SELECT 1');
       return { status: 'ok', database: 'connected' };
     } catch {
-      return { status: 'error', database: 'disconnected' };
+      throw new ServiceUnavailableException({ status: 'error', database: 'disconnected' });
     }
   }
 }

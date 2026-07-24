@@ -13,6 +13,7 @@ exports.AccesoService = void 0;
 const common_1 = require("@nestjs/common");
 const database_service_1 = require("../database/database.service");
 const config_1 = require("@nestjs/config");
+const building_resolver_1 = require("../common/building.resolver");
 const path = require("path");
 const fs = require("fs");
 const sharp_1 = require("sharp");
@@ -42,18 +43,13 @@ let AccesoService = class AccesoService {
             .execute('sp_Acceso_RegistrarEntrada');
         return result.recordset[0];
     }
-    async registrarSalida(id, user) {
+    async registrarSalida(id, usuario, edificioId) {
         const pool = await this.db.getPool();
         try {
-            const request = pool.request()
-                .input('Id', id);
-            if (user && user.rol !== 'admin') {
-                const assigned = Number(user?.edificioIdDefecto);
-                if (Number.isInteger(assigned) && assigned >= 1) {
-                    request.input('EdificioIdAutorizado', assigned);
-                }
-            }
-            const result = await request.execute('sp_Acceso_RegistrarSalida');
+            const result = await pool.request()
+                .input('Id', id)
+                .input('EdificioIdAutorizado', edificioId ?? null)
+                .execute('sp_Acceso_RegistrarSalida');
             return result.recordset[0];
         }
         catch (err) {
@@ -128,7 +124,11 @@ let AccesoService = class AccesoService {
     async assertPhotoAccess(fileName, user) {
         const uploadPath = this.config.get('UPLOAD_PATH', './uploads');
         const dir = path.join(uploadPath, 'fotos_acceso');
-        return path.resolve(dir);
+        (0, building_resolver_1.resolveBuilding)(user, undefined);
+        if (!fs.existsSync(path.join(dir, fileName))) {
+            throw new common_1.NotFoundException('Foto no encontrada.');
+        }
+        return path.resolve(dir) + path.sep;
     }
     async savePhoto(file) {
         const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -146,7 +146,7 @@ let AccesoService = class AccesoService {
         const fileName = `${(0, uuid_1.v4)()}.webp`;
         const filePath = path.join(dir, fileName);
         await (0, sharp_1.default)(file.buffer).resize({ width: 800, withoutEnlargement: true }).webp({ quality: 70 }).toFile(filePath);
-        return `fotos_acceso/${fileName}`;
+        return fileName;
     }
 };
 exports.AccesoService = AccesoService;

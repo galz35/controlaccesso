@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { FileText, Download, Search, X } from 'lucide-react';
+import { showError } from '../lib/swal';
 
 const TIPOS = ['', 'EMPLEADO', 'PROVEEDOR', 'INSTRUCTOR_EXTERNO', 'INSTRUCTOR_INTERNO', 'VISITANTE', 'SERVICIO_EXTERNO', 'SALIDA_INDEPENDIENTE'];
 const MOTIVOS = ['', 'Comedor', 'Servicio de cocina', 'Carga y descarga', 'Conductor/transporte', 'Entrega', 'Mantenimiento', 'Reunión', 'Visita general', 'Capacitación', 'Otro'];
@@ -55,21 +56,32 @@ export default function ReportsPage() {
   const exportCSV = async () => {
     setExporting(true);
     try {
-      const params: any = { pagina: 1, porPagina: 1000000 };
-      if (filtroEdificio) params.edificioId = filtroEdificio;
-      if (filtroTipo) params.tipoPersona = filtroTipo;
-      if (filtroMotivo) params.motivoAcceso = filtroMotivo;
-      if (filtroDesde) params.desde = filtroDesde;
-      if (filtroHasta) params.hasta = filtroHasta;
-      const res = await api.get('/acceso/reporte', { params });
-      const allData = res.data.data || [];
+      const pageSize = 500;
+      const appliedFilters: any = {};
+      if (filtroEdificio) appliedFilters.edificioId = filtroEdificio;
+      if (filtroTipo) appliedFilters.tipoPersona = filtroTipo;
+      if (filtroMotivo) appliedFilters.motivoAcceso = filtroMotivo;
+      if (filtroDesde) appliedFilters.desde = filtroDesde;
+      if (filtroHasta) appliedFilters.hasta = filtroHasta;
 
-      const headers = ['Fecha', 'Hora', 'Persona', 'Tipo', 'Cédula', 'Empresa', 'Motivo', 'Edificio', 'Entrada', 'Salida', 'Registró'];
-      const rows = allData.map((r: any) => [
+      let all: any[] = [];
+      let currentPage = 1;
+      while (true) {
+        const res = await api.get('/acceso/reporte', {
+          params: { ...appliedFilters, pagina: currentPage, porPagina: pageSize },
+        });
+        const batch = res.data.data ?? [];
+        all = all.concat(batch);
+        if (all.length >= res.data.total || batch.length === 0) break;
+        currentPage += 1;
+      }
+
+      const headers = ['Fecha', 'Hora', 'Persona', 'Tipo', 'Cédula', 'Empresa', 'Motivo', 'Detalle', 'Edificio', 'Entrada', 'Salida', 'Registró'];
+      const rows = all.map((r: any) => [
         new Date(r.fechaEntrada).toLocaleDateString(),
         new Date(r.fechaEntrada).toLocaleTimeString(),
         r.nombre, r.tipoPersona, r.cedula || '', r.empresa || '',
-        r.motivoAcceso || '', r.edificio,
+        r.motivoAcceso || '', r.motivoDetalle || '', r.edificio,
         new Date(r.fechaEntrada).toLocaleString(),
         r.fechaSalida ? new Date(r.fechaSalida).toLocaleString() : 'Pendiente',
         r.usuarioRegistra || '',
@@ -81,7 +93,9 @@ export default function ReportsPage() {
       link.download = 'reporte_accesos_completo.csv';
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 5000);
-    } catch { /* silencioso */ }
+    } catch (err: any) {
+      showError('No se pudo exportar', err?.response?.data?.message || 'Intente nuevamente.');
+    }
     setExporting(false);
   };
 

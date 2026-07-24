@@ -24,7 +24,8 @@ export class AccesoController {
   @Post('salida/:id')
   @Roles('admin', 'registrador')
   async salida(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.acceso.registrarSalida(id, req.user);
+    const edificioId = resolveBuilding(req.user, undefined);
+    return this.acceso.registrarSalida(id, req.user.carnet || req.user.username || 'cpf', edificioId);
   }
 
   @Post('salida-independiente')
@@ -53,12 +54,7 @@ export class AccesoController {
   @Get('reporte')
   @Roles('admin', 'registrador')
   async reporte(@Query() query: ReporteQueryDto, @Req() req: any) {
-    let edificioId = query.edificioId;
-    if (query.edificioId) {
-      edificioId = resolveBuilding(req.user, query.edificioId);
-    } else {
-      resolveBuilding(req.user, undefined);
-    }
+    const edificioId = resolveBuilding(req.user, query.edificioId);
     return this.acceso.reporte(
       edificioId,
       query.tipoPersona,
@@ -73,12 +69,14 @@ export class AccesoController {
   @Get('foto/:fileName')
   @Roles('admin', 'registrador')
   async getFoto(@Param('fileName') fileName: string, @Req() req: any, @Res() res: Response) {
-    if (!/^[0-9a-f-]{36}\.webp$/i.test(fileName)) {
+    // Históricos pueden venir con prefijo: fotos_acceso/uuid.webp o /control-acceso-uploads/fotos_acceso/uuid.webp
+    const cleaned = fileName.split('/').pop() || fileName;
+    if (!/^[0-9a-f-]{36}\.webp$/i.test(cleaned)) {
       throw new BadRequestException('Archivo inválido.');
     }
-    const uploadPath = await this.acceso.assertPhotoAccess(fileName, req.user);
+    const uploadPath = await this.acceso.assertPhotoAccess(cleaned, req.user);
     res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    return res.sendFile(fileName, { root: uploadPath });
+    return res.sendFile(cleaned, { root: uploadPath });
   }
 }

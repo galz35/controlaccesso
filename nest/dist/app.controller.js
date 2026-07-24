@@ -22,7 +22,7 @@ let AppController = class AppController {
             return { status: 'ok', database: 'connected' };
         }
         catch {
-            return { status: 'error', database: 'disconnected' };
+            throw new common_1.ServiceUnavailableException({ status: 'error', database: 'disconnected' });
         }
     }
 };

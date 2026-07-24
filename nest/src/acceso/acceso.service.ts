@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { ConfigService } from '@nestjs/config';
+import { resolveBuilding } from '../common/building.resolver';
 import * as path from 'path';
 import * as fs from 'fs';
 import sharp from 'sharp';
@@ -40,18 +41,13 @@ export class AccesoService {
     return result.recordset[0];
   }
 
-  async registrarSalida(id: number, user?: any) {
+  async registrarSalida(id: number, usuario?: string, edificioId?: number) {
     const pool = await this.db.getPool();
     try {
-      const request = pool.request()
-        .input('Id', id);
-      if (user && user.rol !== 'admin') {
-        const assigned = Number(user?.edificioIdDefecto);
-        if (Number.isInteger(assigned) && assigned >= 1) {
-          request.input('EdificioIdAutorizado', assigned);
-        }
-      }
-      const result = await request.execute('sp_Acceso_RegistrarSalida');
+      const result = await pool.request()
+        .input('Id', id)
+        .input('EdificioIdAutorizado', edificioId ?? null)
+        .execute('sp_Acceso_RegistrarSalida');
       return result.recordset[0];
     } catch (err: any) {
       console.error('Salida error:', err.number, err.message?.substring(0, 100));
@@ -133,7 +129,12 @@ export class AccesoService {
   async assertPhotoAccess(fileName: string, user: any): Promise<string> {
     const uploadPath = this.config.get<string>('UPLOAD_PATH', './uploads');
     const dir = path.join(uploadPath, 'fotos_acceso');
-    return path.resolve(dir);
+    // resolveBuilding para verificar que usuario tiene acceso
+    resolveBuilding(user, undefined);
+    if (!fs.existsSync(path.join(dir, fileName))) {
+      throw new NotFoundException('Foto no encontrada.');
+    }
+    return path.resolve(dir) + path.sep;
   }
 
   private async savePhoto(file: Express.Multer.File): Promise<string> {
@@ -141,7 +142,7 @@ export class AccesoService {
     if (!allowedMimes.includes(file.mimetype)) {
       throw new BadRequestException('Formato de foto no permitido. Use JPG, PNG, WebP o GIF.');
     }
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       throw new BadRequestException('La foto excede 5MB.');
     }
@@ -151,6 +152,6 @@ export class AccesoService {
     const fileName = `${uuidv4()}.webp`;
     const filePath = path.join(dir, fileName);
     await sharp(file.buffer).resize({ width: 800, withoutEnlargement: true }).webp({ quality: 70 }).toFile(filePath);
-    return `fotos_acceso/${fileName}`;
+    return fileName;
   }
 }

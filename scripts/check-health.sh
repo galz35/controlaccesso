@@ -3,19 +3,24 @@
 # Uso: ./check-health.sh [--slack webhook_url]
 
 API_URL="http://localhost:3001/api/health"
-SLACK_WEBHOOK="$1"
+SLACK_WEBHOOK=""
+MODE=""
 
-response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL" 2>/dev/null)
+if [ "$1" = "--slack" ] && [ -n "$2" ]; then
+  SLACK_WEBHOOK="$2"
+fi
 
-if [ "$response" = "200" ]; then
-  echo "[$(date)] OK - API responde HTTP 200"
+body=$(curl --fail --silent "$API_URL" 2>/dev/null)
+
+if echo "$body" | jq -e '.status == "ok" and .database == "connected"' > /dev/null 2>&1; then
+  echo "[$(date)] OK - API saludable"
   exit 0
 else
-  msg="[$(date)] ERROR - API responde HTTP $response"
+  msg="[$(date)] ERROR - API no saludable: $(echo "$body" | jq -c . 2>/dev/null || echo "$body")"
   echo "$msg"
-  if [ "$2" = "--slack" ] && [ -n "$SLACK_WEBHOOK" ]; then
+  if [ -n "$SLACK_WEBHOOK" ]; then
     curl -s -X POST -H 'Content-type: application/json' \
-      --data "{\"text\":\"⚠️ Control Acceso: $msg\"}" \
+      --data "$(jq -n --arg text "⚠️ Control Acceso: $msg" '{text: $text}')" \
       "$SLACK_WEBHOOK" > /dev/null
   fi
   exit 1

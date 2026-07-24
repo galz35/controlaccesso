@@ -11,49 +11,68 @@ export class AdminService {
     return result.recordset;
   }
 
-  async deactivateCpf(username: string) {
+  private async auditar(accion: string, usuario: string, detalle?: string, ip?: string) {
+    try {
+      const pool = await this.db.getPool();
+      await pool.request()
+        .input('Accion', accion)
+        .input('Usuario', usuario)
+        .input('Detalle', detalle || null)
+        .input('IP', ip || null)
+        .execute('sp_Auditoria_Registrar');
+    } catch { /* silencioso */ }
+  }
+
+  async deactivateCpf(username: string, actor?: string, ip?: string) {
     if (!username) throw new BadRequestException('Username requerido');
     const pool = await this.db.getPool();
+    let result: any;
     try {
-      const result = await pool.request()
+      result = await pool.request()
         .input('Username', username)
         .execute('sp_UsuarioCPF_Desactivar');
-      return result.recordset[0];
     } catch (err: any) {
       if (err.number === 51000 || err.message?.includes('51000'))
         throw new NotFoundException(err.message);
       throw err;
     }
+    this.auditar('DESACTIVAR_CPF', actor || 'admin', `Usuario: ${username}`, ip);
+    return result.recordset[0];
   }
 
-  async activateCpf(username: string) {
+  async activateCpf(username: string, actor?: string, ip?: string) {
     if (!username) throw new BadRequestException('Username requerido');
     const pool = await this.db.getPool();
+    let result: any;
     try {
-      const result = await pool.request()
+      result = await pool.request()
         .input('Username', username)
         .execute('sp_UsuarioCPF_Activar');
-      return result.recordset[0];
     } catch (err: any) {
       if (err.number === 51000 || err.message?.includes('51000'))
         throw new NotFoundException(err.message);
       throw err;
     }
+    this.auditar('ACTIVAR_CPF', actor || 'admin', `Usuario: ${username}`, ip);
+    return result.recordset[0];
   }
 
-  async changeBuilding(username: string, edificioIdDefecto?: number) {
+  async changeBuilding(username: string, edificioIdDefecto?: number, actor?: string, ip?: string) {
     if (!username) throw new BadRequestException('Username requerido');
     const pool = await this.db.getPool();
+    let result: any;
     try {
-      const result = await pool.request()
+      result = await pool.request()
         .input('Username', username)
         .input('EdificioIdDefecto', edificioIdDefecto || null)
         .execute('sp_UsuarioCPF_CambiarEdificioDefecto');
-      return result.recordset[0];
     } catch (err: any) {
       if (err.number === 51000 || err.message?.includes('51000'))
         throw new NotFoundException(err.message);
       throw err;
     }
+    this.auditar('CAMBIAR_EDIFICIO_CPF', actor || 'admin',
+      `Usuario: ${username}, EdificioId: ${edificioIdDefecto || 'ninguno'}`, ip);
+    return result.recordset[0];
   }
 }

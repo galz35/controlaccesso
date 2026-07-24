@@ -1,4 +1,5 @@
 import { IsString, IsOptional, MinLength, MaxLength, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class EdificioDto {
   @IsString()
@@ -88,16 +89,19 @@ export class CursoDto {
   descripcion?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   duracionHoras?: number;
 }
 
 export class EventoCursoDto {
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   cursoId: number;
 
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   edificioId: number;
