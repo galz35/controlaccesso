@@ -92,6 +92,20 @@ export default function RegistroPage() {
       setEdificios(allowed);
       if (user?.rol !== 'admin' && user?.edificioIdDefecto) {
         setEdificioId(String(user.edificioIdDefecto));
+      } else if (user?.rol === 'admin' && allowed.length > 0) {
+        // Auto-seleccionar edificio por defecto: preferir ENITEL LA PIEDRA, sino el primero
+        const piedrecita = allowed.find((e: any) => {
+          const nombre = (e.Nombre || e.nombre || '').toUpperCase();
+          return nombre.includes('ENITEL') && nombre.includes('PIEDRA');
+        });
+        const defaultEdificio = piedrecita || allowed[0];
+        if (defaultEdificio) {
+          const id = String(defaultEdificio.Id || defaultEdificio.id);
+          setEdificioId(id);
+          if (defaultEdificio.EsCapacitacion || defaultEdificio.esCapacitacion) {
+            setVieneCapacitacion('no');
+          }
+        }
       }
     }).catch(() => setError('No se pudieron cargar los edificios'));
   }, [user]);
