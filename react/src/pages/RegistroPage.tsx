@@ -82,6 +82,7 @@ export default function RegistroPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [fotoHcm, setFotoHcm] = useState<string | null>(null);
   const [loadingFoto, setLoadingFoto] = useState(false);
+  const [fotosMap, setFotosMap] = useState<Record<string, string>>({});
   const searchRef = useRef<HTMLInputElement>(null);
 
   const edificioSel = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
@@ -150,18 +151,41 @@ export default function RegistroPage() {
       else if (tipo === 'INSTRUCTOR_INTERNO') endpoint = '/search/empleado';
       else if (tipo === 'SERVICIO_EXTERNO') endpoint = '/search/personal-externo';
       const res = await api.get(endpoint, { params: { q: searchQ } });
-      setResults(res.data || []);
+      const items = res.data || [];
+      setResults(items);
+      // Para busqueda de empleados, obtener fotos de los primeros resultados
+      if (endpoint === '/search/empleado') {
+        const toFetch = items.slice(0, 8).filter((r: any) => r.carnet).map((r: any) => r.carnet);
+        if (toFetch.length > 0) {
+          const results = await Promise.allSettled(
+            toFetch.map((carnet: string) => api.get(`/search/foto/${carnet}`).then(r => ({ carnet, foto: r.data?.foto })))
+          );
+          const newMap: Record<string, string> = {};
+          results.forEach((r: any) => {
+            if (r.status === 'fulfilled' && r.value.foto) {
+              newMap[r.value.carnet] = r.value.foto;
+            }
+          });
+          setFotosMap(prev => ({ ...prev, ...newMap }));
+        }
+      }
     } catch { setError('Error al buscar. Intente de nuevo.'); }
     setSearchLoading(false);
   };
 
   const seleccionar = (item: any) => {
-    setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2); setFotoHcm(null);
+    setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2);
+    // Usar foto ya cargada del map, o obtenerla
     if (item.carnet) {
-      setLoadingFoto(true);
-      api.get(`/search/foto/${item.carnet}`).then(r => {
-        if (r.data?.foto) setFotoHcm(r.data.foto);
-      }).catch(() => {}).finally(() => setLoadingFoto(false));
+      const cached = fotosMap[item.carnet];
+      if (cached) {
+        setFotoHcm(cached);
+      } else {
+        setLoadingFoto(true);
+        api.get(`/search/foto/${item.carnet}`).then(r => {
+          if (r.data?.foto) { setFotoHcm(r.data.foto); setFotosMap(prev => ({ ...prev, [item.carnet]: r.data.foto })); }
+        }).catch(() => {}).finally(() => setLoadingFoto(false));
+      }
     }
   };
 
@@ -293,17 +317,24 @@ export default function RegistroPage() {
 
             {results && results.length > 0 && (
               <div className="search-results" style={{ marginTop: 8 }}>
-                {results.map((r: any, i) => (
+                {results.map((r: any, i) => {
+                  const foto = r.carnet ? fotosMap[r.carnet] : null;
+                  return (
                   <button key={i} type="button" onClick={() => seleccionar(r)} className="search-result-item" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--gray-500)', flexShrink: 0 }}>
-                      {(r.nombre || r.nombreCompleto || '?').charAt(0)}
-                    </div>
+                    {foto ? (
+                      <img src={foto} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--gray-500)', flexShrink: 0 }}>
+                        {(r.nombre || r.nombreCompleto || '?').charAt(0)}
+                      </div>
+                    )}
                     <div className="flex--1" style={{ textAlign: 'left' }}>
                       <div className="font-bold">{r.nombre || r.nombreCompleto}</div>
                       <div className="text-xs text-muted">Carnet {r.carnet || r.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
             {searched && results?.length === 0 && (
