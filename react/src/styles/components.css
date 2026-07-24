@@ -202,9 +202,11 @@
 @media (max-width: 700px) {
   .access-table-desktop { display: none; }
   .access-cards-mobile { display: block; }
+  .catalog-cards-mobile { display: block; }
 }
 @media (min-width: 701px) {
   .access-cards-mobile { display: none; }
+.catalog-cards-mobile { display: none; }
 }
 .access-card {
   background: white;
