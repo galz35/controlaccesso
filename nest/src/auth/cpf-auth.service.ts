@@ -58,7 +58,6 @@ export class CpfAuthService {
       user: { id: user.Id, username: user.Username, nombre: user.Nombre, rol: user.Rol, tipo: user.Tipo, edificioIdDefecto: user.EdificioIdDefecto || null },
     };
   }
-
   async changePassword(username: string, oldPassword: string, newPassword: string) {
     const pool = await this.db.getPool();
     const result = await pool.request()
@@ -70,6 +69,7 @@ export class CpfAuthService {
 
     const valid = await bcrypt.compare(oldPassword, user.PasswordHash);
     if (!valid) throw new UnauthorizedException('Contraseña actual incorrecta.');
+
     if (newPassword.length < 6) throw new BadRequestException('La nueva contraseña debe tener al menos 6 caracteres.');
 
     const hash = await bcrypt.hash(newPassword, 10);
@@ -79,5 +79,25 @@ export class CpfAuthService {
       .execute('sp_UsuarioCPF_CambiarPassword');
 
     return { success: true };
+  }
+
+  async adminResetPassword(username: string, newPassword: string) {
+    const pool = await this.db.getPool();
+    const result = await pool.request()
+      .input('Username', username)
+      .execute('sp_UsuarioCPF_Validar');
+
+    const user = result.recordset[0];
+    if (!user) throw new UnauthorizedException('Usuario no encontrado.');
+
+    if (newPassword.length < 6) throw new BadRequestException('La contraseña debe tener al menos 6 caracteres.');
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.request()
+      .input('Username', username)
+      .input('PasswordHash', hash)
+      .execute('sp_UsuarioCPF_CambiarPassword');
+
+    return { success: true, message: 'Contraseña restablecida por administrador.' };
   }
 }

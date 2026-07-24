@@ -68,7 +68,51 @@ export class AccesoService {
     }));
   }
 
-  async reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina = 1, porPagina = 50) {
+  async accesosPendientes(edificioId?: number) {
+    const pool = await this.db.getPool();
+    const request = pool.request();
+    let where = 'WHERE r.FechaSalida IS NULL';
+    if (edificioId) { request.input('edificioId', edificioId); where += ' AND r.EdificioId = @edificioId'; }
+    const result = await request.query(`
+      SELECT r.*, e.Nombre AS EdificioNombre
+      FROM dbo.tblRegistroAcceso r
+      INNER JOIN dbo.tblEdificios e ON r.EdificioId = e.Id
+      ${where}
+      ORDER BY r.FechaEntrada DESC
+    `);
+    return result.recordset.map(r => ({
+      id: r.Id, tipoPersona: r.TipoPersona, personaId: r.PersonaId,
+      nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
+      edificio: r.EdificioNombre, fotoUrl: r.FotoUrl,
+      fechaEntrada: r.FechaEntrada, fechaSalida: r.FechaSalida,
+      usuarioRegistra: r.UsuarioRegistra, motivoAcceso: r.MotivoAcceso, motivoDetalle: r.MotivoDetalle,
+      antiguedadHoras: Math.floor((Date.now() - new Date(r.FechaEntrada).getTime()) / 3600000),
+    }));
+  }
+
+  async registrarSalidaIndependiente(
+    dto: { edificioId: number; personaId: string; nombrePersona: string; observacion: string; motivoAcceso?: string },
+    usuario: string,
+  ) {
+    const pool = await this.db.getPool();
+    const result = await pool.request()
+      .input('EdificioId', dto.edificioId)
+      .input('TipoPersona', 'SALIDA_INDEPENDIENTE')
+      .input('PersonaId', dto.personaId)
+      .input('NombrePersona', dto.nombrePersona)
+      .input('EmpresaPersona', null)
+      .input('FotoUrl', null)
+      .input('UsuarioRegistra', usuario)
+      .input('MotivoAcceso', dto.observacion)
+      .query(`
+        INSERT INTO dbo.tblRegistroAcceso (EdificioId, TipoPersona, PersonaId, NombrePersona, UsuarioRegistra, MotivoAcceso)
+        OUTPUT INSERTED.Id, INSERTED.NombrePersona AS Nombre, INSERTED.FechaEntrada, INSERTED.MotivoAcceso
+        VALUES (@EdificioId, @TipoPersona, @PersonaId, @NombrePersona, @UsuarioRegistra, @MotivoAcceso)
+      `);
+    return { ...result.recordset[0], tipo: 'SALIDA_INDEPENDIENTE' };
+  }
+
+  async reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina = 1, porPagina = 50, motivoAcceso?: string) {
     const pool = await this.db.getPool();
     const result = await pool.request()
       .input('Pagina', pagina)
@@ -77,6 +121,7 @@ export class AccesoService {
       .input('TipoPersona', tipoPersona || null)
       .input('Desde', desde ? new Date(desde) : null)
       .input('Hasta', hasta ? new Date(hasta) : null)
+      .input('MotivoAcceso', motivoAcceso || null)
       .execute('sp_Acceso_Reporte');
 
     const total = result.recordsets[0][0]?.Total || 0;

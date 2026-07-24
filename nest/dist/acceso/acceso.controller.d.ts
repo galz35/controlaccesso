@@ -1,9 +1,11 @@
 import { AccesoService } from './acceso.service';
+import { RegistrarEntradaDto, ReporteQueryDto, SalidaIndependienteDto } from './dto/acceso.dto';
 export declare class AccesoController {
     private acceso;
     constructor(acceso: AccesoService);
-    entrada(dto: any, req: any, foto?: Express.Multer.File): Promise<any>;
+    entrada(dto: RegistrarEntradaDto, req: any, foto?: Express.Multer.File): Promise<any>;
     salida(id: number): Promise<any>;
+    salidaIndependiente(dto: SalidaIndependienteDto, req: any): Promise<any>;
     hoy(edificioId?: string): Promise<{
         id: any;
         tipoPersona: any;
@@ -19,7 +21,23 @@ export declare class AccesoController {
         motivoAcceso: any;
         motivoDetalle: any;
     }[]>;
-    reporte(edificioId?: string, tipoPersona?: string, desde?: string, hasta?: string, pagina?: string, porPagina?: string): Promise<{
+    pendientes(edificioId?: string): Promise<{
+        id: any;
+        tipoPersona: any;
+        personaId: any;
+        nombre: any;
+        cedula: any;
+        empresa: any;
+        edificio: any;
+        fotoUrl: any;
+        fechaEntrada: any;
+        fechaSalida: any;
+        usuarioRegistra: any;
+        motivoAcceso: any;
+        motivoDetalle: any;
+        antiguedadHoras: number;
+    }[]>;
+    reporte(query: ReporteQueryDto): Promise<{
         data: any;
         total: any;
         pagina: number;

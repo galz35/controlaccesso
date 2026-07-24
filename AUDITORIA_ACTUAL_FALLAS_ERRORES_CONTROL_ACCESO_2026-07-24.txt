@@ -1,0 +1,734 @@
+AUDITORÍA ACTUAL DEL SISTEMA CONTROL DE ACCESO
+Claro Nicaragua
+Fecha: 2026-07-24
+Ruta analizada: /opt/apps/control-acceso
+Commit analizado: afcf4c195172c0017ca5dc254278cc81a0da84d3
+
+======================================================================
+1. RESULTADO EJECUTIVO
+======================================================================
+
+CALIFICACIÓN GENERAL ACTUAL: 5.4 / 10
+
+Estado recomendado:
+NO aprobar todavía como sistema terminado para producción general.
+
+Sí puede considerarse:
+- Prototipo funcional avanzado.
+- Piloto controlado con usuario administrador conocido.
+- Base útil para completar el producto.
+
+No puede considerarse todavía:
+- Sistema completo.
+- Sistema seguro para exposición pública.
+- Sustituto confiable del papel en todos los casos.
+- Sistema plenamente operativo para usuarios CPF externos.
+- Sistema con reportes completos desde la interfaz.
+- Instalación reproducible desde los scripts del repositorio.
+
+Resumen cuantitativo de hallazgos:
+
+- 4 hallazgos CRÍTICOS.
+- 9 hallazgos ALTOS.
+- 10 hallazgos MEDIOS.
+- 5 hallazgos BAJOS.
+- Total: 28 hallazgos.
+
+Validaciones positivas:
+
+- React compila correctamente.
+- Nest compila correctamente.
+- API y base de datos responden en /api/health.
+- PM2 muestra el servicio control-acceso en línea.
+- La API rechaza recursos privados sin JWT.
+- La base activa tiene las tablas esenciales.
+- La base activa tiene MotivoAcceso y MotivoDetalle.
+- FechaSalida permite NULL, por lo que la salida es opcional.
+- Hay exactamente un edificio activo de capacitación.
+- La base reconoce EMPLEADO, PROVEEDOR, VISITANTE y SERVICIO_EXTERNO.
+- El diseño usa rojo, blanco, gris, negro y verde; no se encontró azul.
+- Hay adaptación móvil mediante tarjetas y menú lateral responsive.
+
+Conclusión directa:
+
+El núcleo de “registrar entrada física a un edificio” existe. Sin embargo,
+faltan piezas indispensables del flujo real: CPF confiable, salida tardía o
+sin entrada, reportes visibles, recuperación de contraseñas, validación de
+datos, manejo seguro de fotografías y scripts SQL reproducibles.
+
+======================================================================
+2. CALIFICACIÓN POR ÁREA
+======================================================================
+
+Funcionalidad principal:                 6.2 / 10
+Facilidad de uso:                        6.8 / 10
+Diseño visual e identidad Claro:         7.7 / 10
+Backend y contratos API:                 5.2 / 10
+Base de datos activa:                    6.8 / 10
+Seguridad:                               3.0 / 10
+Pruebas automáticas:                     3.8 / 10
+Operación y despliegue:                  5.8 / 10
+Mantenibilidad y reproducibilidad:       4.2 / 10
+
+La apariencia mejoró notablemente. La calificación baja no se debe
+principalmente al CSS, sino a fallas de autenticación, flujo, seguridad,
+reportes, pruebas y consistencia SQL.
+
+======================================================================
+3. RESULTADOS TÉCNICOS COMPROBADOS
+======================================================================
+
+3.1 Compilación
+
+React:
+- Comando: npm run build
+- Resultado: PASS.
+- Bundle JavaScript aproximado: 406 KB sin comprimir, 124 KB gzip.
+
+Nest:
+- Comando: npm run build
+- Resultado: PASS.
+
+Interpretación:
+Compilar significa que TypeScript y Vite/Nest aceptan el código. No significa
+que los flujos funcionales estén correctos.
+
+3.2 API pública en modo estricto y sin escrituras
+
+- 9 pruebas pasaron.
+- 0 fallos técnicos.
+- 1 brecha.
+- 2 pruebas omitidas por no usar token ni mutaciones.
+
+Brecha confirmada:
+- No hay contrato para registrar una salida independiente sin entrada previa.
+
+3.3 SQL estricto sobre la base correcta ControlAcceso
+
+- 40 pruebas pasaron.
+- 0 fallos estructurales inmediatos.
+- 7 brechas.
+
+Brechas detectadas:
+
+1. EdificioIdDefecto de CPF no tiene llave foránea comprobada.
+2. Hay 2 accesos existentes sin motivo.
+3. No existe salida independiente sin entrada.
+4. El script de tablas no incluye EsCapacitacion.
+5. El script de usuarios CPF no incluye EdificioIdDefecto.
+6. El script de tablas no incluye MotivoAcceso/MotivoDetalle.
+7. El stored procedure versionado no recibe ambos motivos.
+
+3.4 Error en el propio ejecutor SQL
+
+Ejecutar test/sql_tests.js sin DB_NAME explícito tomó DB_DATABASE=Asistencia
+desde nest/.env e intentó validar la base equivocada. El login falló.
+
+La aplicación no usa esa variable para su base principal: DatabaseService
+tiene ControlAcceso escrito directamente en el código.
+
+Consecuencia:
+El comando documentado como prueba automática no es confiable si no se define
+DB_NAME=ControlAcceso.
+
+3.5 Pruebas Jest
+
+Pruebas unitarias:
+- Resultado: FAIL.
+- Motivo: no existe ningún archivo *.spec.ts en nest/src.
+- Total real ejecutado: 0 pruebas.
+
+Prueba E2E:
+- Resultado: FAIL antes de ejecutar casos.
+- Motivo: Jest no puede cargar la versión ESM de uuid.
+- El archivo E2E además conserva el ejemplo inicial “Hello World”, que no
+  corresponde al prefijo /api ni al endpoint /api/health.
+
+Conclusión:
+El título del commit “73 pruebas pasando” no equivale a cobertura completa.
+La suite externa consulta algunos contratos, pero no sustituye pruebas
+unitarias ni E2E del proyecto.
+
+3.6 Servicio y logs
+
+- PM2: control-acceso online.
+- Uptime observado: aproximadamente 87 minutos.
+- Reinicios observados: 4.
+- Latencia media observada por PM2: aproximadamente 6 ms.
+- Heap observado: cerca de 95% del heap asignado en ese momento.
+
+Errores recientes encontrados en logs:
+
+- Intentos de crear un edificio de prueba duplicado.
+- Intento de entrada sin EdificioId.
+- Intentos de salida sobre registro inexistente o ya cerrado.
+
+Parte de estos errores provino de pruebas anteriores, pero demuestran que:
+
+- Las pruebas antiguas sí escribieron en la base.
+- La API deja que errores SQL suban como error interno.
+- Faltan DTO y respuestas controladas para validaciones y duplicados.
+
+======================================================================
+4. HALLAZGOS CRÍTICOS
+======================================================================
+
+C-01. DEV-LOGIN ESTÁ ABIERTO EN EL SISTEMA DESPLEGADO
+
+Evidencia:
+- nest/src/auth/auth.controller.ts, líneas 17-20.
+- react/src/pages/LoginPage.tsx, líneas 20-22.
+- react/src/context/AuthContext.tsx, líneas 40-42.
+
+Problema:
+POST /api/auth/dev-login no tiene guard, contraseña ni comprobación SSO.
+El stored procedure sp_Login_Empleado crea un usuario local si no existe.
+
+Impacto:
+Una persona que conozca o adivine un carnet puede obtener un JWT.
+El endpoint señalado como “temporal para desarrollo” está publicado.
+
+Corrección obligatoria:
+
+1. Deshabilitar dev-login cuando NODE_ENV=production.
+2. Eliminar la pestaña de ingreso por carnet simple en producción.
+3. Usar únicamente SSO corporativo para empleados.
+4. Validar que el carnet exista y esté activo en la fuente corporativa.
+5. No crear usuarios locales a partir de cualquier texto recibido.
+
+C-02. EL JWT CPF PIERDE SU IDENTIDAD AL PASAR POR PASSPORT
+
+Evidencia:
+- nest/src/auth/cpf-auth.service.ts, líneas 51-54.
+- nest/src/common/jwt.strategy.ts, líneas 14-15.
+- nest/src/auth/auth.controller.ts, líneas 58-62.
+- nest/src/acceso/acceso.controller.ts, línea 17.
+
+Problema:
+CpfAuthService firma sub, username, tipo y cpf=true. JwtStrategy devuelve solo
+carnet, nombre y rol. Se pierden cpf, username, sub y tipo.
+
+Impacto:
+
+- /auth/me no reconoce correctamente al usuario CPF.
+- El registro de acceso recibe req.user.carnet vacío para un CPF.
+- UsuarioRegistra puede llegar nulo al stored procedure.
+- Se pierde trazabilidad de qué CPF registró la entrada.
+- Las reglas específicas de CPF no pueden aplicarse de forma confiable.
+
+Corrección obligatoria:
+JwtStrategy debe conservar explícitamente:
+
+- sub
+- carnet
+- username
+- nombre
+- rol
+- tipo
+- cpf
+
+También debe existir una prueba E2E de login CPF -> /auth/me -> entrada.
+
+C-03. CREDENCIALES Y SECRETOS INSEGUROS
+
+Evidencia:
+- test/README.md contiene una contraseña de base escrita directamente.
+- El mismo README incluye un carnet concreto.
+- nest/src/common/jwt.strategy.ts usa un secreto JWT predeterminado conocido.
+- nest/src/auth/auth.module.ts usa el mismo secreto predeterminado.
+- README principal documenta secretos de ejemplo demasiado parecidos al uso real.
+
+Impacto:
+
+- La contraseña ya quedó en el historial Git publicado.
+- Borrar solo la línea no elimina la exposición histórica.
+- Si JWT_SECRET falta, cualquiera que conozca el valor predeterminado puede
+  fabricar tokens.
+
+Corrección obligatoria:
+
+1. Rotar la contraseña expuesta.
+2. Eliminar credenciales reales de archivos versionados.
+3. Considerar limpieza del historial si el repositorio no debe conservarlas.
+4. Hacer obligatorio JWT_SECRET y fallar al iniciar si falta.
+5. Usar secretos largos y diferentes para JWT de la aplicación y SSO.
+6. Añadir escaneo automático de secretos en CI.
+
+C-04. NO EXISTE VALIDACIÓN REAL DE LOS CUERPOS HTTP
+
+Evidencia:
+- nest/src/main.ts configura ValidationPipe.
+- Controladores y servicios reciben dto: any o tipos TypeScript sin decoradores.
+- No hay clases DTO con class-validator.
+
+Problema:
+ValidationPipe no puede validar requisitos de runtime usando interfaces o any.
+
+Impacto:
+
+- Se puede enviar EdificioId vacío.
+- TipoPersona acepta valores arbitrarios.
+- Nombres, carnets, IDs y fechas no tienen límites confiables.
+- Paginación acepta valores inválidos.
+- Errores llegan a SQL y se convierten en 500.
+- Aumenta el riesgo de abuso, datos basura y fallos operativos.
+
+Corrección obligatoria:
+Crear DTO reales con IsInt, Min, Max, IsIn, IsString, Length, IsOptional,
+IsDateString y validaciones cruzadas.
+
+======================================================================
+5. HALLAZGOS ALTOS
+======================================================================
+
+A-01. CAMBIO DE CONTRASEÑA ADMINISTRATIVO NO FUNCIONA
+
+Evidencia:
+- react/src/pages/AdminCpfPage.tsx, línea 44.
+- nest/src/auth/auth.controller.ts, líneas 47-53.
+- nest/src/auth/cpf-auth.service.ts, líneas 62-79.
+
+El frontend administrador envía oldPassword vacío. El backend siempre compara
+oldPassword contra el hash actual. Por tanto, el botón “Cambiar contraseña”
+debe fallar.
+
+Debe separarse:
+
+- Cambio propio: exige contraseña anterior.
+- Restablecimiento administrativo: no exige contraseña anterior, pero registra
+  auditoría, obliga cambio posterior y requiere rol admin.
+
+A-02. NO SE PUEDE CERRAR DESDE LA UI UNA ENTRADA DE AYER
+
+Evidencia:
+- SalidaPanel usa exclusivamente GET /acceso/hoy.
+- sp_Acceso_Hoy filtra la fecha actual.
+
+Si una salida es opcional y CPF decide registrarla al día siguiente, la persona
+ya no aparece en la pantalla.
+
+Debe existir:
+GET /acceso/pendientes?edificioId=...
+que devuelva todas las entradas abiertas, con filtros y antigüedad visible.
+
+A-03. NO EXISTE SALIDA SIN ENTRADA PREVIA
+
+El requisito indicado permite registrar salida aunque el papel no tenga entrada
+o aunque la entrada se haya omitido. Actualmente solo existe:
+POST /acceso/salida/:id
+
+Debe definirse un movimiento o novedad independiente con:
+
+- edificio
+- persona/carnet
+- fecha y hora
+- usuario CPF
+- motivo “salida sin entrada encontrada”
+- observación obligatoria
+
+No conviene falsificar una entrada automática sin distinguirla.
+
+A-04. NO HAY PANTALLA DE REPORTES
+
+El backend tiene GET /acceso/reporte, pero React no tiene:
+
+- ruta de reportes
+- opción en el menú
+- filtros
+- exportación
+- vista “quién estuvo, dónde y por qué”
+
+El Dashboard solo muestra accesos del día y tampoco muestra MotivoAcceso.
+
+A-05. LOS DATOS DE PROVEEDOR/PL SE PIERDEN AL REGISTRAR
+
+Evidencia:
+- react/src/pages/RegistroPage.tsx, líneas 90-98.
+
+Cuando se selecciona una persona, solo se envían personaId y nombrePersona.
+No se envían cedulaPersona ni empresaPersona del resultado seleccionado.
+
+Impacto:
+Los reportes de proveedor, cocinero, conductor o PL quedan incompletos.
+
+A-06. FOTOGRAFÍAS SIN PUBLICACIÓN Y VALIDACIÓN COMPLETAS
+
+Evidencia:
+- AccesoService guarda en UPLOAD_PATH/fotos_acceso.
+- Retorna /control-acceso-uploads/fotos_acceso/archivo.webp.
+- Nginx envía esa ruta al puerto 3001.
+- Nest no configura useStaticAssets ni ServeStaticModule.
+
+Resultado probable:
+La fotografía puede guardarse, pero la URL pública no tiene una ruta estática
+implementada por Nest.
+
+Además faltan:
+
+- límite de tamaño
+- límite de dimensiones/píxeles
+- validación MIME real
+- manejo de archivo corrupto
+- política de retención
+- autorización de lectura
+- privacidad y consentimiento
+
+A-07. SCRIPTS SQL NO RECONSTRUYEN LA BASE ACTUAL
+
+Los scripts versionados no contienen varias columnas y parámetros que sí están
+en la base activa. Una instalación nueva o recuperación ante desastre quedaría
+incompatible con Nest.
+
+Debe crearse una migración idempotente que incluya:
+
+- tblPersonalExterno
+- EsCapacitacion
+- EdificioIdDefecto y su FK
+- MotivoAcceso
+- MotivoDetalle
+- stored procedures actualizados
+- permisos del usuario de aplicación
+
+A-08. MOTIVO DE ACCESO NO ES OBLIGATORIO
+
+El objetivo del reporte es saber quién estuvo y por qué. La interfaz marca el
+motivo como opcional y la base ya tiene 2 registros sin motivo.
+
+Recomendación:
+
+- Hacer MotivoAcceso obligatorio.
+- Si se elige “Otro”, hacer MotivoDetalle obligatorio.
+- Para salida sin entrada, exigir una observación.
+- No usar “Empresa / Motivo” como un único campo ambiguo.
+
+A-09. EVENTO DE CAPACITACIÓN PUEDE NO CORRESPONDER AL EDIFICIO
+
+La interfaz muestra todos los eventos activos, sin filtrar por:
+
+- edificio seleccionado
+- fecha vigente
+- rango de fechas
+- disponibilidad
+
+Además, si se elige “Capacitación”, seleccionar un evento sigue siendo opcional.
+
+Debe filtrar eventos por edificio y fecha, y exigir evento solo cuando el motivo
+real sea capacitación.
+
+======================================================================
+6. HALLAZGOS MEDIOS
+======================================================================
+
+M-01. FECHA “HASTA” DEL REPORTE PUEDE EXCLUIR CASI TODO EL ÚLTIMO DÍA
+
+new Date('AAAA-MM-DD') representa el inicio del día. SQL usa FechaEntrada <=
+Hasta. Por tanto, puede excluir registros posteriores a las 00:00.
+
+Solución:
+Usar rango semiabierto: FechaEntrada >= Desde y FechaEntrada < día siguiente.
+
+M-02. PAGINACIÓN SIN LÍMITES
+
+pagina y porPagina se convierten con parseInt sin validar:
+
+- cero
+- negativos
+- NaN
+- tamaños excesivos
+
+Limitar porPagina, por ejemplo entre 1 y 100.
+
+M-03. CORS ABIERTO
+
+app.enableCors() se ejecuta sin lista de orígenes.
+Restringir al dominio corporativo y métodos necesarios.
+
+M-04. SIN RATE LIMIT EN LOGIN Y BÚSQUEDAS
+
+No hay protección visible contra:
+
+- fuerza bruta CPF
+- enumeración de usuarios
+- abuso de dev-login
+- consultas masivas
+
+Añadir throttling, bloqueo temporal y auditoría de intentos.
+
+M-05. SESIÓN FRONTEND CONFÍA EN localStorage SIN REVALIDAR
+
+AuthProvider considera autenticado al usuario si existe JSON local, incluso si:
+
+- no existe token
+- el token expiró
+- el rol cambió
+- la cuenta fue desactivada
+
+Al cargar, debe consultar /auth/me y mostrar estado de verificación.
+
+M-06. TOKEN SSO EN QUERY STRING
+
+SsoHandlerPage toma token de window.location.search. Puede filtrarse a:
+
+- historial
+- logs del proxy
+- encabezado Referer
+- capturas
+
+Preferir código de un solo uso, fragmento URL o intercambio backend seguro.
+Limpiar la URL inmediatamente con history.replaceState.
+
+M-07. DOMINIO DE FOTOS ESCRITO EN EL COMPONENTE
+
+Dashboard concatena https://rhclaroni.com directamente.
+Esto falla o mezcla entornos de desarrollo, prueba y producción.
+
+Usar URL relativa o variable de entorno.
+
+M-08. ERRORES SQL NO SE TRADUCEN A MENSAJES HTTP ÚTILES
+
+Duplicados y datos incompletos aparecen como RequestError/500 en logs.
+Debe responder 400 o 409 con mensaje controlado y correlation ID.
+
+M-09. ADMINISTRACIÓN CPF INCOMPLETA
+
+No existe interfaz/API visible para:
+
+- desactivar cuenta
+- reactivar
+- cambiar edificio por defecto
+- cambiar tipo
+- ver último acceso
+- obligar cambio de contraseña
+- revisar auditoría
+
+M-10. FLUJO DE CARNET NO ESTÁ OPTIMIZADO PARA ESCÁNER
+
+El campo permite escribir y Enter, pero no hay:
+
+- modo escáner explícito
+- prevención clara del submit accidental
+- selección automática por coincidencia exacta
+- confirmación visual grande
+- foco restaurado después de guardar
+- sonido/feedback para puesto CPF
+
+Para reemplazar papel, el flujo ideal debe poder operar casi sin mouse.
+
+======================================================================
+7. HALLAZGOS BAJOS
+======================================================================
+
+B-01. Uso excesivo de any en React y Nest.
+B-02. Formularios de catálogo marcan todos los campos como obligatorios aunque
+      varios son opcionales en SQL.
+B-03. Tablas de catálogos no tienen búsqueda, paginación ni vista móvil propia.
+B-04. Se mezclan estilos CSS reutilizables con varios style={{...}} inline.
+B-05. Falta documentación operativa de respaldo, restauración, retención de
+      fotos, monitoreo y recuperación ante caída.
+
+======================================================================
+8. EVALUACIÓN DEL DISEÑO Y FACILIDAD DE USO
+======================================================================
+
+Lo bueno:
+
+- La identidad roja y blanca de Claro está respetada.
+- No se encontró color azul.
+- Gris, negro y verde se usan con función visual razonable.
+- Los botones tienen tamaño táctil mejorado en dispositivos coarse.
+- Existe versión móvil de accesos mediante tarjetas.
+- Los textos aclaran que no es marcación laboral.
+- Entrada y salida están juntas, apropiado para CPF.
+- El edificio predeterminado reduce pasos.
+
+Lo que aún confunde a una persona no técnica:
+
+- Seis tipos de persona aparecen al mismo nivel.
+- “Facilitador interno” y “Colaborador” buscan en la misma fuente.
+- “Proveedor”, “Visitante” y “Servicio Externo” pueden solaparse.
+- Hay dos conceptos visuales llamados “Motivo del acceso”:
+  uno para general/capacitación y otro catálogo de motivos.
+- “Empresa / Motivo” mezcla dos datos diferentes.
+- El curso no se filtra al edificio.
+- La salida solo muestra pendientes del día sin explicarlo.
+- No hay un paso final que muestre resumen completo antes de guardar.
+- No hay pantalla dedicada a reportes.
+
+Diseño recomendado del flujo CPF:
+
+1. Edificio preseleccionado y visible en la parte superior.
+2. Campo grande “Escanear o escribir carnet/código”.
+3. Coincidencia exacta automática.
+4. Si no existe, botón claro “Registrar visitante manual”.
+5. Mostrar tarjeta grande con nombre, tipo, empresa y foto.
+6. Elegir motivo obligatorio con botones grandes.
+7. Capacitación solo aparece en el edificio correspondiente.
+8. Botón rojo grande “Registrar entrada”.
+9. Confirmación verde durante 2-3 segundos.
+10. Limpiar formulario y devolver foco al escáner.
+11. Panel separado “Personas pendientes de salida”, incluyendo días anteriores.
+12. Acción “Salida sin entrada encontrada” con observación obligatoria.
+
+======================================================================
+9. POR QUÉ LAS 73 PRUEBAS NO DETECTARON TODO
+======================================================================
+
+La suite actual tiene valor, pero presenta límites:
+
+- Los GAP no fallan salvo STRICT_REQUIREMENTS=1.
+- No conserva automáticamente un reporte de ejecución.
+- No prueba el flujo completo con token CPF.
+- No prueba restablecimiento administrativo de contraseña.
+- No prueba entradas abiertas de días anteriores.
+- No prueba fotografía desde subida hasta visualización.
+- No prueba UI de reportes porque no existe.
+- No prueba escáner de carnet.
+- No prueba salida sin entrada.
+- No prueba fechas límite del reporte.
+- No prueba DTO porque no existen.
+- Las pruebas Jest propias del backend están vacías o rotas.
+
+Por tanto:
+“73 pruebas, 0 fallos” significa que ciertas comprobaciones seleccionadas
+pasaron, no que el producto esté completo.
+
+======================================================================
+10. PLAN DE CORRECCIÓN RECOMENDADO
+======================================================================
+
+FASE 0 — Contención de seguridad (antes de nuevos usuarios)
+
+1. Rotar credenciales expuestas.
+2. Hacer JWT_SECRET obligatorio.
+3. Deshabilitar dev-login en producción.
+4. Restringir CORS.
+5. Añadir rate limit al login.
+
+FASE 1 — Hacer funcional CPF
+
+1. Corregir JwtStrategy para conservar claims CPF.
+2. Corregir /auth/me CPF.
+3. Guardar correctamente UsuarioRegistra.
+4. Separar cambio propio y reset administrativo.
+5. Crear pruebas E2E del flujo CPF.
+
+FASE 2 — Completar el reemplazo del papel
+
+1. Endpoint y vista de entradas pendientes de cualquier fecha.
+2. Movimiento de salida sin entrada.
+3. Motivo obligatorio.
+4. Conservar empresa y cédula de proveedor/PL.
+5. Flujo rápido para escáner de carnet.
+
+FASE 3 — Reportes
+
+1. Pantalla React de reportes.
+2. Filtros por edificio, fecha, tipo, persona, CPF y motivo.
+3. Mostrar quién, por qué, entrada, salida y estado.
+4. Corregir límite inclusivo de fecha.
+5. Exportar Excel/CSV/PDF según necesidad real.
+
+FASE 4 — Fotografías y privacidad
+
+1. Servir archivos correctamente o usar almacenamiento dedicado.
+2. Validar tamaño, MIME y dimensiones.
+3. Autorizar visualización.
+4. Definir retención y eliminación.
+5. Evitar dominio fijo.
+
+FASE 5 — SQL y calidad
+
+1. Crear migraciones idempotentes completas.
+2. Añadir FK de EdificioIdDefecto.
+3. Corregir test para usar ControlAcceso.
+4. Crear DTO.
+5. Crear pruebas unitarias.
+6. Reparar Jest E2E/UUID.
+7. Ejecutar CI con STRICT_REQUIREMENTS=1.
+8. Guardar resultado de cada ejecución como artefacto.
+
+======================================================================
+11. CRITERIOS PARA SUBIR LA CALIFICACIÓN
+======================================================================
+
+Para alcanzar 7/10:
+
+- Cerrar los 4 críticos.
+- Corregir contraseña administrativa.
+- Habilitar pendientes anteriores.
+- Añadir pantalla básica de reportes.
+- Actualizar scripts SQL.
+- Tener E2E ejecutándose.
+
+Para alcanzar 8.5/10:
+
+- Agregar salida sin entrada.
+- Optimizar escáner de carnet.
+- Completar fotos seguras.
+- Motivo obligatorio.
+- Reportes exportables.
+- Pruebas de roles, CPF y fechas.
+- Monitoreo y auditoría.
+
+Para alcanzar 9/10 o más:
+
+- Revisión de seguridad independiente.
+- Prueba piloto con CPF reales.
+- Pruebas de carga y concurrencia.
+- Plan de respaldo/recuperación probado.
+- Política formal de datos personales y fotografías.
+- Métricas de tiempo por registro y errores de usuario.
+
+======================================================================
+12. VEREDICTO FINAL
+======================================================================
+
+¿El sistema funciona parcialmente?
+Sí.
+
+¿Registra entradas y salidas vinculadas a una entrada?
+Sí, para flujos correctamente autenticados y datos válidos.
+
+¿La salida puede ser opcional?
+Sí, la base permite FechaSalida nula.
+
+¿Permite cerrar cualquier entrada pendiente días después?
+No desde la interfaz actual.
+
+¿Permite salida sin entrada?
+No.
+
+¿Contempla PL y cocina?
+Sí mediante SERVICIO_EXTERNO, pero pierde datos de empresa/cédula al registrar
+una selección y todavía necesita mejorar el flujo.
+
+¿Contempla visitantes?
+Sí, con registro manual, pero el motivo no es obligatorio.
+
+¿Contempla capacitación solo en un edificio?
+Sí en el modelo activo, pero los eventos no se filtran bien.
+
+¿Existe reporte backend?
+Sí.
+
+¿Existe pantalla de reporte para el usuario?
+No.
+
+¿El flujo CPF está completamente correcto?
+No; el JWT pierde campos esenciales.
+
+¿Está listo para reemplazar totalmente el papel?
+No todavía.
+
+¿La base activa está razonablemente estructurada?
+Sí, pero contiene brechas y no puede reconstruirse fielmente con los scripts.
+
+¿El diseño visual está mejor?
+Sí. Es una de las áreas más avanzadas.
+
+¿La afirmación “todo está OK” es correcta?
+No. La interpretación correcta es:
+“Compila, el servicio está activo y varias funciones principales responden,
+pero quedan 28 hallazgos, incluyendo 4 críticos.”
+
+FIN DEL INFORME

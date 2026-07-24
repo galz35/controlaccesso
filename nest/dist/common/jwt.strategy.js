@@ -22,7 +22,15 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         });
     }
     async validate(payload) {
-        return { carnet: payload.carnet, nombre: payload.nombre, rol: payload.rol };
+        return {
+            sub: payload.sub,
+            carnet: payload.carnet || null,
+            username: payload.username || null,
+            nombre: payload.nombre,
+            rol: payload.rol,
+            tipo: payload.tipo || null,
+            cpf: payload.cpf || false,
+        };
     }
 };
 exports.JwtStrategy = JwtStrategy;

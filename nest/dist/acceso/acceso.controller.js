@@ -19,21 +19,28 @@ const passport_1 = require("@nestjs/passport");
 const acceso_service_1 = require("./acceso.service");
 const roles_decorator_1 = require("../common/roles.decorator");
 const roles_guard_1 = require("../common/roles.guard");
+const acceso_dto_1 = require("./dto/acceso.dto");
 let AccesoController = class AccesoController {
     constructor(acceso) {
         this.acceso = acceso;
     }
     async entrada(dto, req, foto) {
-        return this.acceso.registrarEntrada(dto, req.user.carnet, foto);
+        return this.acceso.registrarEntrada(dto, req.user.carnet || req.user.username || 'cpf', foto);
     }
     async salida(id) {
         return this.acceso.registrarSalida(id);
     }
+    async salidaIndependiente(dto, req) {
+        return this.acceso.registrarSalidaIndependiente(dto, req.user.carnet || req.user.username || 'cpf');
+    }
     async hoy(edificioId) {
         return this.acceso.accesosHoy(edificioId ? parseInt(edificioId) : undefined);
     }
-    async reporte(edificioId, tipoPersona, desde, hasta, pagina, porPagina) {
-        return this.acceso.reporte(edificioId ? parseInt(edificioId) : undefined, tipoPersona, desde, hasta, pagina ? parseInt(pagina) : 1, porPagina ? parseInt(porPagina) : 50);
+    async pendientes(edificioId) {
+        return this.acceso.accesosPendientes(edificioId ? parseInt(edificioId) : undefined);
+    }
+    async reporte(query) {
+        return this.acceso.reporte(query.edificioId, query.tipoPersona, query.desde, query.hasta, query.pagina || 1, query.porPagina || 50, query.motivoAcceso);
     }
 };
 exports.AccesoController = AccesoController;
@@ -45,7 +52,7 @@ __decorate([
     __param(1, (0, common_1.Req)()),
     __param(2, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:paramtypes", [acceso_dto_1.RegistrarEntradaDto, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "entrada", null);
 __decorate([
@@ -57,6 +64,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "salida", null);
 __decorate([
+    (0, common_1.Post)('salida-independiente'),
+    (0, roles_decorator_1.Roles)('admin', 'registrador'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [acceso_dto_1.SalidaIndependienteDto, Object]),
+    __metadata("design:returntype", Promise)
+], AccesoController.prototype, "salidaIndependiente", null);
+__decorate([
     (0, common_1.Get)('hoy'),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
     __param(0, (0, common_1.Query)('edificioId')),
@@ -65,16 +81,19 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "hoy", null);
 __decorate([
-    (0, common_1.Get)('reporte'),
+    (0, common_1.Get)('pendientes'),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
     __param(0, (0, common_1.Query)('edificioId')),
-    __param(1, (0, common_1.Query)('tipoPersona')),
-    __param(2, (0, common_1.Query)('desde')),
-    __param(3, (0, common_1.Query)('hasta')),
-    __param(4, (0, common_1.Query)('pagina')),
-    __param(5, (0, common_1.Query)('porPagina')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AccesoController.prototype, "pendientes", null);
+__decorate([
+    (0, common_1.Get)('reporte'),
+    (0, roles_decorator_1.Roles)('admin', 'registrador'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [acceso_dto_1.ReporteQueryDto]),
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "reporte", null);
 exports.AccesoController = AccesoController = __decorate([

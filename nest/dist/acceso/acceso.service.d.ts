@@ -31,7 +31,30 @@ export declare class AccesoService {
         motivoAcceso: any;
         motivoDetalle: any;
     }[]>;
-    reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina?: number, porPagina?: number): Promise<{
+    accesosPendientes(edificioId?: number): Promise<{
+        id: any;
+        tipoPersona: any;
+        personaId: any;
+        nombre: any;
+        cedula: any;
+        empresa: any;
+        edificio: any;
+        fotoUrl: any;
+        fechaEntrada: any;
+        fechaSalida: any;
+        usuarioRegistra: any;
+        motivoAcceso: any;
+        motivoDetalle: any;
+        antiguedadHoras: number;
+    }[]>;
+    registrarSalidaIndependiente(dto: {
+        edificioId: number;
+        personaId: string;
+        nombrePersona: string;
+        observacion: string;
+        motivoAcceso?: string;
+    }, usuario: string): Promise<any>;
+    reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina?: number, porPagina?: number, motivoAcceso?: string): Promise<{
         data: any;
         total: any;
         pagina: number;
