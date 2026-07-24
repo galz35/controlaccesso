@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SearchModule = void 0;
 const common_1 = require("@nestjs/common");
+const integration_module_1 = require("../integration/integration.module");
 const search_controller_1 = require("./search.controller");
 const search_service_1 = require("./search.service");
 let SearchModule = class SearchModule {
@@ -15,6 +16,7 @@ let SearchModule = class SearchModule {
 exports.SearchModule = SearchModule;
 exports.SearchModule = SearchModule = __decorate([
     (0, common_1.Module)({
+        imports: [integration_module_1.IntegrationModule],
         controllers: [search_controller_1.SearchController],
         providers: [search_service_1.SearchService],
     })

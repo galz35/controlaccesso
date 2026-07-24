@@ -12,9 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SearchService = void 0;
 const common_1 = require("@nestjs/common");
 const database_service_1 = require("../database/database.service");
+const hcm_service_1 = require("../integration/hcm.service");
 let SearchService = class SearchService {
-    constructor(db) {
+    constructor(db, hcm) {
         this.db = db;
+        this.hcm = hcm;
     }
     async buscarEmpleado(q) {
         const pool = await this.db.getPool();
@@ -49,10 +51,15 @@ let SearchService = class SearchService {
             .execute('sp_Buscar_PersonalExterno');
         return result.recordset;
     }
+    async obtenerFoto(carnet) {
+        const foto = await this.hcm.obtenerFotoEmpleado(carnet);
+        return { foto };
+    }
 };
 exports.SearchService = SearchService;
 exports.SearchService = SearchService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [database_service_1.DatabaseService])
+    __metadata("design:paramtypes", [database_service_1.DatabaseService,
+        hcm_service_1.HcmService])
 ], SearchService);
 //# sourceMappingURL=search.service.js.map

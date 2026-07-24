@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { HcmService } from '../integration/hcm.service';
 
 @Injectable()
 export class SearchService {
-  constructor(private db: DatabaseService) {}
+  constructor(
+    private db: DatabaseService,
+    private hcm: HcmService,
+  ) {}
 
   async buscarEmpleado(q: string) {
     const pool = await this.db.getPool();
@@ -41,5 +45,10 @@ export class SearchService {
       .input('Query', q)
       .execute('sp_Buscar_PersonalExterno');
     return result.recordset;
+  }
+
+  async obtenerFoto(carnet: string): Promise<{ foto: string | null }> {
+    const foto = await this.hcm.obtenerFotoEmpleado(carnet);
+    return { foto };
   }
 }

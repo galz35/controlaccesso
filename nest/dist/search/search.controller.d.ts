@@ -7,4 +7,7 @@ export declare class SearchController {
     instructor(q: string): Promise<import("mssql").IRecordSet<any>>;
     ubicaciones(): Promise<import("mssql").IRecordSet<any>>;
     personalExterno(q: string): Promise<import("mssql").IRecordSet<any>>;
+    foto(carnet: string): Promise<{
+        foto: string | null;
+    }>;
 }

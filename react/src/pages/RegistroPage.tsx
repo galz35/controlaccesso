@@ -80,6 +80,7 @@ export default function RegistroPage() {
   const [registrando, setRegistrando] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [fotoHcm, setFotoHcm] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const edificioSel = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
@@ -154,7 +155,13 @@ export default function RegistroPage() {
   };
 
   const seleccionar = (item: any) => {
-    setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2);
+    setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2); setFotoHcm(null);
+    // Fetch HCM photo for employees
+    if (item.carnet) {
+      api.get(`/search/foto/${item.carnet}`).then(r => {
+        if (r.data?.foto) setFotoHcm(r.data.foto);
+      }).catch(() => {});
+    }
   };
 
   const puedeRegistrar = (): boolean => {
@@ -190,7 +197,7 @@ export default function RegistroPage() {
       await api.post('/acceso/entrada', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       showSuccess(`Entrada registrada\n${selected?.nombre || nombreManual}\n${new Date().toLocaleTimeString()} · ${motivoAcceso}`);
       setSelected(null); setNombreManual(''); setCedulaManual(''); setEmpresaManual('');
-      setVieneCapacitacion(null); setEventoCursoId(''); setMotivoAcceso(''); setMotivoDetalle(''); setStep(1);
+      setVieneCapacitacion(null); setEventoCursoId(''); setMotivoAcceso(''); setMotivoDetalle(''); setFotoHcm(null); setStep(1);
       searchRef.current?.focus();
     } catch (err: any) { showError('Error', err?.response?.data?.message || 'No se pudo registrar el acceso'); }
     setRegistrando(false);
@@ -316,11 +323,16 @@ export default function RegistroPage() {
 
             {selected && (
               <div className="selected-person" style={{ justifyContent: 'space-between', padding: '12px 16px', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
-                <div>
-                  <div className="font-bold">{selected.nombre || selected.nombreCompleto}</div>
-                  <div className="text-sm text-muted">{selected.carnet || selected.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {fotoHcm && (
+                    <img src={fotoHcm} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                  )}
+                  <div>
+                    <div className="font-bold">{selected.nombre || selected.nombreCompleto}</div>
+                    <div className="text-sm text-muted">{selected.carnet || selected.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
+                  </div>
                 </div>
-                <button type="button" onClick={() => { setSelected(null); setStep(1); }} className="btn btn--ghost btn--sm">Cambiar</button>
+                <button type="button" onClick={() => { setSelected(null); setStep(1); setFotoHcm(null); }} className="btn btn--ghost btn--sm">Cambiar</button>
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SearchService } from './search.service';
 import { Roles } from '../common/roles.decorator';
@@ -28,4 +28,8 @@ export class SearchController {
   @Get('personal-externo')
   @Roles('admin', 'registrador')
   async personalExterno(@Query('q') q: string) { return this.search.buscarPersonalExterno(q || ''); }
+
+  @Get('foto/:carnet')
+  @Roles('admin', 'registrador')
+  async foto(@Param('carnet') carnet: string) { return this.search.obtenerFoto(carnet); }
 }

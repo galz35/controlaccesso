@@ -27,6 +27,7 @@ let SearchController = class SearchController {
     async instructor(q) { return this.search.buscarInstructor(q || ''); }
     async ubicaciones() { return this.search.buscarUbicaciones(); }
     async personalExterno(q) { return this.search.buscarPersonalExterno(q || ''); }
+    async foto(carnet) { return this.search.obtenerFoto(carnet); }
 };
 exports.SearchController = SearchController;
 __decorate([
@@ -68,6 +69,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], SearchController.prototype, "personalExterno", null);
+__decorate([
+    (0, common_1.Get)('foto/:carnet'),
+    (0, roles_decorator_1.Roles)('admin', 'registrador'),
+    __param(0, (0, common_1.Param)('carnet')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], SearchController.prototype, "foto", null);
 exports.SearchController = SearchController = __decorate([
     (0, common_1.Controller)('search'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),
