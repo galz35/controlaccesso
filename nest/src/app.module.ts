@@ -7,6 +7,7 @@ import { ProveedoresModule } from './proveedores/proveedores.module';
 import { InstructoresModule } from './instructores/instructores.module';
 import { CursosModule } from './cursos/cursos.module';
 import { EventosCursoModule } from './eventos-curso/eventos-curso.module';
+import { PersonalExternoModule } from './personal-externo/personal-externo.module';
 import { AccesoModule } from './acceso/acceso.module';
 import { SearchModule } from './search/search.module';
 import { AdminModule } from './admin/admin.module';
@@ -22,6 +23,7 @@ import { AppController } from './app.controller';
     InstructoresModule,
     CursosModule,
     EventosCursoModule,
+    PersonalExternoModule,
     AccesoModule,
     SearchModule,
     AdminModule,

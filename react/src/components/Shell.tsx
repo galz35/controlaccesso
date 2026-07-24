@@ -19,6 +19,7 @@ const navSections = [
       { label: 'Proveedores', icon: Users, to: '/control-acceso/proveedores' },
       { label: 'Instructores', icon: Users, to: '/control-acceso/instructores' },
       { label: 'Cursos', icon: BookOpen, to: '/control-acceso/cursos' },
+      { label: 'Personal Ext.', icon: Users, to: '/control-acceso/personal-externo' },
     ],
     minRole: 'registrador',
   },

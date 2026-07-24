@@ -24,4 +24,8 @@ export class SearchController {
   @Get('ubicaciones')
   @Roles('admin', 'registrador')
   async ubicaciones() { return this.search.buscarUbicaciones(); }
+
+  @Get('personal-externo')
+  @Roles('admin', 'registrador')
+  async personalExterno(@Query('q') q: string) { return this.search.buscarPersonalExterno(q || ''); }
 }

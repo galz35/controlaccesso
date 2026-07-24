@@ -42,6 +42,7 @@ export default function App() {
           <Route path="/control-acceso/proveedores" element={<ProtectedRoute><Shell><CatalogPage tipo="proveedores" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/instructores" element={<ProtectedRoute><Shell><CatalogPage tipo="instructores" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/cursos" element={<ProtectedRoute><Shell><CatalogPage tipo="cursos" /></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/personal-externo" element={<ProtectedRoute><Shell><CatalogPage tipo="personal-externo" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/admin-cpf" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><AdminCpfPage /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/forbidden" element={<ForbiddenPage />} />
           <Route path="*" element={<Navigate to="/control-acceso/" replace />} />

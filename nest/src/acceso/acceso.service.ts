@@ -14,7 +14,7 @@ export class AccesoService {
   ) {}
 
   async registrarEntrada(
-    dto: { edificioId: number; eventoCursoId?: number; tipoPersona: string; personaId: string; nombrePersona: string; cedulaPersona?: string; empresaPersona?: string },
+    dto: { edificioId: number; eventoCursoId?: number; tipoPersona: string; personaId: string; nombrePersona: string; cedulaPersona?: string; empresaPersona?: string; motivoAcceso?: string; motivoDetalle?: string },
     usuario: string,
     fotoFile?: Express.Multer.File,
   ) {
@@ -33,6 +33,8 @@ export class AccesoService {
       .input('EmpresaPersona', dto.empresaPersona || null)
       .input('FotoUrl', fotoUrl)
       .input('UsuarioRegistra', usuario)
+      .input('MotivoAcceso', dto.motivoAcceso || null)
+      .input('MotivoDetalle', dto.motivoDetalle || null)
       .execute('sp_Acceso_RegistrarEntrada');
 
     return result.recordset[0];
@@ -62,7 +64,7 @@ export class AccesoService {
       nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
       edificio: r.EdificioNombre, fotoUrl: r.FotoUrl,
       fechaEntrada: r.FechaEntrada, fechaSalida: r.FechaSalida,
-      usuarioRegistra: r.UsuarioRegistra,
+      usuarioRegistra: r.UsuarioRegistra, motivoAcceso: r.MotivoAcceso, motivoDetalle: r.MotivoDetalle,
     }));
   }
 
@@ -84,7 +86,7 @@ export class AccesoService {
         nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
         edificio: r.EdificioNombre, fotoUrl: r.FotoUrl,
         fechaEntrada: r.FechaEntrada, fechaSalida: r.FechaSalida,
-        usuarioRegistra: r.UsuarioRegistra,
+        usuarioRegistra: r.UsuarioRegistra, motivoAcceso: r.MotivoAcceso, motivoDetalle: r.MotivoDetalle,
       })),
       total, pagina, porPagina,
     };

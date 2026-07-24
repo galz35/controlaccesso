@@ -46,7 +46,7 @@ export default function DashboardPage() {
       <div className="kpi-grid">
         <div className="kpi-card kpi-card--red"><DoorOpen className="icon--md kpi-card__icon" /><div className="kpi-card__value">{totalEntradas}</div><div className="kpi-card__label">Entradas hoy</div></div>
         <div className="kpi-card kpi-card--dark"><LogOut className="icon--md kpi-card__icon" /><div className="kpi-card__value">{totalSalidas}</div><div className="kpi-card__label">Salidas</div></div>
-        <div className="kpi-card kpi-card--green"><Building2 className="icon--md kpi-card__icon" /><div className="kpi-card__value">{dentro}</div><div className="kpi-card__label">Dentro del edificio</div></div>
+        <div className="kpi-card kpi-card--green"><Building2 className="icon--md kpi-card__icon" /><div className="kpi-card__value">{dentro}</div><div className="kpi-card__label">Sin salida registrada</div></div>
       </div>
 
       <div className="card">
@@ -83,7 +83,7 @@ export default function DashboardPage() {
                         <td className="text-muted text-xs">{r.edificio}</td>
                         <td className="text-center">{r.fotoUrl ? <button onClick={() => setFotoPreview(r.fotoUrl)} className="btn btn--ghost btn--sm btn--icon" aria-label="Ver foto"><Camera className="icon icon--sm" /></button> : '-'}</td>
                         <td className="text-center text-xs">{new Date(r.fechaEntrada).toLocaleTimeString()}</td>
-                        <td className="text-center">{r.fechaSalida ? <span className="badge badge--neutral">{new Date(r.fechaSalida).toLocaleTimeString()}</span> : <span className="badge badge--success">Dentro</span>}</td>
+                        <td className="text-center">{r.fechaSalida ? <span className="badge badge--neutral">{new Date(r.fechaSalida).toLocaleTimeString()}</span> : <span className="badge badge--neutral">Sin salida</span>}</td>
                         <td className="text-center">{!r.fechaSalida && (
                           <button onClick={() => registrarSalida(r)} disabled={exitingId === r.id} className="btn btn--dark btn--sm">
                             {exitingId === r.id ? '…' : <><LogOut className="icon icon--sm" /> Salida</>}
@@ -103,7 +103,7 @@ export default function DashboardPage() {
                         <div className="access-card__name">{r.nombre}</div>
                         <span className="badge badge--neutral">{r.tipoPersona}</span>
                       </div>
-                      <div className="access-card__badge">{r.fechaSalida ? <span className="badge badge--neutral">Salió</span> : <span className="badge badge--success">Dentro</span>}</div>
+                      <div className="access-card__badge">{r.fechaSalida ? <span className="badge badge--neutral">Salió</span> : <span className="badge badge--neutral">Sin salida</span>}</div>
                     </div>
                     <div className="access-card__details">{r.edificio} {r.cedula ? `· ${r.cedula}` : ''}</div>
                     <div className="access-card__time">

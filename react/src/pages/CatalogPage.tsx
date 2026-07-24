@@ -9,6 +9,7 @@ const CATALOGOS: Record<string, { title: string; icon: any; fields: { key: strin
   proveedores: { title: 'Proveedores', icon: Users, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'ruc', label: 'RUC' }, { key: 'telefono', label: 'Teléfono' }, { key: 'correo', label: 'Correo' }, { key: 'empresa', label: 'Empresa' }] },
   instructores: { title: 'Instructores', icon: Users, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'telefono', label: 'Teléfono' }, { key: 'correo', label: 'Correo' }, { key: 'empresa', label: 'Empresa' }, { key: 'especialidad', label: 'Especialidad' }] },
   cursos: { title: 'Cursos', icon: BookOpen, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'descripcion', label: 'Descripción' }, { key: 'duracionHoras', label: 'Duración (horas)', type: 'number' }] },
+  'personal-externo': { title: 'Personal Externo', icon: Users, fields: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'empresa', label: 'Empresa' }, { key: 'servicio', label: 'Servicio' }, { key: 'telefono', label: 'Teléfono' }] },
 };
 
 export default function CatalogPage({ tipo }: { tipo: string }) {

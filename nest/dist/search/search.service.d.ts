@@ -6,4 +6,5 @@ export declare class SearchService {
     buscarProveedor(q: string): Promise<import("mssql").IRecordSet<any>>;
     buscarInstructor(q: string): Promise<import("mssql").IRecordSet<any>>;
     buscarUbicaciones(): Promise<import("mssql").IRecordSet<any>>;
+    buscarPersonalExterno(q: string): Promise<import("mssql").IRecordSet<any>>;
 }

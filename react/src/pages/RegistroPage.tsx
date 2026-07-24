@@ -13,6 +13,11 @@ const TIPOS = [
   { value: 'SERVICIO_EXTERNO', label: 'Servicio Externo (PL, Cocina)' },
 ];
 
+const MOTIVOS = [
+  'Comedor', 'Servicio de cocina', 'Carga y descarga', 'Conductor/transporte',
+  'Entrega', 'Mantenimiento', 'Reunión', 'Visita general', 'Capacitación', 'Otro',
+];
+
 export default function RegistroPage() {
   const { user } = useAuth();
   const [edificios, setEdificios] = useState<any[]>([]);
@@ -26,6 +31,8 @@ export default function RegistroPage() {
   const [edificioId, setEdificioId] = useState(user?.edificioIdDefecto ? String(user.edificioIdDefecto) : '');
   const [motivo, setMotivo] = useState<'general' | 'capacitacion' | null>(null);
   const [eventoCursoId, setEventoCursoId] = useState('');
+  const [motivoAcceso, setMotivoAcceso] = useState('');
+  const [motivoDetalle, setMotivoDetalle] = useState('');
   const [nombreManual, setNombreManual] = useState('');
   const [cedulaManual, setCedulaManual] = useState('');
   const [empresaManual, setEmpresaManual] = useState('');
@@ -57,6 +64,7 @@ export default function RegistroPage() {
       if (tipo === 'PROVEEDOR') endpoint = '/search/proveedor';
       else if (tipo === 'INSTRUCTOR_EXTERNO') endpoint = '/search/instructor';
       else if (tipo === 'INSTRUCTOR_INTERNO') endpoint = '/search/empleado';
+      else if (tipo === 'SERVICIO_EXTERNO') endpoint = '/search/personal-externo';
       const res = await api.get(endpoint, { params: { q: searchQ } });
       setResults(res.data || []);
     } catch { setError('Error al buscar. Intente de nuevo.'); }
@@ -89,10 +97,12 @@ export default function RegistroPage() {
         fd.append('empresaPersona', empresaManual);
       }
       if (foto) fd.append('foto', foto);
+      if (motivoAcceso) fd.append('motivoAcceso', motivoAcceso);
+      if (motivoDetalle) fd.append('motivoDetalle', motivoDetalle);
       await api.post('/acceso/entrada', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       showSuccess('Acceso registrado');
       setSelected(null); setNombreManual(''); setCedulaManual(''); setEmpresaManual(''); setFoto(null);
-      setEventoCursoId(''); setMotivo(null);
+      setEventoCursoId(''); setMotivo(null); setMotivoAcceso(''); setMotivoDetalle('');
     } catch (err: any) { showError('Error', err?.response?.data?.message || 'No se pudo registrar el acceso'); }
     setRegistrando(false);
   };
@@ -198,6 +208,17 @@ export default function RegistroPage() {
               </div>
             )}
 
+            <div className="form-group">
+              <label htmlFor="motivo-acceso" className="form-label">Motivo del acceso <span className="form-hint inline">(opcional)</span></label>
+              <div className="form-row">
+                <select id="motivo-acceso" className="form-control" value={motivoAcceso} onChange={e => setMotivoAcceso(e.target.value)} style={{ maxWidth: '60%' }}>
+                  <option value="">Seleccione un motivo…</option>
+                  {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input type="text" className="form-control" value={motivoDetalle} onChange={e => setMotivoDetalle(e.target.value)} placeholder="Detalle (opcional)" style={{ maxWidth: '40%' }} />
+              </div>
+            </div>
+
             <div className="form-group"><label className="form-label">Foto <span className="form-hint inline">(opcional)</span></label>
               <label className="foto-upload"><Camera className="icon text-muted" /><span className="text-muted text-sm">{foto ? foto.name : 'Subir foto'}</span><input type="file" accept="image/*" className="hidden" onChange={e => setFoto(e.target.files?.[0] || null)} /></label>
             </div>
@@ -251,11 +272,11 @@ function SalidaPanel() {
         ) : filtrados.length === 0 ? (
           <div className="empty-state empty-state--compact">
             <LogOut className="icon--lg empty-state__icon" />
-            <p className="empty-state__desc">{search ? 'Sin resultados para esa búsqueda' : 'No hay personas pendientes de salida'}</p>
+            <p className="empty-state__desc">{search ? 'Sin resultados para esa búsqueda' : 'No hay personas con salida pendiente'}</p>
           </div>
         ) : (
           <>
-            <p className="empty-state__desc mb-3">{hoy.length} persona(s) dentro de las instalaciones</p>
+            <p className="empty-state__desc mb-3">{hoy.length} persona(s) sin salida registrada</p>
             <div className="salida-list">
               {filtrados.map(r => (
                 <div key={r.id} className="salida-item">

@@ -12,6 +12,8 @@ export declare class AccesoService {
         nombrePersona: string;
         cedulaPersona?: string;
         empresaPersona?: string;
+        motivoAcceso?: string;
+        motivoDetalle?: string;
     }, usuario: string, fotoFile?: Express.Multer.File): Promise<any>;
     registrarSalida(id: number): Promise<any>;
     accesosHoy(edificioId?: number): Promise<{
@@ -26,6 +28,8 @@ export declare class AccesoService {
         fechaEntrada: any;
         fechaSalida: any;
         usuarioRegistra: any;
+        motivoAcceso: any;
+        motivoDetalle: any;
     }[]>;
     reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina?: number, porPagina?: number): Promise<{
         data: any;

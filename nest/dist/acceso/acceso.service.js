@@ -37,6 +37,8 @@ let AccesoService = class AccesoService {
             .input('EmpresaPersona', dto.empresaPersona || null)
             .input('FotoUrl', fotoUrl)
             .input('UsuarioRegistra', usuario)
+            .input('MotivoAcceso', dto.motivoAcceso || null)
+            .input('MotivoDetalle', dto.motivoDetalle || null)
             .execute('sp_Acceso_RegistrarEntrada');
         return result.recordset[0];
     }
@@ -65,7 +67,7 @@ let AccesoService = class AccesoService {
             nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
             edificio: r.EdificioNombre, fotoUrl: r.FotoUrl,
             fechaEntrada: r.FechaEntrada, fechaSalida: r.FechaSalida,
-            usuarioRegistra: r.UsuarioRegistra,
+            usuarioRegistra: r.UsuarioRegistra, motivoAcceso: r.MotivoAcceso, motivoDetalle: r.MotivoDetalle,
         }));
     }
     async reporte(edificioId, tipoPersona, desde, hasta, pagina = 1, porPagina = 50) {
@@ -85,7 +87,7 @@ let AccesoService = class AccesoService {
                 nombre: r.NombrePersona, cedula: r.CedulaPersona, empresa: r.EmpresaPersona,
                 edificio: r.EdificioNombre, fotoUrl: r.FotoUrl,
                 fechaEntrada: r.FechaEntrada, fechaSalida: r.FechaSalida,
-                usuarioRegistra: r.UsuarioRegistra,
+                usuarioRegistra: r.UsuarioRegistra, motivoAcceso: r.MotivoAcceso, motivoDetalle: r.MotivoDetalle,
             })),
             total, pagina, porPagina,
         };

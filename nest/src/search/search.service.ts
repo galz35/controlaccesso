@@ -34,4 +34,12 @@ export class SearchService {
     const result = await pool.request().execute('sp_Buscar_Ubicaciones');
     return result.recordset;
   }
+
+  async buscarPersonalExterno(q: string) {
+    const pool = await this.db.getPool();
+    const result = await pool.request()
+      .input('Query', q)
+      .execute('sp_Buscar_PersonalExterno');
+    return result.recordset;
+  }
 }

@@ -16,6 +16,8 @@ export declare class AccesoController {
         fechaEntrada: any;
         fechaSalida: any;
         usuarioRegistra: any;
+        motivoAcceso: any;
+        motivoDetalle: any;
     }[]>;
     reporte(edificioId?: string, tipoPersona?: string, desde?: string, hasta?: string, pagina?: string, porPagina?: string): Promise<{
         data: any;
