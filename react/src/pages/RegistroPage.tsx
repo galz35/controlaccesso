@@ -81,6 +81,7 @@ export default function RegistroPage() {
   const [error, setError] = useState('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [fotoHcm, setFotoHcm] = useState<string | null>(null);
+  const [loadingFoto, setLoadingFoto] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const edificioSel = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
@@ -156,11 +157,11 @@ export default function RegistroPage() {
 
   const seleccionar = (item: any) => {
     setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2); setFotoHcm(null);
-    // Fetch HCM photo for employees
     if (item.carnet) {
+      setLoadingFoto(true);
       api.get(`/search/foto/${item.carnet}`).then(r => {
         if (r.data?.foto) setFotoHcm(r.data.foto);
-      }).catch(() => {});
+      }).catch(() => {}).finally(() => setLoadingFoto(false));
     }
   };
 
@@ -293,8 +294,11 @@ export default function RegistroPage() {
             {results && results.length > 0 && (
               <div className="search-results" style={{ marginTop: 8 }}>
                 {results.map((r: any, i) => (
-                  <button key={i} type="button" onClick={() => seleccionar(r)} className="search-result-item">
-                    <div className="flex--1">
+                  <button key={i} type="button" onClick={() => seleccionar(r)} className="search-result-item" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--gray-500)', flexShrink: 0 }}>
+                      {(r.nombre || r.nombreCompleto || '?').charAt(0)}
+                    </div>
+                    <div className="flex--1" style={{ textAlign: 'left' }}>
                       <div className="font-bold">{r.nombre || r.nombreCompleto}</div>
                       <div className="text-xs text-muted">Carnet {r.carnet || r.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
                     </div>
@@ -323,13 +327,21 @@ export default function RegistroPage() {
 
             {selected && (
               <div className="selected-person" style={{ justifyContent: 'space-between', padding: '12px 16px', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {fotoHcm && (
-                    <img src={fotoHcm} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {loadingFoto ? (
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Loader2 className="icon icon--sm icon--spin" />
+                    </div>
+                  ) : fotoHcm ? (
+                    <img src={fotoHcm} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-red)' }} />
+                  ) : (
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'var(--gray-500)' }}>
+                      {(selected.nombre || selected.nombreCompleto || '?').charAt(0)}
+                    </div>
                   )}
                   <div>
-                    <div className="font-bold">{selected.nombre || selected.nombreCompleto}</div>
-                    <div className="text-sm text-muted">{selected.carnet || selected.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
+                    <div className="font-bold" style={{ fontSize: 16 }}>{selected.nombre || selected.nombreCompleto}</div>
+                    <div className="text-sm text-muted" style={{ marginTop: 2 }}>{selected.carnet || selected.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
                   </div>
                 </div>
                 <button type="button" onClick={() => { setSelected(null); setStep(1); setFotoHcm(null); }} className="btn btn--ghost btn--sm">Cambiar</button>
@@ -408,13 +420,19 @@ export default function RegistroPage() {
             </div>
 
             {step >= 2 && (selected || tipo === 'VISITANTE') && motivoAcceso && (
-              <div style={{ padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: 14 }}>
-                <div><strong>Persona:</strong> {selected?.nombre || nombreManual} · {selected?.carnet || selected?.cedula || cedulaManual || '—'}</div>
-                <div><strong>Edificio:</strong> {edificioSel?.Nombre || edificioSel?.nombre || '—'}</div>
-                <div><strong>Motivo:</strong> {motivoAcceso}{motivoDetalle ? ` · ${motivoDetalle}` : ''}</div>
-                {vieneCapacitacion === 'si' && eventoCursoId && (
-                  <div><strong>Capacitación:</strong> {eventos.find((ev: any) => String(ev.Id || ev.id) === eventoCursoId)?.CursoNombre || 'Seleccionado'}</div>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: 14 }}>
+                {fotoHcm && (
+                  <img src={fotoHcm} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-red)', flexShrink: 0 }} />
                 )}
+                <div>
+                  <div><strong>Persona:</strong> {selected?.nombre || nombreManual}</div>
+                  <div><strong>Código:</strong> {selected?.carnet || selected?.cedula || cedulaManual || '—'}</div>
+                  <div><strong>Edificio:</strong> {edificioSel?.Nombre || edificioSel?.nombre || '—'}</div>
+                  <div><strong>Motivo:</strong> {motivoAcceso}{motivoDetalle ? ` · ${motivoDetalle}` : ''}</div>
+                  {vieneCapacitacion === 'si' && eventoCursoId && (
+                    <div><strong>Capacitación:</strong> {eventos.find((ev: any) => String(ev.Id || ev.id) === eventoCursoId)?.CursoNombre || 'Seleccionado'}</div>
+                  )}
+                </div>
               </div>
             )}
 
