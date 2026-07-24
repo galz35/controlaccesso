@@ -441,7 +441,7 @@ export default function RegistroPage() {
                 {esCapacitacion && (
                   <button type="button"
                     className={`btn ${motivoAcceso === 'Capacitación' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
-                    onClick={() => { setMotivoAcceso('Capacitación'); setVieneCapacitacion('no'); setStep(3); }}>
+                    onClick={() => { setMotivoAcceso('Capacitación'); setVieneCapacitacion('si'); setStep(3); }}>
                     <GraduationCap className="icon icon--sm" /> Capacitación
                   </button>
                 )}
@@ -463,22 +463,19 @@ export default function RegistroPage() {
 
             {motivoAcceso === 'Capacitación' && esCapacitacion && (
               <div style={{ marginTop: 12, padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
-                <p style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>¿Esta entrada es por una capacitación?</p>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <button type="button" className={`btn ${vieneCapacitacion === 'no' ? 'btn--dark' : 'btn--secondary'} btn--sm`}
-                    onClick={() => { setVieneCapacitacion('no'); setEventoCursoId(''); }}>No</button>
-                  <button type="button" className={`btn ${vieneCapacitacion === 'si' ? 'btn--primary' : 'btn--secondary'} btn--sm`}
-                    onClick={() => { setVieneCapacitacion('si'); }}><GraduationCap className="icon icon--sm" /> Sí</button>
-                </div>
-                {vieneCapacitacion === 'si' && (
-                  <select className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError}>
-                    <option value="">{courseError ? 'Cursos no disponibles' : 'Seleccione un curso…'}</option>
-                    {!courseError && eventos.map((ev: any) => (
-                      <option key={ev.Id || ev.id} value={ev.Id || ev.id}>
-                        {ev.CursoNombre || ev.nombre} — {new Date(ev.FechaInicio).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
+                <label className="form-label" style={{ marginBottom: 8 }}>Seleccione el curso o evento de capacitación</label>
+                <select className="form-control" value={eventoCursoId} onChange={e => setEventoCursoId(e.target.value)} disabled={courseError} style={{ maxWidth: 400 }}>
+                  <option value="">{courseError ? 'Cursos no disponibles' : 'Seleccione un curso…'}</option>
+                  {!courseError && eventos.map((ev: any) => (
+                    <option key={ev.Id || ev.id} value={ev.Id || ev.id}>
+                      {ev.CursoNombre || ev.nombre} — {new Date(ev.FechaInicio).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+                {vieneCapacitacion === 'si' && eventoCursoId && (
+                  <p className="form-hint" style={{ marginTop: 4, color: 'var(--success)' }}>
+                    <Check className="icon icon--sm" /> Curso seleccionado
+                  </p>
                 )}
               </div>
             )}
@@ -492,17 +489,16 @@ export default function RegistroPage() {
             </div>
 
             {step >= 2 && (selected || tipo === 'VISITANTE') && motivoAcceso && (
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center', padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: 14 }}>
-                {fotoHcm && (
-                  <img src={fotoHcm} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-red)', flexShrink: 0 }} />
-                )}
-                <div>
+              <div style={{ padding: '10px 14px', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div><strong>{empleadoDetalle?.nombre || nombreManual}</strong></div>
                   <div className="text-muted text-xs">{empleadoDetalle?.carnet || cedulaManual || ''}</div>
-                  <div style={{ marginTop: 4 }}><strong>Edificio:</strong> {edificioSel?.Nombre || edificioSel?.nombre || '—'}</div>
-                  <div><strong>Motivo:</strong> {motivoAcceso}{motivoDetalle ? ` · ${motivoDetalle}` : ''}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 6, fontSize: 13 }}>
+                  <div><span className="text-muted">Edificio:</span> {edificioSel?.Nombre || edificioSel?.nombre || '—'}</div>
+                  <div><span className="text-muted">Motivo:</span> {motivoAcceso}{motivoDetalle ? ` · ${motivoDetalle}` : ''}</div>
                   {vieneCapacitacion === 'si' && eventoCursoId && (
-                    <div><strong>Capacitación:</strong> {eventos.find((ev: any) => String(ev.Id || ev.id) === eventoCursoId)?.CursoNombre || 'Seleccionado'}</div>
+                    <div><span className="text-muted">Capacitación:</span> {eventos.find((ev: any) => String(ev.Id || ev.id) === eventoCursoId)?.CursoNombre || 'Seleccionado'}</div>
                   )}
                 </div>
               </div>
