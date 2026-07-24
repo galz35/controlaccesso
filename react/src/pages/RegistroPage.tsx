@@ -70,6 +70,23 @@ export default function RegistroPage() {
     }
   }, [edificioId, edificios]);
 
+  // Cuando cambia edificio y hay persona seleccionada, buscar si tiene curso
+  useEffect(() => {
+    if (!esCapacitacion || !selected) return;
+    const pTipo = selected.carnet ? 'EMPLEADO' : (selected.tipo || tipo);
+    const pid = selected.carnet || selected.id;
+    if (pTipo && pid) {
+      api.get('/curso-participantes', { params: { tipoPersona: pTipo, personaId: String(pid) } })
+        .then(r => {
+          if (r.data && r.data.length > 0) {
+            setMotivo('capacitacion');
+            setEventoCursoId(String(r.data[0].EventoCursoId));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [edificioId, selected]);
+
   const buscar = async () => {
     if (!searchQ.trim()) return;
     setSearchLoading(true); setResults(null); setSelected(null); setSearched(true);
