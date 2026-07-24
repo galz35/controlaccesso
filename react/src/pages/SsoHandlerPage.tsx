@@ -7,9 +7,15 @@ export default function SsoHandlerPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Leer token desde query string (el Portal SSO envia asi)
+    const search = new URLSearchParams(window.location.search);
     const hash = window.location.hash.replace('#', '');
-    const params = new URLSearchParams(hash);
-    const token = params.get('token');
+    const hashParams = new URLSearchParams(hash);
+    const token = search.get('token') || hashParams.get('token');
+
+    // Limpiar la URL para no dejar el token en el historial
+    window.history.replaceState({}, document.title, '/control-acceso/auth/sso');
+
     if (!token) { setState('error'); setError('Token SSO no encontrado en la URL.'); return; }
     api.post('/auth/sso-login', { token })
       .then(res => { localStorage.setItem('token', res.data.access_token); localStorage.setItem('user', JSON.stringify(res.data.user)); window.location.href = '/control-acceso/'; })
