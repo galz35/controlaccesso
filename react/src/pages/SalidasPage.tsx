@@ -75,9 +75,12 @@ export default function SalidasPage() {
       <div className="card">
         <div className="card__header">
           <span className="card-title"><LogOut className="icon" /> Entradas sin salida registrada</span>
-          <span className="text-muted text-xs">{pendientes.length} persona(s)</span>
+          <span className="text-muted text-xs">{pendientes.length} entrada(s) sin salida registrada</span>
         </div>
         <div className="card__body card__body--flush">
+          <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--gray-500)', borderBottom: '1px solid var(--gray-100)' }}>
+            Esta lista no confirma que la persona siga dentro; la salida es opcional.
+          </div>
           {apiError ? (
             <div className="empty-state"><p className="empty-state__desc">No pudimos consultar los accesos activos.</p><button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button></div>
           ) : loading ? (

@@ -115,6 +115,11 @@ export default function ReportsPage() {
   }, [tab]);
 
   const buscar = () => {
+    const fechas = getFechas(draftPeriodo);
+    if (fechas.desde && fechas.hasta && fechas.desde > fechas.hasta) {
+      showError('La fecha "Desde" no puede ser mayor que la fecha "Hasta".');
+      return;
+    }
     setFiltroEdificio(draftEdificio);
     setFiltroTipo(draftTipo);
     setFiltroMotivo(draftMotivo);

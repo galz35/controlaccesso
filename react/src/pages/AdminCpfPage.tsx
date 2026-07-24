@@ -75,10 +75,10 @@ export default function AdminCpfPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-header__title"><KeyRound className="icon" /> Usuarios Externos (CPF)</h1>
-          <p className="page-header__subtitle"><Shield className="icon icon--sm v-middle" style={{ color: 'var(--brand-red)' }} /> Administración de cuentas para proveedores e instructores</p>
+          <h1 className="page-header__title"><KeyRound className="icon" /> Cuentas de Acceso</h1>
+          <p className="page-header__subtitle"><Shield className="icon icon--sm v-middle" style={{ color: 'var(--brand-red)' }} /> Usuarios para proveedores e instructores que registran accesos</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn btn--primary"><Plus className="icon icon--sm" /> Nuevo Usuario CPF</button>
+        <button onClick={() => setShowForm(true)} className="btn btn--primary"><Plus className="icon icon--sm" /> Nueva cuenta</button>
       </div>
 
       {showForm && (

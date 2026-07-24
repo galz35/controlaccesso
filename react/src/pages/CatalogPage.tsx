@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Pencil, Building2, Users, BookOpen, Save, Search, Upload } from 'lucide-react';
+import { Plus, Pencil, Building2, Users, BookOpen, Save, Search } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 
 interface FieldDef { key: string; label: string; type?: string }
 interface CatalogItem { Id?: number; id?: number; [key: string]: any }
 
-const CATALOGOS: Record<string, { title: string; icon: any; fields: FieldDef[] }> = {
-  edificios: { title: 'Edificios', icon: Building2, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'direccion', label: 'Dirección' }] },
-  proveedores: { title: 'Proveedores', icon: Users, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'ruc', label: 'RUC' }, { key: 'telefono', label: 'Teléfono' }, { key: 'correo', label: 'Correo' }, { key: 'empresa', label: 'Empresa' }] },
-  instructores: { title: 'Instructores', icon: Users, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'telefono', label: 'Teléfono' }, { key: 'correo', label: 'Correo' }, { key: 'empresa', label: 'Empresa' }, { key: 'especialidad', label: 'Especialidad' }] },
-  cursos: { title: 'Cursos', icon: BookOpen, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'descripcion', label: 'Descripción' }, { key: 'duracionHoras', label: 'Duración (horas)', type: 'number' }] },
-  'personal-externo': { title: 'Personal Externo', icon: Users, fields: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'empresa', label: 'Empresa' }, { key: 'servicio', label: 'Servicio' }, { key: 'telefono', label: 'Teléfono' }] },
+const CATALOGOS: Record<string, { title: string; subtitle: string; icon: any; fields: FieldDef[] }> = {
+  edificios: { title: 'Edificios', subtitle: 'Planteles, sedes y ubicaciones donde se registran accesos', icon: Building2, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'direccion', label: 'Dirección' }] },
+  proveedores: { title: 'Proveedores', subtitle: 'Empresas y personas que proveen servicios a Claro', icon: Users, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'ruc', label: 'RUC' }, { key: 'telefono', label: 'Teléfono' }, { key: 'correo', label: 'Correo' }, { key: 'empresa', label: 'Empresa' }] },
+  instructores: { title: 'Facilitadores', subtitle: 'Instructores internos y externos que imparten capacitaciones', icon: Users, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'telefono', label: 'Teléfono' }, { key: 'correo', label: 'Correo' }, { key: 'empresa', label: 'Empresa' }, { key: 'especialidad', label: 'Especialidad' }] },
+  cursos: { title: 'Cursos', subtitle: 'Cursos y eventos de capacitación disponibles en los planteles', icon: BookOpen, fields: [{ key: 'nombre', label: 'Nombre' }, { key: 'descripcion', label: 'Descripción' }, { key: 'duracionHoras', label: 'Duración (horas)', type: 'number' }] },
+  'personal-externo': { title: 'Personal Externo', subtitle: 'PL, cocina, carga, conductores y otros servicios', icon: Users, fields: [{ key: 'codigo', label: 'Código' }, { key: 'nombre', label: 'Nombre' }, { key: 'cedula', label: 'Cédula' }, { key: 'empresa', label: 'Empresa' }, { key: 'servicio', label: 'Servicio' }, { key: 'telefono', label: 'Teléfono' }] },
 };
 
 const ITEMS_POR_PAGINA = 15;
@@ -29,9 +29,6 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
   const [form, setForm] = useState<Record<string, any>>({});
   const [search, setSearch] = useState('');
   const [pagina, setPagina] = useState(1);
-  const [showImport, setShowImport] = useState(false);
-  const [importText, setImportText] = useState('');
-  const [importing, setImporting] = useState(false);
   const Icon = cfg.icon;
 
   const load = useCallback(async () => {
@@ -82,9 +79,11 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-header__title"><Icon /> {cfg.title}</h1>
+        <div>
+          <h1 className="page-header__title"><Icon /> {cfg.title}</h1>
+          <p className="page-header__subtitle" style={{ fontSize: 13, marginTop: 4 }}>{cfg.subtitle}</p>
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {isAdmin && tipo === 'cursos' && <button onClick={() => setShowImport(true)} className="btn btn--secondary"><Upload className="icon icon--sm" /> Importar</button>}
           {isAdmin && <button onClick={openNew} className="btn btn--primary"><Plus className="icon icon--sm" /> Nuevo</button>}
         </div>
       </div>
@@ -101,38 +100,6 @@ export default function CatalogPage({ tipo }: { tipo: string }) {
         <div className="alert alert--error" role="alert">
           <p>Error al cargar los datos.</p>
           <button onClick={load} className="btn btn--primary btn--sm mt-2">Reintentar</button>
-        </div>
-      ) : showImport && isAdmin && tipo === 'cursos' ? (
-        <div className="card mb-3">
-          <div className="card__header"><span className="card-title"><Upload className="icon" /> Importar cursos</span></div>
-          <div className="card__body">
-            <div className="form-group">
-              <label htmlFor="import-json" className="form-label">Lista de cursos (JSON)</label>
-              <textarea id="import-json" className="form-control" rows={10} value={importText}
-                onChange={e => setImportText(e.target.value)}
-                placeholder='[
-  {"nombre": "Curso de seguridad", "descripcion": "...", "duracionHoras": 8},
-  {"nombre": "Curso de alturas", "descripcion": "...", "duracionHoras": 16}
-]' style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }} />
-              <p className="form-hint">Formato: arreglo JSON con campos: nombre (requerido), descripcion, duracionHoras</p>
-            </div>
-            <div className="form-actions">
-              <button onClick={async () => {
-                try {
-                  const parsed = JSON.parse(importText);
-                  if (!Array.isArray(parsed) || parsed.length === 0) { showError('Debe ser un arreglo no vacío'); return; }
-                  setImporting(true);
-                  const res = await api.post('/cursos/importar', { cursos: parsed });
-                  showSuccess(`Importados ${res.data.importados} curso(s)`);
-                  setShowImport(false); setImportText(''); load();
-                } catch (err: any) { showError('Error', err?.response?.data?.message || 'JSON inválido'); }
-                setImporting(false);
-              }} disabled={importing || !importText.trim()} className="btn btn--primary">
-                {importing ? 'Importando…' : 'Importar cursos'}
-              </button>
-              <button type="button" onClick={() => { setShowImport(false); setImportText(''); }} className="btn btn--secondary">Cancelar</button>
-            </div>
-          </div>
         </div>
       ) : showForm && isAdmin ? (
         <form onSubmit={save} className="card mb-3">

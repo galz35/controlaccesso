@@ -153,6 +153,7 @@ export default function RegistroPage() {
     e.preventDefault();
     if (!puedeRegistrar()) { showError('Complete los campos requeridos'); return; }
     if (!motivoAcceso) { showError('Seleccione un motivo de acceso'); return; }
+    if (motivoAcceso === 'Otro' && !motivoDetalle.trim()) { showError('Debe describir el motivo al seleccionar "Otro".'); return; }
     if (isTraining && vieneCapacitacion === 'si' && !eventoCursoId) { showError('Seleccione el curso o evento de capacitación'); return; }
     setRegistrando(true);
     try {
@@ -338,9 +339,16 @@ export default function RegistroPage() {
             )}
 
             {motivoAcceso && motivoAcceso !== 'Capacitación' && (
-              <input type="text" className="form-control" style={{ marginTop: 8, maxWidth: 300 }}
-                value={motivoDetalle} onChange={e => setMotivoDetalle(e.target.value)}
-                placeholder="Detalle adicional (opcional)" />
+              <div>
+                <input type="text" className="form-control" style={{ marginTop: 8, maxWidth: 300 }}
+                  value={motivoDetalle} onChange={e => setMotivoDetalle(e.target.value)}
+                  placeholder={motivoAcceso === 'Otro' ? 'Describa el motivo (requerido)' : 'Detalle adicional (opcional)'} />
+                {motivoAcceso === 'Otro' && !motivoDetalle && (
+                  <p className="form-hint" style={{ color: 'var(--error)', marginTop: 4, fontSize: 12 }}>
+                    Debe describir el motivo al seleccionar "Otro".
+                  </p>
+                )}
+              </div>
             )}
 
             {motivoAcceso === 'Capacitación' && esCapacitacion && (

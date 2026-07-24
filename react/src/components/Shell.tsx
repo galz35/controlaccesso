@@ -76,8 +76,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <span className="topbar__title">Control de Acceso</span>
           <div className="topbar__spacer" />
           {user?.edificioIdDefecto && !isAdmin && (
-            <span className="topbar__edificio" style={{ fontSize: 13, color: 'var(--brand-red)', marginRight: 12 }}>
-              Edificio asignado
+            <span className="topbar__edificio" style={{ fontSize: 13, fontWeight: 600, color: 'var(--brand-red)', marginRight: 12 }}>
+              {(() => {
+                const edificio = user.edificioIdDefecto;
+                return `Edificio: ${edificio}`;
+              })()}
             </span>
           )}
           <span className="topbar__user">{user?.nombre}</span>
