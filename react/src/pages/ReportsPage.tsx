@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { FileText, Download, Search, X } from 'lucide-react';
 import { showError } from '../lib/swal';
+import { useAuth } from '../context/AuthContext';
 
 const TIPOS = ['', 'EMPLEADO', 'PROVEEDOR', 'INSTRUCTOR_EXTERNO', 'INSTRUCTOR_INTERNO', 'VISITANTE', 'SERVICIO_EXTERNO', 'SALIDA_INDEPENDIENTE'];
 const MOTIVOS = ['', 'Comedor', 'Servicio de cocina', 'Carga y descarga', 'Conductor/transporte', 'Entrega', 'Mantenimiento', 'Reunión', 'Visita general', 'Capacitación', 'Otro'];
 
 export default function ReportsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.rol === 'admin';
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(1);
@@ -23,8 +26,16 @@ export default function ReportsPage() {
   const [filtroHasta, setFiltroHasta] = useState('');
 
   useEffect(() => {
-    api.get('/edificios').then(r => setEdificios(r.data || [])).catch(() => {});
-  }, []);
+    api.get('/edificios').then(r => {
+      const all = r.data || [];
+      const allowed = isAdmin ? all : all.filter((item: any) =>
+        Number(item.Id || item.id) === Number(user?.edificioIdDefecto));
+      setEdificios(allowed);
+      if (!isAdmin && user?.edificioIdDefecto) {
+        setFiltroEdificio(String(user.edificioIdDefecto));
+      }
+    }).catch(() => {});
+  }, [isAdmin, user]);
 
   const load = useCallback(async (p: number) => {
     setLoading(true); setApiError(false);
@@ -119,6 +130,7 @@ export default function ReportsPage() {
               <label htmlFor="f-hasta" className="form-label">Hasta</label>
               <input id="f-hasta" type="date" className="form-control" value={filtroHasta} onChange={e => setFiltroHasta(e.target.value)} />
             </div>
+            {isAdmin && (
             <div className="form-group">
               <label htmlFor="f-edificio" className="form-label">Edificio</label>
               <select id="f-edificio" className="form-control" value={filtroEdificio} onChange={e => setFiltroEdificio(e.target.value)}>
@@ -126,6 +138,7 @@ export default function ReportsPage() {
                 {edificios.map((e: any) => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
               </select>
             </div>
+            )}
             <div className="form-group">
               <label htmlFor="f-tipo" className="form-label">Tipo de persona</label>
               <select id="f-tipo" className="form-control" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>

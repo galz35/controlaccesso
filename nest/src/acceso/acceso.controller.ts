@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Req, UseInterceptors, UploadedFile, ParseIntPipe, Res, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Req, UseInterceptors, UploadedFile, ParseIntPipe, Res, BadRequestException, NotFoundException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { AccesoService } from './acceso.service';
 import { Roles } from '../common/roles.decorator';
@@ -11,12 +12,16 @@ import { RegistrarEntradaDto, ReporteQueryDto, SalidaIndependienteDto } from './
 @Controller('acceso')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class AccesoController {
-  constructor(private acceso: AccesoService) {}
+  constructor(private acceso: AccesoService, private config: ConfigService) {}
 
   @Post('entrada')
   @Roles('admin', 'registrador')
   @UseInterceptors(FileInterceptor('foto', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
   async entrada(@Body() dto: RegistrarEntradaDto, @Req() req: any, @UploadedFile() foto?: Express.Multer.File) {
+    const photosEnabled = this.config.get('ENABLE_ACCESS_PHOTOS', 'false') === 'true';
+    if (foto && !photosEnabled) {
+      throw new BadRequestException('Carga de fotos no habilitada.');
+    }
     const edificioId = resolveBuilding(req.user, dto.edificioId);
     return this.acceso.registrarEntrada({ ...dto, edificioId: edificioId! }, req.user.carnet || req.user.username || 'cpf', foto);
   }

@@ -16,16 +16,22 @@ exports.AccesoController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const passport_1 = require("@nestjs/passport");
+const config_1 = require("@nestjs/config");
 const acceso_service_1 = require("./acceso.service");
 const roles_decorator_1 = require("../common/roles.decorator");
 const roles_guard_1 = require("../common/roles.guard");
 const building_resolver_1 = require("../common/building.resolver");
 const acceso_dto_1 = require("./dto/acceso.dto");
 let AccesoController = class AccesoController {
-    constructor(acceso) {
+    constructor(acceso, config) {
         this.acceso = acceso;
+        this.config = config;
     }
     async entrada(dto, req, foto) {
+        const photosEnabled = this.config.get('ENABLE_ACCESS_PHOTOS', 'false') === 'true';
+        if (foto && !photosEnabled) {
+            throw new common_1.BadRequestException('Carga de fotos no habilitada.');
+        }
         const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, dto.edificioId);
         return this.acceso.registrarEntrada({ ...dto, edificioId: edificioId }, req.user.carnet || req.user.username || 'cpf', foto);
     }
@@ -132,6 +138,6 @@ __decorate([
 exports.AccesoController = AccesoController = __decorate([
     (0, common_1.Controller)('acceso'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),
-    __metadata("design:paramtypes", [acceso_service_1.AccesoService])
+    __metadata("design:paramtypes", [acceso_service_1.AccesoService, config_1.ConfigService])
 ], AccesoController);
 //# sourceMappingURL=acceso.controller.js.map

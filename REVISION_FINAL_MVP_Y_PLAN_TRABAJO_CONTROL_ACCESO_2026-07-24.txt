@@ -1,0 +1,1131 @@
+REVISIÓN FINAL MVP Y PLAN DE TRABAJO
+SISTEMA CONTROL DE ACCESO — CLARO NICARAGUA
+
+Fecha: 2026-07-24
+Repositorio: /opt/apps/control-acceso
+Commit auditado: d5bed2c0af7b611367399b1d082885c94e65a3aa
+Commit base anterior: 77c9d2728e698d498e1a01d77bd09649a1f0b5cb
+Backend activo observado: PID 1233682, iniciado 2026-07-24 06:13:39 UTC
+
+Documentos comparados:
+- AUDITORIA_COMPLETA_V3_Y_CODIGO_RAPIDO_CONTROL_ACCESO_2026-07-24.txt
+- AUDITORIA_V4_POST_EJECUCION_REAL_CONTROL_ACCESO_2026-07-24.txt
+
+Objetivo de este documento:
+Cerrar la revisión con un alcance MVP preciso. No proponer otra reescritura, no
+agregar funciones innecesarias y entregar código concreto para quitar aquello
+que está dificultando terminar.
+
+Regla de negocio:
+- registra entrada y salida física de edificios;
+- no es asistencia laboral;
+- la salida normal es opcional;
+- puede registrarse una salida sin entrada previa;
+- CPF realiza el registro;
+- empleados tienen carnet/código físico;
+- visitante puede ser manual;
+- PL, cocina, carga, conductor y otros son SERVICIO_EXTERNO;
+- solo un edificio es de capacitación;
+- entrar a ese edificio no significa necesariamente ir a capacitación.
+
+Esta revisión fue de solo lectura sobre datos. No se registraron entradas,
+salidas ni usuarios. No se ejecutó restore. El único cambio realizado es este
+TXT.
+
+======================================================================
+1. VEREDICTO FINAL
+======================================================================
+
+CALIFICACIÓN DEL SISTEMA COMPLETO:        7.5 / 10
+PREPARACIÓN DEL NÚCLEO MVP:               8.1 / 10
+PREPARACIÓN PARA RETIRAR PAPEL:           7.4 / 10
+
+Conclusión:
+El sistema ya está cerca de un MVP útil. No necesita Flutter, Astro, otro
+backend, otra base ni un rediseño completo para empezar.
+
+Lo que debe hacerse ahora:
+
+1. Congelar nuevas funciones.
+2. Simplificar login y edificio CPF.
+3. Sacar fotografías del MVP.
+4. Dejar de usar TipoMovimiento en el flujo mínimo.
+5. Corregir health y backup.
+6. Actualizar ocho pruebas críticas.
+7. Ejecutar un smoke test real autorizado de punta a punta.
+
+Con esos pasos puede pilotarse el reemplazo del papel.
+
+No conviene seguir trabajando ahora en:
+- Flutter;
+- panel avanzado de auditoría;
+- Redis;
+- múltiples instancias;
+- fotos;
+- SSO visible dentro de esta página;
+- tabla nueva de eventos de movimiento;
+- notificaciones Slack;
+- rediseño visual total;
+- más catálogos.
+
+Esas tareas no desbloquean el objetivo principal.
+
+======================================================================
+2. ESTADO REAL ACTUAL
+======================================================================
+
+2.1 Repositorio
+
+- Git limpio antes de crear este documento.
+- HEAD coincide con origin/master.
+- Commits nuevos:
+  f53cfd1f: V7, correcciones y backend reiniciado.
+  d5bed2c0: V7-b, login empleado oculto.
+
+2.2 Despliegue
+
+Backend:
+- proceso reiniciado después de compilar V7;
+- inicio 06:13:39 UTC;
+- health API devuelve status=ok y database=connected.
+
+Frontend:
+- /var/www/control-acceso/index.html coincide por SHA-256 con react/dist;
+- V7-b está desplegado;
+- asset JS actual: index-Cfi6Ab25.js;
+- CSS actual: index-BW14g3SQ.css.
+
+Observación:
+Continúan dos daemons PM2. Solo uno es padre de la API. No bloquea el MVP hoy,
+pero debe consolidarse para evitar reinicios ambiguos.
+
+2.3 Builds
+
+- Nest build: PASS.
+- React build: PASS.
+- React lint: PASS con 1 warning no bloqueante.
+
+2.4 Pruebas
+
+- unitarias Nest: 4 PASS;
+- E2E: 2 PASS y termina;
+- SQL: 41 PASS, 6 GAP informativos/desactualizados;
+- API: 33 PASS, 1 GAP falso, 2 SKIP.
+
+Las suites todavía no reflejan V7. No pueden ser la única aceptación del MVP.
+
+2.5 Prueba directa de aislamiento V7
+
+JWT temporal CPF con edificio 121:
+
+- /auth/me: HTTP 200 y edificioIdDefecto=121;
+- reporte sin edificio: total 8, únicamente su alcance;
+- reporte edificio 121: total 8;
+- reporte edificio 1: HTTP 403;
+- usuario sin edificio: HTTP 403;
+- porPagina=501: HTTP 400;
+- foto inexistente: HTTP 404.
+
+JWT admin:
+- reporte global: HTTP 200.
+
+Conclusión:
+El aislamiento principal por edificio ya funciona en el backend V7.
+
+======================================================================
+3. QUÉ ES EXACTAMENTE EL MVP
+======================================================================
+
+INCLUIR:
+
+1. Login CPF con usuario y contraseña.
+2. Edificio asignado y fijo para CPF.
+3. Búsqueda por carnet/código/nombre.
+4. Tipos:
+   - Colaborador;
+   - Proveedor;
+   - Facilitador interno/externo;
+   - Visitante;
+   - Servicio externo: PL, cocina, carga, conductor, mantenimiento.
+5. Visitante manual.
+6. Motivo obligatorio.
+7. Entrada.
+8. Pendientes de cualquier fecha.
+9. Salida normal opcional.
+10. Salida sin entrada.
+11. Reporte por fecha/tipo/motivo.
+12. CSV.
+13. Admin asigna CPF a edificio.
+14. Un edificio puede asociar capacitación/evento.
+
+EXCLUIR TEMPORALMENTE:
+
+1. Fotos.
+2. Login empleado dentro de esta página.
+3. SSO visible en LoginPage.
+4. Dashboard sofisticado.
+5. Auditoría administrativa visible.
+6. Gestión de backups desde la web.
+7. Redis/rate limit distribuido.
+8. Flutter.
+9. Nueva tabla de movimientos.
+10. Notificaciones.
+11. Reportes analíticos avanzados.
+
+Motivo:
+El papel actual no requiere fotos, SSO visible, Redis ni una app móvil. Requiere
+capturar quién, dónde, cuándo, por qué y opcionalmente la salida.
+
+======================================================================
+4. FLUJO MVP RECOMENDADO
+======================================================================
+
+4.1 Inicio CPF
+
+Pantalla:
+
+CONTROL DE ACCESO
+Usuario: __________
+Contraseña: _______
+[ INGRESAR ]
+
+No mostrar pestaña Empleado.
+No mostrar aviso de Portal.
+No mostrar botón sin función.
+
+4.2 Registro de entrada
+
+Encabezado:
+
+Edificio: NOMBRE DEL EDIFICIO
+
+Para CPF, el edificio es texto fijo.
+Para admin puede ser selector.
+
+Paso 1:
+[ Escanee carnet o escriba nombre __________________ ] [Buscar]
+
+Paso 2:
+Tarjeta de persona:
+- nombre;
+- carnet/código;
+- tipo;
+- empresa;
+- cédula, si existe.
+
+Paso 3:
+Razón:
+- Comedor;
+- Cocina;
+- Carga/descarga;
+- Conductor;
+- Entrega;
+- Mantenimiento;
+- Reunión;
+- Visita;
+- Capacitación;
+- Otro.
+
+Paso 4, solo edificio capacitación:
+¿Viene a una capacitación?
+[No] [Sí]
+
+Si Sí:
+Curso/evento obligatorio.
+
+Paso 5:
+[ REGISTRAR ENTRADA ]
+
+Después:
+- confirmación verde;
+- conservar edificio;
+- limpiar persona/motivo;
+- foco vuelve al carnet.
+
+4.3 Salida normal
+
+- buscar entre todas las entradas sin salida;
+- mostrar nombre, edificio y fecha/hora entrada;
+- pulsar Salida;
+- confirmar;
+- quitar de pendientes.
+
+No llamar “persona dentro” como afirmación absoluta.
+Usar “Sin salida registrada”.
+
+4.4 Salida sin entrada
+
+Acción siempre visible:
+[ No aparece: registrar salida sin entrada ]
+
+Campos:
+- carnet/código;
+- nombre;
+- observación;
+- edificio fijo.
+
+Persistencia MVP:
+- TipoPersona=SALIDA_INDEPENDIENTE;
+- FechaEntrada=FechaSalida=ahora por compatibilidad;
+- MotivoAcceso=Salida sin entrada registrada;
+- MotivoDetalle=observación;
+- nunca aparece en pendientes.
+
+No crear otra tabla durante el MVP.
+
+4.5 Reporte
+
+Columnas mínimas:
+- fecha;
+- persona;
+- tipo con etiqueta;
+- código/cédula;
+- empresa;
+- motivo;
+- detalle;
+- edificio;
+- entrada;
+- salida;
+- registró.
+
+Para CPF:
+- edificio forzado.
+
+Para admin:
+- todos o uno.
+
+======================================================================
+5. LO QUE V7 RESOLVIÓ
+======================================================================
+
+RESUELTO:
+
+- backend nuevo reiniciado;
+- frontend nuevo desplegado;
+- reporte CPF sin filtro fuerza edificio;
+- otro edificio devuelve 403;
+- usuario sin edificio devuelve 403;
+- salida normal envía edificio autorizado;
+- exportación pagina en lotes de 500;
+- exportación muestra error;
+- detalle se incluye en CSV;
+- foto nueva guarda solo UUID;
+- foto inexistente devuelve 404;
+- admin registra acciones básicas;
+- health backend puede devolver 503;
+- CursoDto transforma duración a número;
+- botón empleado oculto cuando dev-login está deshabilitado;
+- submit empleado oculto;
+- E2E ya termina.
+
+PARCIAL:
+
+- foto requiere JWT, pero no comprueba edificio del registro;
+- auditoría se ejecuta en segundo plano y silencia errores;
+- health script depende de jq ausente;
+- backup apunta a un contenedor incorrecto y usa contraseña por defecto;
+- CSV aún no escapa comillas;
+- login ocultó empleado, pero estado inicial sigue siendo empleado;
+- capacitación continúa sin regla completa;
+- tests externos siguen desactualizados;
+- TipoMovimiento continúa incoherente.
+
+======================================================================
+6. BLOQUEADORES MVP
+======================================================================
+
+P0-01. LOGIN INICIA EN MODO OCULTO
+
+LoginPage:
+
+  useState<'empleado' | 'externo'>('empleado')
+
+En producción el botón Empleado está oculto, pero mode sigue siendo empleado.
+El usuario ve el aviso de Portal y debe pulsar la única pestaña visible
+“Externo” para mostrar el formulario.
+
+Para un MVP CPF:
+
+  const [mode, setMode] =
+    useState<'empleado' | 'externo'>('externo');
+
+Mejor todavía:
+Eliminar tabs del build MVP y renderizar directamente el formulario CPF.
+
+Código simplificado:
+
+  export default function LoginPage() {
+    const { login } = useAuth();
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const submit = async (event: React.FormEvent) => {
+      event.preventDefault();
+      setLoading(true);
+      setError('');
+      try {
+        await login(username.trim(), password, true);
+        window.location.href = '/control-acceso/';
+      } catch (err: any) {
+        setError(
+          err?.response?.data?.message ||
+          'Usuario o contraseña incorrectos.'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Renderizar únicamente usuario, contraseña e Ingresar.
+  }
+
+Conservar /auth/sso para integración futura, pero no mezclarlo en el MVP.
+
+P0-02. CPF VE 120 EDIFICIOS EN EL SELECTOR
+
+El backend impide guardar en otro edificio, pero la UI carga todos. Eso produce
+confusión y errores 403.
+
+RegistroPage:
+
+  api.get('/edificios').then(r => {
+    const all = r.data || [];
+    const allowed = user?.rol === 'admin'
+      ? all
+      : all.filter((item: any) =>
+          Number(item.Id || item.id) ===
+          Number(user?.edificioIdDefecto)
+        );
+
+    setEdificios(allowed);
+
+    if (user?.rol !== 'admin' &&
+        user?.edificioIdDefecto) {
+      setEdificioId(
+        String(user.edificioIdDefecto)
+      );
+    }
+  });
+
+Render:
+
+  {user?.rol === 'admin' ? (
+    <select ... />
+  ) : (
+    <div className="selected-person">
+      {edificioSel?.Nombre || edificioSel?.nombre}
+    </div>
+  )}
+
+ReportsPage debe aplicar la misma idea:
+- CPF no necesita selector de edificio;
+- admin sí.
+
+P0-03. HEALTH-CHECK FALLA AUNQUE API ESTÁ SANA
+
+Resultado observado:
+
+  ERROR - API no saludable:
+  {"status":"ok","database":"connected"}
+
+Causa:
+jq no está instalado.
+
+No agregar una dependencia solo para esto. Node ya existe.
+
+Reemplazar validación:
+
+  body=$(curl --fail --silent "$API_URL") || {
+    echo "API no responde"
+    exit 1
+  }
+
+  if printf '%s' "$body" | node -e '
+    let raw = "";
+    process.stdin.on("data", c => raw += c);
+    process.stdin.on("end", () => {
+      try {
+        const value = JSON.parse(raw);
+        process.exit(
+          value.status === "ok" &&
+          value.database === "connected"
+            ? 0
+            : 1
+        );
+      } catch {
+        process.exit(1);
+      }
+    });
+  '; then
+    echo "[$(date)] OK - API saludable"
+    exit 0
+  fi
+
+P0-04. BACKUP APUNTA AL CONTENEDOR INCORRECTO
+
+Script:
+
+  CONTAINER_NAME="sqlserver"
+
+Contenedor real:
+
+  sql2022
+
+Además:
+
+  SA_PASSWORD="${SA_PASSWORD:-TuPasswordFuerte2026}"
+
+No debe existir contraseña fallback.
+
+Código MVP:
+
+  CONTAINER_NAME="${CONTAINER_NAME:-sql2022}"
+  : "${SA_PASSWORD:?Defina SA_PASSWORD de forma segura}"
+
+Detectar sqlcmd:
+
+  SQLCMD_PATH=$(docker exec "$CONTAINER_NAME" sh -lc '
+    if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then
+      echo /opt/mssql-tools18/bin/sqlcmd
+    elif [ -x /opt/mssql-tools/bin/sqlcmd ]; then
+      echo /opt/mssql-tools/bin/sqlcmd
+    else
+      exit 1
+    fi
+  ') || {
+    echo "sqlcmd no encontrado en el contenedor"
+    exit 1
+  }
+
+Antes:
+
+  docker exec "$CONTAINER_NAME" \
+    mkdir -p /var/opt/mssql/backup
+
+Después de docker cp:
+
+  test -s "$BACKUP_FILE" || {
+    echo "Backup vacío o ausente"
+    exit 1
+  }
+
+No considerar terminado hasta:
+- crear archivo;
+- comprobar tamaño;
+- ejecutar RESTORE VERIFYONLY;
+- probar restore en ControlAcceso_RestoreTest.
+
+P0-05. TIPOMOVIMIENTO COMPLICA Y NO APORTA AL MVP
+
+La API y reporte ya usan:
+- TipoPersona;
+- FechaEntrada;
+- FechaSalida.
+
+TipoMovimiento no es necesario para sustituir papel.
+
+Problemas actuales:
+- no se crea en scripts;
+- registros antiguos: SALIDA_NOCTROL;
+- SP salida normal escribe SALIDA_EDITOR;
+- salida independiente depende de un default no versionado.
+
+Simplificación:
+No usar TipoMovimiento en ningún SP MVP.
+
+Cambiar 007:
+
+  UPDATE dbo.tblRegistroAcceso
+  SET FechaSalida = GETDATE()
+  WHERE Id = @Id
+    AND FechaSalida IS NULL
+    AND (
+      @EdificioIdAutorizado IS NULL OR
+      EdificioId = @EdificioIdAutorizado
+    );
+
+Eliminar:
+
+  TipoMovimiento = 'SALIDA_EDITOR'
+
+No borrar la columna ni modificar históricos ahora.
+Marcarla como legado y no leerla.
+
+Para salida independiente seguir usando TipoPersona.
+
+P0-06. FOTO DEBE SALIR DEL MVP
+
+No hay fotos en la base activa.
+La autorización todavía no verifica a qué edificio pertenece el archivo.
+
+La opción más rápida y segura:
+
+  VITE_ENABLE_ACCESS_PHOTOS=false
+  ENABLE_ACCESS_PHOTOS=false
+
+React:
+
+  const photosEnabled =
+    import.meta.env.VITE_ENABLE_ACCESS_PHOTOS === 'true';
+
+  {photosEnabled && (
+    // input de foto
+  )}
+
+Backend entrada:
+
+  if (foto && !photosEnabled) {
+    throw new BadRequestException(
+      'Carga de fotos no habilitada.'
+    );
+  }
+
+Ruta foto:
+
+  if (!photosEnabled) {
+    throw new NotFoundException();
+  }
+
+No invertir tiempo MVP en fotos. Volver a activarlas solo cuando
+assertPhotoAccess consulte el registro y aplique su EdificioId.
+
+======================================================================
+7. CORRECCIONES IMPORTANTES NO BLOQUEANTES
+======================================================================
+
+P1-01. ENTER EN BÚSQUEDA
+
+Actual:
+
+  onKeyDown={e =>
+    e.key === 'Enter' && buscar()
+  }
+
+Corregir:
+
+  onKeyDown={(event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    void buscar();
+  }}
+
+P1-02. CSV
+
+Actual:
+- neutraliza fórmula con tab;
+- no duplica comillas.
+
+Usar:
+
+  const csvCell = (value: unknown): string => {
+    let text = value == null
+      ? ''
+      : String(value);
+
+    if (/^[=+\-@]/.test(text)) {
+      text = `'${text}`;
+    }
+
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const csv = [
+    headers.map(csvCell).join(','),
+    ...rows.map(row =>
+      row.map(csvCell).join(',')
+    ),
+  ].join('\r\n');
+
+P1-03. CAPACITACIÓN SIMPLE
+
+No crear otro módulo.
+
+UI:
+- si edificio no es capacitación, no mostrar pregunta;
+- si es capacitación, motivo general por defecto;
+- si usuario elige capacitación, exigir evento.
+
+Al cambiar edificio:
+
+  const isTraining = Boolean(
+    selected?.EsCapacitacion ||
+    selected?.esCapacitacion
+  );
+
+  setMotivo(
+    isTraining ? 'general' : null
+  );
+
+Antes de registrar:
+
+  if (
+    esCapacitacion &&
+    motivo === 'capacitacion' &&
+    !eventoCursoId
+  ) {
+    showError('Seleccione el curso o evento');
+    return;
+  }
+
+Backend P1:
+Validar que EventoCursoId corresponda al mismo edificio. No es bloqueador de un
+piloto CPF controlado, pero sí antes de uso general.
+
+P1-04. FILTROS DE REPORTE
+
+Actualmente cada cambio consulta y además existe Buscar.
+
+Para MVP elegir una sola opción:
+
+Opción simple:
+- eliminar botón Buscar;
+- debounce 300 ms.
+
+Opción más predecible:
+- estados draft;
+- botón Aplicar;
+- load depende de filtrosAplicados.
+
+Para usuario no técnico recomiendo botón Aplicar.
+
+P1-05. ETIQUETAS
+
+Map:
+
+  const TYPE_LABELS: Record<string, string> = {
+    EMPLEADO: 'Colaborador',
+    PROVEEDOR: 'Proveedor',
+    INSTRUCTOR_EXTERNO: 'Facilitador externo',
+    INSTRUCTOR_INTERNO: 'Facilitador interno',
+    VISITANTE: 'Visitante',
+    SERVICIO_EXTERNO: 'Personal externo',
+    SALIDA_INDEPENDIENTE:
+      'Salida sin entrada',
+  };
+
+No mostrar códigos técnicos a CPF.
+
+======================================================================
+8. PRUEBAS MÍNIMAS DEL MVP
+======================================================================
+
+No se necesitan cien tests. Se necesitan estos casos:
+
+TEST 1 — autenticación CPF
+- login válido;
+- /auth/me conserva username, rol y edificio.
+
+TEST 2 — edificio
+- CPF 121 sin filtro obtiene solo 121;
+- CPF 121 solicitando 1 recibe 403;
+- CPF sin edificio recibe 403.
+
+TEST 3 — entrada
+- payload visitante válido llama SP con:
+  edificio autorizado;
+  nombre;
+  motivo;
+  actor.
+
+TEST 4 — salida normal
+- envía EdificioIdAutorizado;
+- ID de otro edificio falla;
+- salida ya cerrada falla.
+
+TEST 5 — salida independiente
+- acepta nombrePersona;
+- FechaSalida no queda NULL;
+- no aparece en pendientes.
+
+TEST 6 — reporte
+- máximo 500;
+- fecha hasta incluye día completo;
+- CPF solo su edificio.
+
+TEST 7 — CSV
+- exporta 501+ en dos páginas;
+- escapa comillas;
+- neutraliza fórmula;
+- error visible.
+
+TEST 8 — health
+- base conectada exit 0;
+- respuesta inválida exit 1;
+- database disconnected exit 1.
+
+TEST 9 — backup
+- archivo no vacío;
+- nombre/timestamp;
+- contenedor correcto;
+- VERIFYONLY.
+
+TEST 10 — React básico
+- login abre formulario CPF directamente;
+- salida excepcional visible sin pendientes;
+- Enter no envía entrada.
+
+Actualizar test/api_tests.js:
+
+- dejar de probar /acceso/salida como salida independiente;
+- probar POST /acceso/salida-independiente con payload inválido y esperar 400
+  sin escribir;
+- incluir /acceso/pendientes;
+- incluir aislamiento por edificio;
+- usar motivo permitido en pruebas mutantes.
+
+Actualizar test/sql_tests.js:
+
+- exigir sp_Acceso_Pendientes;
+- exigir sp_Acceso_SalidaIndependiente;
+- revisar el SP correcto;
+- leer 007;
+- dejar de reportar GAP falsos.
+
+======================================================================
+9. SMOKE TEST REAL NECESARIO
+======================================================================
+
+Esta auditoría no escribió datos. Antes del piloto se necesita una prueba
+autorizada de escritura.
+
+Usar edificio y usuario de prueba aprobados.
+
+Caso A:
+1. login CPF;
+2. registrar visitante:
+   PersonaId=PRUEBA-MVP-fecha;
+   nombre=PRUEBA CONTROLADA;
+   motivo=Otro;
+   detalle=Validación MVP;
+3. confirmar aparece en pendientes;
+4. registrar salida;
+5. confirmar desaparece de pendientes;
+6. confirmar reporte contiene entrada/salida/motivo/actor.
+
+Caso B:
+1. registrar salida sin entrada;
+2. confirmar FechaSalida no NULL;
+3. confirmar no aparece en pendientes;
+4. confirmar aparece en reporte como SALIDA_INDEPENDIENTE.
+
+Caso C:
+1. CPF edificio 121 intenta edificio 1;
+2. recibe 403;
+3. no se crea registro.
+
+La API no tiene borrado. Los movimientos deben conservarse como pruebas de
+auditoría o ejecutarse en base QA.
+
+======================================================================
+10. PLAN DE TRABAJO MVP
+======================================================================
+
+FASE 0 — 2 A 4 HORAS
+
+1. Login por defecto externo.
+2. Filtrar/fijar edificio CPF.
+3. preventDefault en Enter.
+4. deshabilitar fotos.
+5. quitar TipoMovimiento del UPDATE de salida.
+6. corregir health sin jq.
+7. corregir contenedor backup y exigir contraseña.
+
+Entrega:
+- build;
+- diff;
+- pruebas básicas.
+
+FASE 1 — 4 A 6 HORAS
+
+1. CSV robusto.
+2. capacitación UI simple.
+3. etiquetas humanas.
+4. actualizar test API/SQL.
+5. agregar 6-10 tests MVP.
+
+FASE 2 — 2 A 3 HORAS
+
+1. desplegar frontend/backend;
+2. comprobar un único proceso API;
+3. smoke read-only;
+4. smoke de escritura autorizado;
+5. backup real;
+6. validar reporte CSV.
+
+TOTAL ESTIMADO:
+1 a 2 días efectivos.
+
+No requiere una semana si se respeta el alcance.
+
+======================================================================
+11. ARCHIVOS A TOCAR
+======================================================================
+
+P0:
+- react/src/pages/LoginPage.tsx
+- react/src/pages/RegistroPage.tsx
+- react/src/pages/ReportsPage.tsx
+- nest/src/acceso/acceso.controller.ts
+- nest/src/acceso/acceso.service.ts
+- nest/src/main.ts
+- database/007_reconciliacion_v4.sql o nueva 008_mvp_fix.sql
+- scripts/check-health.sh
+- scripts/backup-db.sh
+
+Tests:
+- nest/src/acceso/acceso.service.spec.ts
+- nest/test/app.e2e-spec.ts
+- test/api_tests.js
+- test/sql_tests.js
+- test/README.md
+
+No tocar para MVP salvo error:
+- Flutter;
+- catálogos completos;
+- estilos generales;
+- dashboard;
+- integración Metabase;
+- SSO backend;
+- cursos CRUD;
+- auditoría visible.
+
+======================================================================
+12. MIGRACIÓN MVP PROPUESTA
+======================================================================
+
+Crear:
+
+  database/008_mvp_stabilization.sql
+
+Contenido mínimo:
+
+  USE ControlAcceso;
+  GO
+
+  CREATE OR ALTER PROCEDURE
+  dbo.sp_Acceso_RegistrarSalida
+    @Id INT,
+    @EdificioIdAutorizado INT = NULL
+  AS
+  BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE dbo.tblRegistroAcceso
+    SET FechaSalida = GETDATE()
+    WHERE Id = @Id
+      AND FechaSalida IS NULL
+      AND (
+        @EdificioIdAutorizado IS NULL OR
+        EdificioId = @EdificioIdAutorizado
+      );
+
+    IF @@ROWCOUNT = 0
+      THROW 51000,
+        'Registro no encontrado, cerrado o no autorizado.',
+        1;
+
+    SELECT
+      Id,
+      NombrePersona AS Nombre,
+      FechaSalida
+    FROM dbo.tblRegistroAcceso
+    WHERE Id = @Id;
+  END
+  GO
+
+No tocar TipoMovimiento.
+
+Añadir pruebas de existencia:
+
+  IF OBJECT_ID(
+    'dbo.sp_Acceso_Pendientes',
+    'P'
+  ) IS NULL
+    THROW 51001,
+      'Falta sp_Acceso_Pendientes',
+      1;
+
+  IF OBJECT_ID(
+    'dbo.sp_Acceso_SalidaIndependiente',
+    'P'
+  ) IS NULL
+    THROW 51002,
+      'Falta sp_Acceso_SalidaIndependiente',
+      1;
+
+No modificar los tres históricos SALIDA_NOCTROL automáticamente.
+
+======================================================================
+13. SEGURIDAD MÍNIMA MVP
+======================================================================
+
+Obligatorio:
+
+[ ] API escucha solo 127.0.0.1:3001.
+[ ] Nginx es el único acceso HTTP.
+[ ] app.set('trust proxy', 1), no true.
+[ ] JWT_SECRET obligatorio.
+[ ] dev-login bloqueado.
+[ ] CPF limitado a edificio.
+[ ] fotos deshabilitadas.
+[ ] contraseña backup sin fallback.
+[ ] no imprimir tokens/contraseñas.
+[ ] CORS solo dominio Claro.
+
+Cambios:
+
+  app.set('trust proxy', 1);
+
+  await app.listen(
+    port,
+    '127.0.0.1'
+  );
+
+Esto también reduce el riesgo de falsificar X-Forwarded-For directamente contra
+el puerto 3001.
+
+Puede posponerse:
+- Redis;
+- refresh token;
+- CSP avanzada;
+- rotación automatizada;
+- auditoría UI.
+
+======================================================================
+14. BACKUP MÍNIMO ANTES DE RETIRAR PAPEL
+======================================================================
+
+El sistema no puede sustituir papel sin recuperación.
+
+Requisitos:
+
+1. backup diario;
+2. retención 30 días;
+3. copia fuera del contenedor;
+4. copia fuera del VPS al menos diaria/semanal;
+5. checksum;
+6. VERIFYONLY;
+7. restore mensual en base temporal;
+8. log con exit code;
+9. alerta si falla.
+
+Contenedor real observado:
+
+  sql2022
+
+No:
+
+  sqlserver
+
+No usar:
+
+  SA_PASSWORD con fallback.
+
+======================================================================
+15. CRITERIOS GO / NO-GO
+======================================================================
+
+GO PARA PILOTO:
+
+[ ] CPF abre login directamente.
+[ ] edificio fijo.
+[ ] búsqueda carnet funciona.
+[ ] visitante funciona.
+[ ] PL/cocina funciona.
+[ ] motivo obligatorio.
+[ ] entrada aparece en pendientes.
+[ ] salida cierra.
+[ ] salida excepcional no queda pendiente.
+[ ] reporte muestra quién/por qué.
+[ ] CPF ajeno 403.
+[ ] CSV funciona.
+[ ] health exit 0.
+[ ] backup real creado.
+[ ] fotos deshabilitadas.
+
+NO-GO:
+
+- backend/frontend distintos;
+- CPF ve otro edificio;
+- salida independiente queda pendiente;
+- export falla;
+- no hay backup;
+- health da falso resultado;
+- fotos públicas o sin autorización;
+- prueba real entrada/salida no ejecutada.
+
+======================================================================
+16. CALIFICACIÓN POR ÁREA FINAL
+======================================================================
+
+Núcleo entrada:                          8.3 / 10
+Salida normal:                           8.0 / 10
+Salida independiente:                    7.8 / 10
+Edificio/autorización:                   8.5 / 10
+Reporte:                                 7.8 / 10
+Login CPF:                               7.2 / 10
+Diseño visual:                           8.1 / 10
+Facilidad no técnico:                    7.2 / 10
+SQL activo:                              7.5 / 10
+SQL reproducible:                        5.4 / 10
+Pruebas:                                 5.2 / 10
+Fotos:                                   4.5 / 10
+Backup/health:                           5.0 / 10
+Operación:                               7.0 / 10
+
+MVP si se deshabilitan fotos:             8.1 / 10
+Sistema completo actual:                  7.5 / 10
+
+======================================================================
+17. INSTRUCCIÓN CORTA PARA OTRO AGENTE
+======================================================================
+
+Implementa únicamente el MVP descrito aquí.
+
+Orden:
+
+1. Login externo por defecto.
+2. Edificio CPF fijo.
+3. Deshabilitar fotos.
+4. Eliminar TipoMovimiento del SP salida.
+5. Health sin jq.
+6. Backup para contenedor sql2022 sin password fallback.
+7. CSV correcto.
+8. Tests MVP.
+9. Smoke autorizado.
+
+No agregues módulos.
+No migres a Flutter.
+No rediseñes CSS.
+No borres históricos.
+No conviertas esto en asistencia.
+No hagas obligatoria la salida.
+No asumas capacitación por edificio.
+No declares listo sin backup y smoke real.
+
+======================================================================
+18. CONCLUSIÓN
+======================================================================
+
+El sistema ya superó la etapa de prototipo básico. V7 corrigió los problemas más
+graves de aislamiento y despliegue.
+
+La forma más rápida de terminar no es seguir agregando:
+
+- sacar fotos;
+- usar solo login CPF;
+- fijar edificio;
+- ignorar TipoMovimiento;
+- estabilizar health/backup;
+- probar diez casos.
+
+Después de 1-2 días de trabajo enfocado y un smoke de escritura autorizado, el
+MVP puede entrar en piloto para sustituir el papel de CPF.
+
+Calificación final:
+- sistema completo: 7.5/10;
+- núcleo MVP: 8.1/10.
+
+FIN DE REVISIÓN FINAL MVP

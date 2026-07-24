@@ -31,6 +31,7 @@ async function bootstrap() {
     const port = process.env.PORT || 3001;
     await app.listen(port);
     console.log(`Control Acceso API running on port ${port}`);
+    console.log(`Fotos: ${config.get('ENABLE_ACCESS_PHOTOS', 'false') === 'true' ? 'habilitadas' : 'deshabilitadas'}`);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

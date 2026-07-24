@@ -1,9 +1,11 @@
+import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { AccesoService } from './acceso.service';
 import { RegistrarEntradaDto, ReporteQueryDto, SalidaIndependienteDto } from './dto/acceso.dto';
 export declare class AccesoController {
     private acceso;
-    constructor(acceso: AccesoService);
+    private config;
+    constructor(acceso: AccesoService, config: ConfigService);
     entrada(dto: RegistrarEntradaDto, req: any, foto?: Express.Multer.File): Promise<any>;
     salida(id: number, req: any): Promise<any>;
     salidaIndependiente(dto: SalidaIndependienteDto, req: any): Promise<any>;

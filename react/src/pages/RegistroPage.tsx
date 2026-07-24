@@ -41,19 +41,24 @@ export default function RegistroPage() {
   const [foto, setFoto] = useState<File | null>(null);
   const [error, setError] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const photosEnabled = import.meta.env.VITE_ENABLE_ACCESS_PHOTOS === 'true';
 
   const edificioSel = edificios.find(e => (e.Id || e.id) === parseInt(edificioId));
   const esCapacitacion = edificioSel?.EsCapacitacion || edificioSel?.esCapacitacion;
 
   useEffect(() => {
     api.get('/edificios').then(r => {
-      const items = r.data || [];
-      setEdificios(items);
-      if (items.length === 1 && (items[0]?.EsCapacitacion || items[0]?.esCapacitacion)) {
+      const all = r.data || [];
+      const allowed = user?.rol === 'admin' ? all : all.filter((item: any) =>
+        Number(item.Id || item.id) === Number(user?.edificioIdDefecto));
+      setEdificios(allowed);
+      if (user?.rol !== 'admin' && user?.edificioIdDefecto) {
+        setEdificioId(String(user.edificioIdDefecto));
+      } else if (allowed.length === 1 && (allowed[0]?.EsCapacitacion || allowed[0]?.esCapacitacion)) {
         setMotivo('general');
       }
     }).catch(() => setError('No se pudieron cargar los edificios'));
-  }, []);
+  }, [user]);
 
   // Load eventos when training building is selected
   useEffect(() => {
@@ -146,7 +151,7 @@ export default function RegistroPage() {
                 <label htmlFor="search-persona" className="form-label form-label--required">Buscar persona</label>
                 <div className="form-row">
                   <input id="search-persona" type="text" className="form-control" value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && buscar()} placeholder="Buscar por nombre o carnet…" ref={searchRef} autoFocus />
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscar(); } }} placeholder="Buscar por nombre o carnet…" ref={searchRef} autoFocus />
                   <button type="button" onClick={buscar} className="btn btn--primary btn--sm" disabled={searchLoading}>
                     {searchLoading ? <Loader2 className="icon icon--sm icon--spin" /> : <Search className="icon icon--sm" />} Buscar
                   </button>
@@ -186,10 +191,14 @@ export default function RegistroPage() {
               </>
             )}
             <div className="form-group"><label htmlFor="edificio" className="form-label form-label--required">Edificio</label>
-              <select id="edificio" className="form-control" value={edificioId} onChange={e => { setEdificioId(e.target.value); setMotivo(null); setEventoCursoId(''); }}>
-                <option value="">Seleccione un edificio…</option>
-                {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
-              </select>
+              {user?.rol === 'admin' ? (
+                <select id="edificio" className="form-control" value={edificioId} onChange={e => { setEdificioId(e.target.value); setMotivo(null); setEventoCursoId(''); }}>
+                  <option value="">Seleccione un edificio…</option>
+                  {edificios.map(e => <option key={e.Id || e.id} value={e.Id || e.id}>{e.Nombre || e.nombre}</option>)}
+                </select>
+              ) : (
+                <div className="selected-person" style={{ fontWeight: 600 }}>{edificioSel?.Nombre || edificioSel?.nombre || 'Cargando…'}</div>
+              )}
             </div>
 
             {/* Motivo del acceso (solo para edificio de capacitación) */}
@@ -232,9 +241,11 @@ export default function RegistroPage() {
               </div>
             </div>
 
+            {photosEnabled && (
             <div className="form-group"><label className="form-label">Foto <span className="form-hint inline">(opcional)</span></label>
               <label className="foto-upload"><Camera className="icon text-muted" /><span className="text-muted text-sm">{foto ? foto.name : 'Subir foto'}</span><input type="file" accept="image/*" className="hidden" onChange={e => setFoto(e.target.files?.[0] || null)} /></label>
             </div>
+            )}
             <button type="submit" disabled={!puedeRegistrar() || registrando} className="btn btn--primary btn--block btn--lg">
               {registrando ? <span className="spinner spinner--white" /> : <DoorOpen className="icon icon--sm" />}
               {registrando ? 'Registrando…' : 'Registrar Entrada al Edificio'}
