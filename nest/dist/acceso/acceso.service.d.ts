@@ -15,7 +15,7 @@ export declare class AccesoService {
         motivoAcceso?: string;
         motivoDetalle?: string;
     }, usuario: string, fotoFile?: Express.Multer.File): Promise<any>;
-    registrarSalida(id: number): Promise<any>;
+    registrarSalida(id: number, user?: any): Promise<any>;
     accesosHoy(edificioId?: number): Promise<{
         id: any;
         tipoPersona: any;
@@ -60,5 +60,6 @@ export declare class AccesoService {
         pagina: number;
         porPagina: number;
     }>;
+    assertPhotoAccess(fileName: string, user: any): Promise<string>;
     private savePhoto;
 }

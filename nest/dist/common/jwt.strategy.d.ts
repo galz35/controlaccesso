@@ -10,6 +10,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         rol: any;
         tipo: any;
         cpf: any;
+        edificioIdDefecto: any;
     }>;
 }
 export {};

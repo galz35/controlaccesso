@@ -1,12 +1,13 @@
+import { Response } from 'express';
 import { AccesoService } from './acceso.service';
 import { RegistrarEntradaDto, ReporteQueryDto, SalidaIndependienteDto } from './dto/acceso.dto';
 export declare class AccesoController {
     private acceso;
     constructor(acceso: AccesoService);
     entrada(dto: RegistrarEntradaDto, req: any, foto?: Express.Multer.File): Promise<any>;
-    salida(id: number): Promise<any>;
+    salida(id: number, req: any): Promise<any>;
     salidaIndependiente(dto: SalidaIndependienteDto, req: any): Promise<any>;
-    hoy(edificioId?: string): Promise<{
+    hoy(raw: string, req: any): Promise<{
         id: any;
         tipoPersona: any;
         personaId: any;
@@ -21,7 +22,7 @@ export declare class AccesoController {
         motivoAcceso: any;
         motivoDetalle: any;
     }[]>;
-    pendientes(edificioId?: string): Promise<{
+    pendientes(raw: string, req: any): Promise<{
         id: any;
         tipoPersona: any;
         personaId: any;
@@ -37,10 +38,11 @@ export declare class AccesoController {
         motivoDetalle: any;
         antiguedadHoras: any;
     }[]>;
-    reporte(query: ReporteQueryDto): Promise<{
+    reporte(query: ReporteQueryDto, req: any): Promise<{
         data: any;
         total: any;
         pagina: number;
         porPagina: number;
     }>;
+    getFoto(fileName: string, req: any, res: Response): Promise<void>;
 }

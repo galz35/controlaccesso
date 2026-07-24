@@ -51,6 +51,7 @@ export class CpfAuthService {
     const token = this.jwt.sign({
       sub: user.Id, username: user.Username, nombre: user.Nombre,
       rol: user.Rol, tipo: user.Tipo, cpf: true,
+      edificioIdDefecto: user.EdificioIdDefecto ?? null,
     });
 
     return {

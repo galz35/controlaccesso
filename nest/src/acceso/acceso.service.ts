@@ -40,12 +40,18 @@ export class AccesoService {
     return result.recordset[0];
   }
 
-  async registrarSalida(id: number) {
+  async registrarSalida(id: number, user?: any) {
     const pool = await this.db.getPool();
     try {
-      const result = await pool.request()
-        .input('Id', id)
-        .execute('sp_Acceso_RegistrarSalida');
+      const request = pool.request()
+        .input('Id', id);
+      if (user && user.rol !== 'admin') {
+        const assigned = Number(user?.edificioIdDefecto);
+        if (Number.isInteger(assigned) && assigned >= 1) {
+          request.input('EdificioIdAutorizado', assigned);
+        }
+      }
+      const result = await request.execute('sp_Acceso_RegistrarSalida');
       return result.recordset[0];
     } catch (err: any) {
       console.error('Salida error:', err.number, err.message?.substring(0, 100));
@@ -96,7 +102,7 @@ export class AccesoService {
       .input('UsuarioRegistra', usuario)
       .input('Observacion', dto.observacion)
       .execute('sp_Acceso_SalidaIndependiente');
-    return { ...result.recordset[0], tipo: 'SALIDA_NOCTROL' };
+    return { ...result.recordset[0], tipo: 'SALIDA_INDEPENDIENTE' };
   }
 
   async reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina = 1, porPagina = 50, motivoAcceso?: string) {
@@ -124,6 +130,12 @@ export class AccesoService {
     };
   }
 
+  async assertPhotoAccess(fileName: string, user: any): Promise<string> {
+    const uploadPath = this.config.get<string>('UPLOAD_PATH', './uploads');
+    const dir = path.join(uploadPath, 'fotos_acceso');
+    return path.resolve(dir);
+  }
+
   private async savePhoto(file: Express.Multer.File): Promise<string> {
     const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedMimes.includes(file.mimetype)) {
@@ -139,6 +151,6 @@ export class AccesoService {
     const fileName = `${uuidv4()}.webp`;
     const filePath = path.join(dir, fileName);
     await sharp(file.buffer).resize({ width: 800, withoutEnlargement: true }).webp({ quality: 70 }).toFile(filePath);
-    return `/control-acceso-uploads/fotos_acceso/${fileName}`;
+    return `fotos_acceso/${fileName}`;
   }
 }

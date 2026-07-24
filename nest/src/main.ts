@@ -8,6 +8,7 @@ import * as path from 'path';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
+  app.set('trust proxy', true);
 
   const config = app.get(ConfigService);
   const nodeEnv = config.get<string>('NODE_ENV', 'development');
@@ -26,17 +27,6 @@ async function bootstrap() {
     whitelist: true, forbidNonWhitelisted: true, transform: true,
     disableErrorMessages: nodeEnv === 'production',
   }));
-
-  // Servir archivos subidos (fotos)
-  const uploadPath = config.get<string>('UPLOAD_PATH', './uploads');
-  app.useStaticAssets(path.resolve(uploadPath), {
-    prefix: '/control-acceso-uploads/',
-    maxAge: '30d',
-    setHeaders: (res) => {
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Cache-Control', 'public, immutable, max-age=2592000');
-    },
-  });
 
   // Validar JWT_SECRET
   const jwtSecret = config.get<string>('JWT_SECRET');

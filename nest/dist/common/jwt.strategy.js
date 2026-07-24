@@ -34,6 +34,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
             rol: payload.rol,
             tipo: payload.tipo || null,
             cpf: payload.cpf || false,
+            edificioIdDefecto: payload.edificioIdDefecto ?? null,
         };
     }
 };

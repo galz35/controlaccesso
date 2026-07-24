@@ -1,0 +1,1872 @@
+AUDITORÍA COMPLETA V3 Y GUÍA DE CÓDIGO RÁPIDO
+SISTEMA CONTROL DE ACCESO — CLARO NICARAGUA
+
+Fecha: 2026-07-24
+Repositorio: /opt/apps/control-acceso
+Commit auditado: f173ab9d400f416bef41c5d5c0aca5f94af840f3
+Comparación principal: V2 en commit 099809822b4c6d2fb4c573290a54a2487acb9e8e
+Documento V2 comparado:
+/opt/apps/control-acceso/AUDITORIA_INDEPENDIENTE_V2_CONTROL_ACCESO_2026-07-24.txt
+
+Alcance:
+- React, HTML generado, CSS y experiencia operativa.
+- NestJS, autenticación, autorización, DTO y carga de fotos.
+- SQL Server activo y scripts versionados.
+- Nginx, proceso activo, puertos y versión desplegada.
+- Pruebas unitarias, E2E, SQL y API.
+- Flujo real de CPF para entrada/salida física de edificios.
+- Empleados con carnet, visitantes, proveedores, instructores y personal
+  externo PL/cocina/carga/conductores.
+- Capacitación únicamente en el edificio configurado para ello.
+
+Regla de negocio usada durante toda la auditoría:
+Este NO es un sistema de asistencia ni de horario laboral. Registra movimientos
+físicos de entrada y salida de edificios. La salida de una visita normal puede
+quedar sin registrar. También debe poder documentarse una salida observada sin
+que exista una entrada previa. El objetivo es sustituir el papel utilizado por
+CPF y conservar quién estuvo, dónde, cuándo y por qué.
+
+Esta auditoría fue de solo lectura respecto de la aplicación y los datos. No se
+modificaron tablas, movimientos, usuarios ni código productivo. El único archivo
+nuevo es este documento.
+
+======================================================================
+1. VEREDICTO EJECUTIVO
+======================================================================
+
+CALIFICACIÓN GENERAL V3: 6.8 / 10
+Calificación V2:             6.1 / 10
+Avance comprobado:          +0.7 puntos
+
+Conclusión corta:
+
+Sí avanzó. El cambio desde V2 es considerable: se modificaron 54 archivos,
+se agregaron aproximadamente 1,759 líneas, se restringió CORS, se configuró
+producción, se eliminó el fallback JWT, se conectaron pendientes y reset de
+contraseña, se añadió una UI de salida independiente, se mejoró el reporte,
+se agregaron límites básicos a fotografías y aparecieron pruebas unitarias.
+
+Sin embargo, no está terminado ni debe declararse “todo OK”.
+
+Las correcciones más importantes quedaron conectadas a medias:
+
+1. La salida independiente existe en React, Nest y en la base activa, pero el
+   formulario React envía un nombre de propiedad distinto al DTO. La prueba
+   directa del payload exacto de la UI devolvió HTTP 400. Hoy esa función no
+   sirve desde la pantalla.
+
+2. Se creó BuildingGuard para limitar cada CPF a su edificio, pero no se usa en
+   ningún controlador. Además, el JWT CPF no incluye edificioIdDefecto y la
+   estrategia JWT tampoco lo devuelve. La supuesta separación por edificio no
+   está activa.
+
+3. Se agregó rate limit, pero se aplicó globalmente y no se configuró
+   trust proxy. Detrás de Nginx, todas las personas pueden compartir la IP
+   127.0.0.1. Sesenta solicitudes combinadas por minuto pueden bloquear todo el
+   sistema durante un minuto.
+
+4. Los procedimientos sp_Acceso_Pendientes y
+   sp_Acceso_SalidaIndependiente sí existen en la base activa, pero no aparecen
+   en database/006_migration_v3.sql ni en ningún otro script versionado. El Git
+   no puede reconstruir lo que está ejecutándose.
+
+5. El login por carnet continúa visible en producción, pero el endpoint
+   dev-login ahora responde 403 correctamente. Para un empleado que entre por
+   la página de login, la interfaz ofrece una opción que siempre falla.
+
+6. Las fotos se publican sin JWT bajo /control-acceso-uploads/. Un UUID difícil
+   de adivinar no reemplaza autorización ni una política de privacidad.
+
+Veredicto de uso:
+
+- Compila: SÍ.
+- API y base activa responden: SÍ.
+- Versión React actual desplegada: SÍ.
+- Flujo básico de entrada: UTILIZABLE.
+- Reporte básico: UTILIZABLE CON LIMITACIONES.
+- Salida normal desde pendiente: UTILIZABLE.
+- Salida sin entrada desde la UI: NO FUNCIONA.
+- Aislamiento de CPF por edificio: NO EXISTE.
+- Instalación limpia reproducible: NO.
+- Reemplazo completo y confiable del papel: TODAVÍA NO.
+
+Recomendación:
+No seguir agregando pantallas hasta completar los bloqueadores P0 de la sección
+17. Los parches mínimos de esa sección permiten recuperar rápido la función
+principal sin remodelar todo el sistema.
+
+======================================================================
+2. QUÉ CAMBIÓ DESDE LA AUDITORÍA V2
+======================================================================
+
+Commits posteriores a V2:
+
+- 1538e97a fix: V3 - críticos y altos resueltos
+- f04c2575 fix: 100% SPs - cero inline SQL en servicios
+- cda4a9f0 fix: auditoría V4 - todos los críticos y altos resueltos
+- f173ab9d chore: bajos resueltos - catálogos, mobile, tipos y fonts
+
+Estado real de hallazgos V2:
+
+RESUELTOS:
+
+- NODE_ENV está configurado como production.
+- dev-login está bloqueado en producción.
+- CORS está limitado por CORS_ORIGINS.
+- JWT_SECRET sin configurar o con el valor antiguo detiene el arranque.
+- AdminCpfPage usa /auth/admin-reset-password.
+- RegistroPage consulta /acceso/pendientes.
+- MotivoAcceso es obligatorio y validado por lista.
+- La UI conserva cédula y empresa de la persona seleccionada.
+- Eventos de capacitación se consultan con edificioId.
+- Fecha “hasta” usa un límite exclusivo del día siguiente.
+- El CSV intenta exportar el conjunto completo.
+- Se mitigan fórmulas CSV de forma básica.
+- Se revoca el ObjectURL del CSV.
+- CORS ya no está abierto globalmente.
+- Existe límite MIME/tamaño y conversión WebP para fotos.
+- AuthContext valida el JWT con /auth/me al recargar.
+- SSO toma el token desde el fragmento # y no desde query string.
+- Existen 4 pruebas unitarias y 2 casos E2E básicos.
+- React y Nest compilan.
+- El diseño sigue la paleta Claro y no usa azul.
+- Catálogos tienen búsqueda, paginación y tarjetas móviles.
+
+PARCIALMENTE RESUELTOS:
+
+- Salida independiente: endpoint y SP activos, pero UI rota y modelo ambiguo.
+- Edificio CPF: puede administrarse y preseleccionarse, pero no autoriza datos.
+- Rate limit: existe, pero su implementación puede bloquear a todos.
+- Fotos: se procesan, pero continúan públicas y se cargan completas en memoria.
+- CSV completo: pide un millón de filas de una sola vez.
+- Pruebas: existen, pero no cubren las funciones críticas y contienen falsos
+  diagnósticos.
+- SQL mediante SP: servicios usan SP, pero dos SP no están versionados.
+- Responsive: Dashboard y catálogos tienen tarjetas; Reportes y Admin CPF no.
+
+NO RESUELTOS:
+
+- FK sobre tblUsuariosCPF.EdificioIdDefecto.
+- Scripts base/migraciones reproducibles.
+- Autorización real por edificio.
+- Revocación o revalidación de CPF desactivado.
+- Protección de fotografías.
+- DTO completos para catálogos/admin/eventos.
+- Flujo productivo correcto de login de empleado.
+- Evento obligatorio cuando se elige capacitación.
+- MotivoDetalle obligatorio cuando motivo es “Otro”.
+- Pruebas de entrada/salida/salida independiente/reportes/edificio/fotos.
+
+REGRESIONES NUEVAS:
+
+- Rate limiter global compartido detrás de Nginx.
+- E2E no termina por el setInterval del rate limiter.
+- El formulario salida independiente manda nombre en lugar de nombrePersona.
+- Salida independiente está oculta precisamente cuando no hay pendientes.
+- Salida independiente escribe siempre edificioId=1.
+- El backend devuelve el texto tipado incorrectamente SALIDA_NOCTROL.
+- El SP admite motivo de 100/500 caracteres, pero las columnas admiten 50/250.
+- Login empleado visible llama un endpoint prohibido en producción.
+
+======================================================================
+3. EVIDENCIA DE EJECUCIÓN
+======================================================================
+
+3.1 Repositorio y despliegue
+
+- Git estaba limpio antes y después de las comprobaciones.
+- HEAD local coincide con origin/master:
+  f173ab9d400f416bef41c5d5c0aca5f94af840f3.
+- react/dist/index.html y /var/www/control-acceso/index.html tienen el mismo
+  SHA-256.
+- Assets desplegados actuales:
+  index-BvgsHfoz.js, 421,046 bytes.
+  index-2TlX6ujN.css, 17,943 bytes.
+- El backend activo es:
+  /opt/apps/control-acceso/nest/dist/main.js.
+- Puerto API 3001 escuchando.
+- SQL Server 1433 escuchando mediante docker-proxy.
+- GET http://127.0.0.1:3001/api/health respondió HTTP 200 y declaró base
+  connected.
+
+Observación de operación:
+El comando PM2 lanzado desde el contexto aislado creó temporalmente otro daemon
+vacío, pero el proceso real ya existía bajo el daemon PM2 original. Los procesos
+temporales de auditoría fueron cerrados. No se reinició el servicio productivo.
+
+3.2 Compilaciones y lint
+
+Nest:
+- npm run build: PASS.
+
+React:
+- npm run build: PASS.
+- 1,848 módulos transformados.
+- JS gzip aproximado: 126.47 KB.
+- CSS gzip aproximado: 4.18 KB.
+
+React lint:
+- PASS con una advertencia:
+  AuthContext exporta componente y hook en el mismo archivo, lo cual limita
+  Fast Refresh durante desarrollo.
+
+3.3 Pruebas unitarias
+
+- 2 suites PASS.
+- 4 tests PASS.
+- Cobertura real muy baja.
+
+Los tests solo verifican:
+- construcción de AuthService;
+- login inválido;
+- construcción de AccesoService;
+- respuesta vacía.
+
+No prueban ninguna regla crítica del negocio.
+
+3.4 Pruebas E2E
+
+- 1 suite.
+- 2 tests PASS al ejecutarse con permiso de puerto local.
+- Casos: health y rechazo 401 de edificios.
+
+Problema:
+Jest no termina. El setInterval declarado a nivel de módulo en
+rate-limiter.middleware.ts permanece abierto. Fue necesario detener el proceso.
+
+Por tanto:
+Los casos pasan, pero el comando de CI no finaliza limpiamente. No debe marcarse
+la etapa como totalmente aprobada hasta corregir el temporizador.
+
+3.5 Diagnóstico SQL estricto
+
+Resultado:
+- 40 PASS.
+- 0 FAIL estructurales.
+- 7 GAP.
+
+GAP:
+- FK de EdificioIdDefecto ausente.
+- 2 registros históricos sin motivo.
+- test considera ausente la salida independiente por revisar el SP equivocado.
+- 4 avisos de scripts fuente desactualizados.
+
+Dato adicional descubierto fuera de la suite:
+- La base sí tiene sp_Acceso_Pendientes.
+- La base sí tiene sp_Acceso_SalidaIndependiente.
+- Ninguno de los dos está en database/*.sql.
+- Hay 3 registros SALIDA_INDEPENDIENTE.
+- 2 tienen FechaEntrada igual a FechaSalida.
+- La suite no detecta correctamente este comportamiento.
+
+3.6 Diagnóstico API
+
+Sin JWT:
+- 9 PASS.
+- 1 GAP falso.
+- 2 SKIP.
+
+Con JWT temporal de auditoría de solo lectura:
+- 33 PASS.
+- 1 GAP falso.
+- 2 SKIP.
+
+El GAP falso afirma que no existe salida independiente porque prueba:
+POST /acceso/salida
+
+La ruta real es:
+POST /acceso/salida-independiente
+
+Prueba específica del payload real de React:
+
+Payload enviado por RegistroPage:
+{
+  "personaId": "AUDIT-NO-WRITE",
+  "nombre": "Auditoria",
+  "observacion": "Validacion sin escritura",
+  "edificioId": 1
+}
+
+Resultado:
+HTTP 400 Bad Request.
+
+Causa:
+SalidaIndependienteDto exige nombrePersona, no nombre. La validación ocurre antes
+del servicio, por lo que la prueba no escribió ningún movimiento.
+
+======================================================================
+4. MODELO FUNCIONAL CORRECTO PARA CLARO
+======================================================================
+
+Actores:
+
+1. CPF/registrador:
+   Opera un puesto físico. Su trabajo principal es buscar o escanear una
+   persona, confirmar edificio y registrar el movimiento.
+
+2. Administrador:
+   Gestiona catálogos, CPF, edificios, reportes globales y correcciones.
+
+3. Empleado:
+   Se identifica por carnet físico/código. No marca asistencia laboral.
+
+4. Visitante:
+   Puede registrarse manualmente. Nombre y motivo obligatorios; cédula y empresa
+   opcionales según política.
+
+5. Proveedor/instructor:
+   Se busca en catálogo y conserva cédula/empresa.
+
+6. Personal externo:
+   Incluye PL, cocina, carga/descarga, conductor, mantenimiento y servicios.
+
+7. Capacitación:
+   Es una característica de un solo edificio. Entrar a ese edificio no significa
+   necesariamente asistir a capacitación.
+
+Flujo de entrada recomendado:
+
+1. El CPF inicia sesión.
+2. Su edificio aparece fijo o preseleccionado.
+3. Escanea carnet/código o busca nombre.
+4. El sistema detecta tipo cuando sea posible.
+5. Muestra una tarjeta grande con nombre, código, empresa y cédula.
+6. CPF elige un motivo sencillo.
+7. Solo si está en el edificio de capacitación pregunta:
+   “¿Viene a una capacitación?” Sí/No.
+8. Si responde Sí, curso/evento es obligatorio.
+9. Si responde No, no se muestra curso.
+10. CPF confirma “Registrar entrada”.
+11. Confirmación verde durante 1-2 segundos.
+12. El formulario vuelve al campo de escaneo sin perder el edificio.
+
+Flujo de salida normal:
+
+1. CPF abre “Salidas”.
+2. Busca entre todas las entradas abiertas, no solo las de hoy.
+3. Confirma persona, edificio y hora de entrada.
+4. Registra salida.
+5. El registro deja de aparecer entre pendientes.
+
+La salida es opcional:
+No debe obligarse a cerrar todos los movimientos ni interpretar una entrada
+abierta como incumplimiento laboral. “Sin salida registrada” describe mejor el
+estado que “Dentro” cuando el sistema admite omisiones.
+
+Flujo de salida sin entrada:
+
+1. La acción excepcional siempre está visible.
+2. CPF selecciona/usa su edificio autorizado.
+3. Busca carnet/código o escribe los datos mínimos.
+4. Escribe observación obligatoria.
+5. El sistema muestra:
+   “No se encontró una entrada abierta. Se guardará solamente la novedad de
+   salida.”
+6. CPF confirma.
+7. Se registra una salida/novedad, nunca una persona pendiente.
+
+Reporte:
+
+Debe responder:
+- quién;
+- tipo de persona;
+- código/carnet/cédula;
+- empresa;
+- edificio;
+- motivo y detalle;
+- fecha/hora de entrada, si existe;
+- fecha/hora de salida, si existe;
+- tipo de movimiento;
+- CPF que registró;
+- si fue capacitación y qué evento.
+
+======================================================================
+5. HALLAZGOS CRÍTICOS
+======================================================================
+
+C-01. AUTORIZACIÓN POR EDIFICIO NO ESTÁ ACTIVA
+
+Evidencia:
+- nest/src/common/building.guard.ts existe.
+- No hay ninguna referencia de uso a BuildingGuard.
+- AccesoController solo aplica AuthGuard y RolesGuard.
+- CpfAuthService no firma edificioIdDefecto en el JWT.
+- JwtStrategy no devuelve edificioIdDefecto.
+- BuildingGuard permite continuar si el claim no existe.
+- /acceso/pendientes y /acceso/reporte aceptan edificio opcional; sin edificio
+  devuelven todos.
+
+Impacto:
+Un CPF de un edificio puede consultar datos, cédulas, motivos, fotografías y
+pendientes de otros edificios. También puede registrar una entrada o salida
+contra un edificio distinto enviando otro ID.
+
+Por qué el guard actual no basta:
+Aunque se añadiera @UseGuards(BuildingGuard), una petición sin edificioId pasa.
+Después el servicio consulta todos los edificios. El alcance debe forzarse, no
+solo compararse cuando el cliente decide enviar el filtro.
+
+Corrección mínima:
+Ver parche P0-02 en la sección 17.
+
+Criterio de aceptación:
+- CPF con edificio 1 y query edificio 2 recibe 403.
+- CPF con edificio 1 y sin query recibe únicamente edificio 1.
+- Admin puede consultar todos.
+- CPF sin edificio configurado recibe 403 operativo, no acceso global.
+
+C-02. RATE LIMITER PUEDE BLOQUEAR A TODOS LOS USUARIOS
+
+Evidencia:
+- RateLimiterMiddleware usa req.ip antes que X-Forwarded-For.
+- main.ts no contiene app.set('trust proxy', 1).
+- Nginx reenvía al backend por 127.0.0.1.
+- Middleware se aplica a forRoutes('*').
+- Límite único: 60 solicitudes/minuto por clave.
+
+Una sola pantalla puede producir varias solicitudes:
+- /auth/me;
+- /edificios;
+- /eventos-curso;
+- /acceso/pendientes;
+- búsquedas;
+- reporte y catálogos.
+
+Con varios CPF, 60/minuto es bajo incluso si la IP se resolviera correctamente.
+Sin trust proxy, todos probablemente comparten 127.0.0.1.
+
+Impacto:
+Denegación de servicio accidental. Un usuario activo o un script puede provocar
+HTTP 429 para todo el personal.
+
+Problemas secundarios:
+- almacén en memoria no sirve con múltiples procesos;
+- reiniciar borra contadores;
+- el setInterval no usa unref();
+- E2E/Jest queda abierto;
+- no diferencia login sensible de lecturas normales.
+
+Corrección mínima:
+Ver P0-03.
+
+C-03. SALIDA SIN ENTRADA NO FUNCIONA DESDE REACT
+
+Evidencia:
+- React guarda ssForm.nombre.
+- React envía {...ssForm, edificioId: 1}.
+- DTO exige nombrePersona.
+- ValidationPipe usa forbidNonWhitelisted.
+- Prueba exacta: HTTP 400.
+
+Además:
+- El botón solo se renderiza cuando filtrados.length > 0.
+- Si no hay pendientes, la acción desaparece justamente cuando puede necesitarse.
+- El edificio está escrito como 1.
+- El campo motivoAcceso declarado en el servicio no se utiliza.
+- El backend responde tipo: SALIDA_NOCTROL, texto incorrecto.
+
+Impacto:
+Una de las reglas expresamente solicitadas por negocio está rota.
+
+Corrección mínima:
+Ver P0-01.
+
+C-04. BASE ACTIVA Y GIT NO SON REPRODUCIBLES
+
+Evidencia:
+- La base activa contiene sp_Acceso_Pendientes.
+- La base activa contiene sp_Acceso_SalidaIndependiente.
+- rg sobre database/ no encuentra su definición.
+- database/006_migration_v3.sql solo actualiza entrada, reporte y administración
+  CPF.
+- tblPersonalExterno tampoco se crea en los scripts base revisados.
+- 006 usa u.Correo, pero 004_create_cpf_users.sql no crea esa columna.
+
+Contradicción adicional de tamaños:
+- columnas reales:
+  MotivoAcceso VARCHAR(50)
+  MotivoDetalle VARCHAR(250)
+- SP activo y 006:
+  @MotivoAcceso VARCHAR(100)
+  @MotivoDetalle VARCHAR(500)
+
+Resultado:
+Un valor aceptado por DTO/SP puede fallar por truncamiento al insertarse.
+
+Impacto:
+Recuperación, despliegue nuevo o ambiente QA pueden compilar y fallar en tiempo
+de ejecución. No existe una fuente única de verdad.
+
+Corrección:
+Crear database/007_reconciliacion_v4.sql idempotente, probar 001-007 sobre una
+base vacía temporal y actualizar los tests para exigir los SP.
+
+======================================================================
+6. HALLAZGOS ALTOS
+======================================================================
+
+A-01. LOGIN DE EMPLEADO ES UNA RUTA MUERTA EN PRODUCCIÓN
+
+LoginPage muestra la pestaña “Empleado”, pide carnet y AuthContext llama
+/auth/dev-login. NODE_ENV=production hace que siempre responda 403.
+
+La seguridad mejoró, pero la experiencia quedó rota.
+
+Solución:
+- ocultar esa pestaña en producción;
+- mostrar “Entrar desde Portal Claro”;
+- recibir al empleado exclusivamente por /auth/sso;
+- mantener dev-login solo detrás de VITE_ALLOW_DEV_LOGIN=true y
+  ALLOW_DEV_LOGIN=true en entornos no productivos.
+
+A-02. EDIFICIO CPF SE PIERDE AL RECARGAR
+
+CpfAuthService devuelve edificioIdDefecto durante login, pero no lo firma en el
+JWT. AuthContext ejecuta /auth/me al recargar y JwtStrategy no conserva ese
+campo. Después de F5, RegistroPage ya no puede preseleccionar el edificio.
+
+Solución:
+Firmar y validar el edificio, o mejor consultar el CPF activo en base dentro de
+/auth/me y devolver permisos vigentes.
+
+A-03. CUENTA CPF DESACTIVADA CONSERVA JWT HASTA EXPIRAR
+
+JwtStrategy confía completamente en claims. Desactivar el usuario cambia SQL,
+pero un token emitido sigue válido hasta 8 horas.
+
+Solución rápida:
+- agregar tokenVersion o sessionVersion;
+- consultar estado activo para operaciones sensibles;
+- reducir TTL CPF;
+- registrar FechaDesactivacion;
+- invalidar sesiones por versión.
+
+A-04. FOTOGRAFÍAS PÚBLICAS
+
+main.ts usa useStaticAssets sin AuthGuard.
+Nginx publica /control-acceso-uploads/ con Cache-Control public, immutable.
+
+Riesgos:
+- dato personal visible sin autenticación;
+- cache público por 30 días;
+- no hay restricción por edificio;
+- no hay retención/eliminación documentada.
+
+Además, FileInterceptor recibe el archivo completo en memoria antes de que
+savePhoto compruebe 5 MB. Nginx permite 20 MB.
+
+Solución:
+- límite Multer de 5 MB antes del buffer;
+- controlador autenticado de fotos;
+- autorización por registro/edificio;
+- Cache-Control private, no-store o política aprobada;
+- retención automática y registro de acceso.
+
+A-05. SALIDA INDEPENDIENTE SIGUE USANDO UN MODELO AMBIGUO
+
+La base contiene 3 movimientos SALIDA_INDEPENDIENTE. Dos tienen
+FechaEntrada=FechaSalida. Eso evita que aparezcan pendientes, pero inventa una
+entrada a la misma hora.
+
+Uno de los tres no cumple esa igualdad, lo que corresponde al comportamiento
+antiguo o a un estado distinto que debe revisarse manualmente.
+
+No se consultaron datos personales.
+
+Solución corta compatible:
+- marcar TipoPersona/TipoMovimiento;
+- entrada y salida iguales;
+- excluir SALIDA_INDEPENDIENTE de pendientes y KPI de ocupación.
+
+Solución correcta:
+Tabla de movimientos/novedades con TipoMovimiento ENTRADA, SALIDA o NOVEDAD y
+FechaMovimiento única. No inventar FechaEntrada.
+
+A-06. EXPORTACIÓN DE UN MILLÓN DE FILAS
+
+ReportsPage pide porPagina=1000000.
+ReporteQueryDto no tiene @Max.
+SQL usa FETCH NEXT con ese valor.
+
+Riesgo:
+- memoria alta en SQL, Nest y navegador;
+- respuesta lenta;
+- fácil abuso autenticado;
+- CSV puede congelar equipos modestos.
+
+Solución:
+- @Max(500) para paginación normal;
+- endpoint /acceso/reporte/export con streaming;
+- o iterar páginas de 500/1000 y mostrar progreso.
+
+A-07. CSV NO ESCAPA COMILLAS
+
+Cada celda se rodea con comillas, pero las comillas internas no se duplican.
+Un nombre como Empresa "Central" rompe el CSV.
+
+La mitigación de fórmulas con tabulador es parcial. Es preferible anteponer una
+comilla simple y escapar comillas dobles.
+
+A-08. DTO Y CONTROLADORES TODAVÍA USAN any
+
+Eventos, edificios, proveedores, instructores, cursos y personal externo usan
+@Body() dto: any. Con whitelist global, un objeto sin clase DTO no obtiene una
+validación útil de forma/tamaños/reglas.
+
+Admin change-building también usa una interface TypeScript que desaparece en
+runtime.
+
+Riesgos:
+- campos vacíos;
+- strings demasiado largos;
+- números como texto;
+- errores SQL 500;
+- contratos distintos entre web, Flutter y backend.
+
+A-09. CAMBIO DE CONTRASEÑA PROPIO CONFÍA EN username DEL BODY
+
+/auth/cpf-password debería operar sobre req.user.username, no permitir que el
+cliente elija la cuenta. Aunque exige contraseña anterior, el contrato es
+innecesariamente amplio y facilita errores.
+
+A-10. HEALTH DEVUELVE HTTP 200 AUNQUE LA BASE FALLE
+
+AppController captura el error y devuelve status:error, pero no cambia el código
+HTTP. Un monitor que solo verifica HTTP puede considerar saludable una API sin
+base.
+
+Usar 503 Service Unavailable cuando SQL no responde.
+
+======================================================================
+7. HALLAZGOS MEDIOS
+======================================================================
+
+M-01. CAPACITACIÓN NO ES UNA REGLA OBLIGATORIA
+
+En el edificio de capacitación aparecen dos botones:
+- Acceso general.
+- Capacitación.
+
+Pero puedeRegistrar() no exige seleccionar uno. Si se elige capacitación, el
+evento también sigue opcional. El estado motivo no se envía al backend salvo
+indirectamente mediante eventoCursoId.
+
+Debe validarse también en backend:
+- edificio normal: eventoCursoId debe ser null;
+- edificio capacitación + opción capacitación: evento obligatorio y vigente;
+- opción general: evento null.
+
+M-02. DOS CAMPOS SE LLAMAN “MOTIVO DEL ACCESO”
+
+Uno significa general/capacitación.
+Otro significa comedor/carga/reunión/etc.
+
+Para usuario no técnico:
+- “¿Viene a una capacitación?”
+- “Razón de la visita”
+
+M-03. ENTER EN BÚSQUEDA PUEDE EJECUTAR DOS ACCIONES
+
+onKeyDown llama buscar(), pero no hace preventDefault(). Como el campo está
+dentro de un form, Enter también puede disparar submit y mostrar un error antes
+de seleccionar a la persona.
+
+M-04. REPORTES CONSULTA AUTOMÁTICAMENTE Y TAMBIÉN TIENE BOTÓN BUSCAR
+
+load depende de los filtros y useEffect depende de load. Cambiar un filtro ya
+consulta. Pulsar Buscar repite la lógica.
+
+Usar filtros “draft” y “applied”, o debounce sin botón.
+
+M-05. REPORTE MÓVIL SIGUE SIENDO TABLA DE 11 COLUMNAS
+
+El CSS tiene access-cards-mobile, pero ReportsPage no lo utiliza. En teléfono
+queda scroll horizontal. AdminCpfPage tiene el mismo problema.
+
+M-06. REPORTE REPITE FECHA/HORA/ENTRADA
+
+Columnas Fecha + Hora + Entrada repiten información. No muestra MotivoDetalle
+ni evento de capacitación, que aportan más valor.
+
+M-07. TIPOS TÉCNICOS SE MUESTRAN AL USUARIO
+
+EMPLEADO, SERVICIO_EXTERNO, INSTRUCTOR_EXTERNO y SALIDA_INDEPENDIENTE deben
+traducirse:
+- Colaborador
+- Personal externo
+- Facilitador externo
+- Salida sin entrada registrada
+
+M-08. MENÚ CPF TIENE DEMASIADAS OPCIONES
+
+El registrador ve Dashboard, Registro, Reportes y cinco catálogos. Como solo
+admin puede editar catálogos, para CPF operativo conviene mostrar:
+- Registrar;
+- Salidas;
+- Consulta del día, si está autorizada;
+- Cerrar sesión.
+
+Los catálogos deben quedar en navegación administrativa.
+
+M-09. ERROR DE VALIDACIÓN ES DEMASIADO GENÉRICO EN PRODUCCIÓN
+
+disableErrorMessages=true hizo que el payload roto devolviera únicamente
+“Bad Request”. Es correcto no exponer internals, pero la API debe retornar un
+código estable y un mensaje seguro como INVALID_EXIT_PERSON_NAME.
+
+M-10. FOTO HUÉRFANA SI FALLA SQL
+
+savePhoto se ejecuta antes del SP. Si el INSERT falla, el archivo queda en disco
+sin registro. Guardar provisionalmente y borrar en catch, o escribir después
+de validar y usar una rutina de limpieza.
+
+M-11. BASE DE DATOS ESTÁ ESCRITA EN CÓDIGO
+
+DatabaseService usa database: 'ControlAcceso' en lugar de DB_DATABASE. Hoy evita
+el error antiguo de apuntar a Asistencia, pero dificulta QA y pruebas limpias.
+
+M-12. PUERTOS ESCUCHAN EN TODAS LAS INTERFACES
+
+ss mostró:
+- API 3001 en *.
+- SQL 1433 en 0.0.0.0 y [::].
+
+Nginx solo necesita llegar localmente a 3001. Debe verificarse firewall y
+publicación Docker de SQL. Esta auditoría no hizo escaneo externo.
+
+M-13. MIGRACIONES USAN DROP + CREATE SIN TRANSACCIÓN
+
+Entre DROP y CREATE el procedimiento no existe. Si el script falla, producción
+queda incompleta. Preferir CREATE OR ALTER y transacción cuando sea posible.
+
+M-14. BÚSQUEDAS SIN LÍMITE/VALIDACIÓN EXPLÍCITA
+
+SearchController acepta q vacío y no tiene DTO, MaxLength ni mínimo. Los SP
+deben limitar TOP y la API debe exigir 2 caracteres salvo búsqueda exacta de
+carnet.
+
+M-15. NO HAY AUDITORÍA ADMINISTRATIVA
+
+No se registra quién:
+- reseteó contraseña;
+- activó/desactivó CPF;
+- cambió edificio;
+- modificó catálogos.
+
+Para trazabilidad corporativa debe existir tblAuditoriaAdministrativa.
+
+======================================================================
+8. HALLAZGOS BAJOS Y DE MANTENIBILIDAD
+======================================================================
+
+B-01. ReportsPage, RegistroPage y DashboardPage usan any extensamente.
+B-02. RegistroPage concentra demasiados estados y dos flujos en 331 líneas.
+B-03. Hay muchos style={{...}}; complica consistencia responsive.
+B-04. Fast Refresh advierte por AuthContext/useAuth en un mismo archivo.
+B-05. El texto SALIDA_NOCTROL es un typo contractual.
+B-06. El archivo fonts.css genera aviso durante build; funciona en despliegue
+      por public/, pero la salida confunde.
+B-07. Los assets antiguos permanecen en /var/www/control-acceso/assets.
+B-08. No hay Error Boundary de React.
+B-09. No hay cancelación AbortController para búsquedas/reportes.
+B-10. No hay debounce de búsqueda.
+
+======================================================================
+9. AUDITORÍA DE DISEÑO, HTML Y CSS
+======================================================================
+
+Calificación visual:             8.0 / 10
+Facilidad para no técnico:       6.8 / 10
+Accesibilidad estática:          7.3 / 10
+Responsive general:              7.2 / 10
+Consistencia de marca Claro:     9.0 / 10
+
+Lo correcto:
+
+- Paleta principal rojo #DA291C, blanco, grises y negro.
+- Verde se usa para éxito.
+- No se detectó azul.
+- Tokens centralizados.
+- Foco rojo visible.
+- Botones táctiles de 44 px en coarse pointer.
+- Sidebar responsive con overlay y Escape.
+- Labels y IDs en los campos principales.
+- caption oculto en tablas.
+- aria-label en botones de icono.
+- tarjetas móviles en Dashboard y catálogos.
+- mensaje claro: no es marcación laboral.
+- registrador aterriza directamente en RegistroPage.
+
+Lo que dificulta la operación:
+
+- Seis tipos de persona como botones antes de buscar.
+- Dos motivos con el mismo nombre.
+- Edificio editable aunque CPF debería estar limitado.
+- Excepción de salida mezclada dentro del listado normal.
+- acción excepcional oculta en estado vacío.
+- no hay modo claro de escáner/carnet.
+- no hay resumen final de persona + edificio + motivo.
+- tabla de reportes demasiado ancha.
+- códigos técnicos en vez de lenguaje cotidiano.
+- window.confirm nativo inconsistente con SweetAlert.
+- administración y operación comparten menú.
+
+HTML/semántica:
+
+- Los botones de tipo usan role=radio, pero no están dentro de un radiogroup en
+  el primer selector.
+- El fieldset es correcto para tipo de persona.
+- “Motivo de acceso” capacitación sí usa radiogroup.
+- Modal de foto es un div sin role=dialog, aria-modal, foco inicial ni trapping.
+- El botón Salida dentro de cada fila es comprensible.
+- Falta aria-live para confirmación propia; SweetAlert cubre visualmente, no se
+  verificó comportamiento con lector.
+
+CSS:
+
+- Sistema de tokens limpio y coherente.
+- Especificidad baja y nombres reutilizables.
+- Hay un error de formato menor alrededor de .catalog-cards-mobile, pero CSS
+  válido.
+- Reportes no consume las clases móviles disponibles.
+- Max-width 1280 funciona para escritorio.
+- Registro 3fr/2fr es razonable; en tablet baja a una columna.
+- Los estilos inline de porcentajes 60/40 pueden quedar estrechos en móvil.
+
+Diseño final recomendado para CPF:
+
+Pantalla única con dos pestañas grandes:
+
+[ ENTRADA ] [ SALIDA ]
+
+Entrada:
+
+Edificio: SEDE X (bloqueado)
+[ Escanee carnet o escriba nombre __________________ ] [Buscar]
+
+Persona encontrada:
+Nombre grande
+Carnet | tipo | empresa
+
+Razón:
+[Comedor] [Entrega] [Carga] [Reunión] [Otro]
+
+Solo edificio capacitación:
+¿Viene a capacitación? [No] [Sí]
+Curso: [selector obligatorio si Sí]
+
+[ REGISTRAR ENTRADA ]
+
+Salida:
+
+[ Buscar entre personas sin salida __________________ ]
+Lista de pendientes de cualquier fecha
+[Registrar salida]
+
+Siempre al final:
+[No aparece: registrar salida sin entrada]
+
+La excepción abre un panel separado, no incrustado condicionalmente en la lista.
+
+======================================================================
+10. AUDITORÍA DE SEGURIDAD
+======================================================================
+
+Calificación de seguridad V3: 6.0 / 10
+V2: 4.0 / 10
+
+Mejoras confirmadas:
+- NODE_ENV production.
+- dev-login bloqueado.
+- JWT sin fallback inseguro.
+- CORS restringido.
+- JWT revalidado al cargar frontend.
+- SSO en fragmento.
+- endpoints con JWT y rol.
+- bcrypt para CPF.
+- validación global whitelist/forbid.
+- MIME/tamaño/conversión básica de fotos.
+
+Bloqueadores:
+- autorización por edificio ausente;
+- fotos públicas;
+- rate limit mal ubicado;
+- JWT CPF desactivado no revocado;
+- tokens en localStorage expuestos ante XSS;
+- ausencia de CSP específica confirmada;
+- sin auditoría de acciones admin;
+- puerto API/SQL expuesto en interfaces generales;
+- DTO any en administración y catálogos.
+
+Sobre localStorage:
+No hace falta migrar inmediatamente a cookies si la integración Portal/Flutter
+depende de Bearer JWT, pero sí:
+- CSP estricta;
+- evitar HTML no confiable;
+- TTL corto;
+- refresh token seguro si se necesita;
+- limpieza al cerrar;
+- no incluir token en logs/URL.
+
+======================================================================
+11. AUDITORÍA DE BASE DE DATOS
+======================================================================
+
+Base activa:
+- tablas esenciales presentes;
+- exactamente un edificio activo marcado capacitación;
+- salida nullable;
+- no hay salidas anteriores a entrada;
+- no hay accesos huérfanos de edificio;
+- 2 registros históricos sin motivo;
+- 3 movimientos SALIDA_INDEPENDIENTE;
+- falta FK de edificio CPF.
+
+Problemas de esquema:
+
+1. MotivoAcceso sigue nullable por históricos.
+2. MotivoDetalle es VARCHAR(250), SP permite 500.
+3. MotivoAcceso es VARCHAR(50), SP permite 100.
+4. EdificioIdDefecto no tiene FK activa.
+5. No hay check constraint para TipoPersona.
+6. No hay check de FechaSalida >= FechaEntrada.
+7. Salida independiente se mezcla con accesos.
+8. Scripts no contienen todo lo activo.
+
+Índices recomendados:
+
+- tblRegistroAcceso(EdificioId, FechaSalida, FechaEntrada DESC)
+  INCLUDE (NombrePersona, PersonaId, TipoPersona, MotivoAcceso).
+
+- tblRegistroAcceso(FechaEntrada DESC, TipoPersona, MotivoAcceso)
+  para reportes.
+
+- índices normalizados para búsquedas de carnet/código/cédula según volumen.
+
+No crear índices a ciegas: revisar plan de ejecución y cardinalidad primero.
+
+======================================================================
+12. AUDITORÍA DE PRUEBAS
+======================================================================
+
+Calificación de pruebas V3: 4.8 / 10
+V2: 3.5 / 10
+
+Por qué no basta “todo OK”:
+
+- 4 unit tests no cubren reglas.
+- 2 E2E no cubren negocio.
+- E2E no termina por un handle abierto.
+- API test usa una ruta incorrecta para salida independiente.
+- SQL test busca salida independiente en sp_Acceso_RegistrarSalida.
+- SQL test no exige los dos SP nuevos.
+- test/README aún enseña obtener token por dev-login, pero producción lo prohíbe.
+- mutation test usa motivo PRUEBA_CONTROLADA, no permitido por DTO; fallaría 400.
+- no hay prueba React del payload nombre/nombrePersona.
+
+Pruebas mínimas nuevas:
+
+Backend:
+- CPF login conserva edificio.
+- /auth/me conserva edificio tras recarga.
+- CPF no puede leer/escribir otro edificio.
+- CPF sin edificio recibe 403.
+- salida independiente DTO acepta payload UI.
+- salida independiente no queda pendiente.
+- salida normal de ID ajeno a edificio recibe 403.
+- porPagina > 500 recibe 400.
+- desde/hasta inválidos reciben 400.
+- cuenta CPF inactiva no opera.
+- foto >5 MB se rechaza antes de buffer.
+
+React:
+- botón salida independiente visible con lista vacía.
+- envía nombrePersona.
+- usa edificio seleccionado/autorizado.
+- Enter en búsqueda no envía el form.
+- capacitación exige Sí/No y evento si Sí.
+- CSV escapa comillas.
+- error de exportación se muestra.
+
+SQL:
+- exigir sp_Acceso_Pendientes.
+- exigir sp_Acceso_SalidaIndependiente.
+- comprobar que una salida independiente no aparece en pendientes.
+- comprobar longitudes DTO/SP/columnas iguales.
+- comprobar FK EdificioIdDefecto.
+- instalar 001-007 en base temporal.
+
+======================================================================
+13. CALIFICACIÓN POR ÁREA
+======================================================================
+
+Funcionalidad principal:                 7.2 / 10
+Flujo CPF real:                          6.2 / 10
+Diseño visual:                           8.0 / 10
+Facilidad de uso:                        6.8 / 10
+Backend/API:                             6.9 / 10
+Base activa:                             7.0 / 10
+Reproducibilidad SQL:                    4.3 / 10
+Reportes:                                6.8 / 10
+Seguridad:                               6.0 / 10
+Pruebas:                                 4.8 / 10
+Operación/despliegue:                    7.1 / 10
+
+PROMEDIO PONDERADO:                      6.8 / 10
+
+======================================================================
+14. PRIORIDAD REAL
+======================================================================
+
+P0 — antes de declarar piloto confiable:
+
+1. Reparar payload/visibilidad/edificio de salida independiente.
+2. Forzar autorización por edificio en backend.
+3. Corregir rate limiter y trust proxy.
+4. Versionar SP pendientes/salida independiente y reconciliar longitudes.
+5. Ocultar login empleado roto o dirigirlo al Portal.
+
+P1 — antes de retirar papel:
+
+1. Proteger fotos.
+2. Corregir modelo de salida independiente.
+3. Limitar/exportar reporte de forma segura.
+4. Completar reglas de capacitación.
+5. Añadir pruebas críticas.
+6. Agregar FK y checks.
+
+P2 — estabilización:
+
+1. DTO de todos los catálogos.
+2. auditoría administrativa;
+3. pantalla móvil de reportes;
+4. simplificar menú CPF;
+5. scanner/carnet optimizado;
+6. monitoreo 503, logs y backup/restore.
+
+======================================================================
+15. PLAN DE TRABAJO RÁPIDO
+======================================================================
+
+DÍA 1 — restaurar flujo
+
+- Aplicar P0-01 salida independiente.
+- Corregir SALIDA_NOCTROL.
+- Ocultar login empleado en producción.
+- Agregar tests React/Nest de ese payload.
+- Build y despliegue.
+
+Resultado:
+CPF puede registrar entrada, salida normal y salida excepcional desde la UI.
+
+DÍA 2 — seguridad por edificio
+
+- Firmar/revalidar edificio CPF.
+- Forzar alcance en entrada, salida, pendientes, hoy y reporte.
+- Restringir lista de edificios para registrador.
+- Pruebas cruzadas con edificio A/B.
+
+Resultado:
+Cada CPF solo ve y modifica su sede.
+
+DÍA 3 — rate limit y fotos
+
+- trust proxy.
+- límites separados login/general.
+- unref/Throttler.
+- Multer 5 MB.
+- endpoint autenticado de fotos.
+
+DÍA 4 — SQL reproducible
+
+- Crear 007_reconciliacion_v4.sql.
+- Alinear longitudes.
+- FK.
+- versionar ambos SP.
+- instalación limpia en base QA temporal.
+
+DÍA 5 — reportes y capacitación
+
+- Max 500.
+- exportación por lotes/stream.
+- CSV correcto.
+- filtros aplicados explícitamente.
+- reglas capacitación en backend.
+
+DÍA 6 — pruebas y aceptación
+
+- 15-25 unit/integration tests útiles.
+- E2E que termina.
+- test SQL estricto sin falsos GAP.
+- smoke API autenticado.
+- prueba manual CPF con carnet físico.
+- reporte de aceptación firmado.
+
+Estimación:
+- Parche mínimo P0: 2 a 3 días efectivos.
+- Versión sólida para retirar papel: 5 a 7 días efectivos.
+- Endurecimiento completo y observabilidad: 8 a 12 días efectivos.
+
+No es necesario reescribir en Astro, Flutter u otra tecnología para arreglar
+esto. React/Nest pueden completarse rápido; los bloqueos son contratos, reglas,
+seguridad y SQL, no el framework.
+
+======================================================================
+16. ARCHIVOS A MODIFICAR EN ORDEN
+======================================================================
+
+1. react/src/pages/RegistroPage.tsx
+2. nest/src/acceso/acceso.service.ts
+3. nest/src/acceso/acceso.controller.ts
+4. nest/src/acceso/dto/acceso.dto.ts
+5. nest/src/auth/cpf-auth.service.ts
+6. nest/src/common/jwt.strategy.ts
+7. nest/src/main.ts
+8. nest/src/app.module.ts
+9. nest/src/common/rate-limiter.middleware.ts
+10. react/src/pages/LoginPage.tsx
+11. react/src/context/AuthContext.tsx
+12. react/src/pages/ReportsPage.tsx
+13. database/007_reconciliacion_v4.sql
+14. test/sql_tests.js
+15. test/api_tests.js
+16. nest/src/**/*.spec.ts
+17. nest/test/app.e2e-spec.ts
+
+======================================================================
+17. CÓDIGO PROPUESTO PARA AVANZAR MÁS RÁPIDO
+======================================================================
+
+P0-01. REPARAR SALIDA INDEPENDIENTE EN REACT
+
+Objetivos:
+- nombrePersona correcto;
+- edificio no hardcodeado;
+- botón siempre visible;
+- no enviar si no hay edificio;
+- mantener separado el estado vacío.
+
+En RegistroPage:
+
+  <SalidaPanel
+    edificioId={
+      Number(edificioId) ||
+      Number(user?.edificioIdDefecto) ||
+      null
+    }
+  />
+
+Cambiar firma:
+
+  function SalidaPanel({ edificioId }: { edificioId: number | null }) {
+
+Cambiar estado:
+
+  const [ssForm, setSsForm] = useState({
+    personaId: '',
+    nombrePersona: '',
+    observacion: '',
+  });
+
+Renderizar el botón ANTES del bloque
+“filtrados.length === 0 ? ... : ...”:
+
+  <button
+    type="button"
+    onClick={() => setShowSalidaSinEntrada(v => !v)}
+    className="btn btn--secondary btn--block"
+  >
+    {showSalidaSinEntrada
+      ? 'Cancelar salida sin entrada'
+      : 'Registrar salida sin entrada previa'}
+  </button>
+
+Al guardar:
+
+  if (!edificioId) {
+    showError('Seleccione el edificio');
+    return;
+  }
+
+  await api.post('/acceso/salida-independiente', {
+    edificioId,
+    personaId: ssForm.personaId.trim(),
+    nombrePersona: ssForm.nombrePersona.trim(),
+    observacion: ssForm.observacion.trim(),
+  });
+
+Backend:
+
+  return {
+    ...result.recordset[0],
+    tipo: 'SALIDA_INDEPENDIENTE',
+  };
+
+No usar:
+
+  edificioId: 1
+  nombre: ...
+  SALIDA_NOCTROL
+
+P0-02. FORZAR EDIFICIO EN BACKEND
+
+Primero incluir el claim al firmar:
+
+  const token = this.jwt.sign({
+    sub: user.Id,
+    username: user.Username,
+    nombre: user.Nombre,
+    rol: user.Rol,
+    tipo: user.Tipo,
+    cpf: true,
+    edificioIdDefecto: user.EdificioIdDefecto ?? null,
+  });
+
+JwtStrategy:
+
+  edificioIdDefecto: payload.edificioIdDefecto ?? null,
+
+No depender solamente de BuildingGuard. Crear un resolver:
+
+  import { ForbiddenException } from '@nestjs/common';
+
+  export function resolveBuilding(
+    user: any,
+    requested?: number,
+  ): number | undefined {
+    if (user?.rol === 'admin') return requested;
+
+    const assigned = Number(user?.edificioIdDefecto);
+    if (!Number.isInteger(assigned) || assigned < 1) {
+      throw new ForbiddenException('Usuario sin edificio autorizado.');
+    }
+
+    if (requested && Number(requested) !== assigned) {
+      throw new ForbiddenException('Edificio no autorizado.');
+    }
+
+    return assigned;
+  }
+
+En controller:
+
+  @Get('pendientes')
+  async pendientes(@Query('edificioId') raw: string, @Req() req: any) {
+    const requested = raw ? Number(raw) : undefined;
+    const edificioId = resolveBuilding(req.user, requested);
+    return this.acceso.accesosPendientes(edificioId);
+  }
+
+Aplicar la misma resolución en:
+- entrada;
+- salida independiente;
+- salida normal, verificando primero a qué edificio pertenece el ID;
+- hoy;
+- pendientes;
+- reporte;
+- eventos de curso;
+- fotos.
+
+Para entrada:
+
+  const edificioId = resolveBuilding(req.user, dto.edificioId);
+  return this.acceso.registrarEntrada(
+    { ...dto, edificioId: edificioId! },
+    actor,
+    foto,
+  );
+
+Para salida normal, el SP debe recibir usuario/edificio autorizado, no solo ID:
+
+  sp_Acceso_RegistrarSalida
+    @Id,
+    @EdificioIdAutorizado,
+    @UsuarioRegistraSalida
+
+Y el UPDATE:
+
+  WHERE Id = @Id
+    AND EdificioId = @EdificioIdAutorizado
+    AND FechaSalida IS NULL
+
+P0-03. CORREGIR RATE LIMIT
+
+En main.ts, antes de depender de req.ip:
+
+  app.set('trust proxy', 1);
+
+El intervalo actual debe permitir terminar Jest:
+
+  const cleanupTimer = setInterval(...);
+  cleanupTimer.unref();
+
+Mejor solución:
+Usar @nestjs/throttler con dos políticas:
+
+- cpf-login y sso-login: 10 intentos/minuto/IP.
+- API autenticada: 300 solicitudes/minuto/usuario + IP.
+
+Si se conserva middleware propio:
+
+  const actor =
+    (req as any).user?.username ||
+    (req as any).user?.carnet ||
+    req.ip;
+
+Pero el middleware ocurre antes de Passport, por lo que para clave por usuario
+conviene guard/interceptor o ThrottlerGuard.
+
+No aplicar el límite de login a health ni fotos legítimas.
+En entorno con múltiples procesos usar Redis, no Map local.
+
+P0-04. DTO COMPLETO DE ACCESO
+
+  import {
+    IsDateString,
+    IsIn,
+    IsInt,
+    IsOptional,
+    IsString,
+    Max,
+    MaxLength,
+    Min,
+    MinLength,
+  } from 'class-validator';
+  import { Type } from 'class-transformer';
+
+  export class SalidaIndependienteDto {
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    edificioId: number;
+
+    @IsString()
+    @MinLength(1)
+    @MaxLength(50)
+    personaId: string;
+
+    @IsString()
+    @MinLength(2)
+    @MaxLength(250)
+    nombrePersona: string;
+
+    @IsString()
+    @MinLength(5)
+    @MaxLength(250)
+    observacion: string;
+  }
+
+  export class ReporteQueryDto {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    pagina = 1;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(500)
+    porPagina = 50;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    edificioId?: number;
+
+    @IsOptional()
+    @IsIn([
+      'EMPLEADO',
+      'PROVEEDOR',
+      'INSTRUCTOR_EXTERNO',
+      'INSTRUCTOR_INTERNO',
+      'VISITANTE',
+      'SERVICIO_EXTERNO',
+      'SALIDA_INDEPENDIENTE',
+    ])
+    tipoPersona?: string;
+
+    @IsOptional()
+    @IsDateString()
+    desde?: string;
+
+    @IsOptional()
+    @IsDateString()
+    hasta?: string;
+
+    @IsOptional()
+    @MaxLength(50)
+    motivoAcceso?: string;
+  }
+
+Agregar validación cruzada hasta >= desde dentro del servicio o un validador de
+clase.
+
+P0-05. LOGIN PRODUCTIVO
+
+Configurar:
+
+  VITE_ALLOW_DEV_LOGIN=false
+  VITE_PORTAL_SSO_URL=https://...ruta-real-del-portal...
+
+En LoginPage:
+
+  const allowDev = import.meta.env.VITE_ALLOW_DEV_LOGIN === 'true';
+
+  {allowDev ? (
+    // formulario de carnet solo en desarrollo
+  ) : (
+    <a
+      className="btn btn--primary btn--block btn--lg"
+      href={import.meta.env.VITE_PORTAL_SSO_URL}
+    >
+      Entrar desde Portal Claro
+    </a>
+  )}
+
+No inventar la URL del Portal; tomar la ruta corporativa real del sistema que
+genera el token SSO.
+
+P1-01. MIGRACIÓN SQL DE RECONCILIACIÓN
+
+Crear database/007_reconciliacion_v4.sql.
+Base orientativa:
+
+  USE ControlAcceso;
+  GO
+
+  SET XACT_ABORT ON;
+  GO
+
+  IF COL_LENGTH('dbo.tblUsuariosCPF', 'Correo') IS NULL
+    ALTER TABLE dbo.tblUsuariosCPF ADD Correo VARCHAR(250) NULL;
+  GO
+
+  IF COL_LENGTH('dbo.tblRegistroAcceso', 'MotivoAcceso') IS NOT NULL
+    ALTER TABLE dbo.tblRegistroAcceso
+      ALTER COLUMN MotivoAcceso VARCHAR(100) NULL;
+  GO
+
+  IF COL_LENGTH('dbo.tblRegistroAcceso', 'MotivoDetalle') IS NOT NULL
+    ALTER TABLE dbo.tblRegistroAcceso
+      ALTER COLUMN MotivoDetalle VARCHAR(500) NULL;
+  GO
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_key_columns fkc
+    WHERE fkc.parent_object_id = OBJECT_ID('dbo.tblUsuariosCPF')
+      AND COL_NAME(
+        fkc.parent_object_id,
+        fkc.parent_column_id
+      ) = 'EdificioIdDefecto'
+  )
+  BEGIN
+    ALTER TABLE dbo.tblUsuariosCPF WITH CHECK
+      ADD CONSTRAINT FK_UsuariosCPF_EdificioDefecto
+      FOREIGN KEY (EdificioIdDefecto)
+      REFERENCES dbo.tblEdificios(Id);
+
+    ALTER TABLE dbo.tblUsuariosCPF
+      CHECK CONSTRAINT FK_UsuariosCPF_EdificioDefecto;
+  END
+  GO
+
+Antes de crear FK, ejecutar una consulta de huérfanos y detener migración si
+existen. No corregir datos automáticamente sin aprobación.
+
+SP de pendientes mínimo:
+
+  CREATE OR ALTER PROCEDURE dbo.sp_Acceso_Pendientes
+    @EdificioId INT = NULL
+  AS
+  BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+      r.*,
+      e.Nombre AS EdificioNombre,
+      DATEDIFF(HOUR, r.FechaEntrada, GETDATE()) AS AntiguedadHoras
+    FROM dbo.tblRegistroAcceso r
+    INNER JOIN dbo.tblEdificios e ON e.Id = r.EdificioId
+    WHERE r.FechaSalida IS NULL
+      AND r.TipoPersona <> 'SALIDA_INDEPENDIENTE'
+      AND (@EdificioId IS NULL OR r.EdificioId = @EdificioId)
+    ORDER BY r.FechaEntrada ASC;
+  END
+  GO
+
+SP compatible rápido para salida independiente:
+
+  CREATE OR ALTER PROCEDURE dbo.sp_Acceso_SalidaIndependiente
+    @EdificioId INT,
+    @TipoPersona VARCHAR(30),
+    @PersonaId VARCHAR(50),
+    @NombrePersona VARCHAR(250),
+    @UsuarioRegistra VARCHAR(100),
+    @Observacion VARCHAR(500)
+  AS
+  BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Ahora DATETIME2(0) = GETDATE();
+
+    INSERT dbo.tblRegistroAcceso (
+      EdificioId,
+      TipoPersona,
+      PersonaId,
+      NombrePersona,
+      UsuarioRegistra,
+      FechaEntrada,
+      FechaSalida,
+      MotivoAcceso,
+      MotivoDetalle
+    )
+    OUTPUT
+      INSERTED.Id,
+      INSERTED.NombrePersona AS Nombre,
+      INSERTED.FechaSalida,
+      INSERTED.EdificioId
+    VALUES (
+      @EdificioId,
+      'SALIDA_INDEPENDIENTE',
+      @PersonaId,
+      @NombrePersona,
+      @UsuarioRegistra,
+      @Ahora,
+      @Ahora,
+      'Salida sin entrada registrada',
+      @Observacion
+    );
+  END
+  GO
+
+Esta solución es de compatibilidad. La solución de dominio correcta es una
+tabla de movimientos:
+
+  tblMovimientoAcceso
+  - Id
+  - EdificioId
+  - TipoMovimiento: ENTRADA | SALIDA | NOVEDAD
+  - RegistroEntradaRelacionadoId nullable
+  - TipoPersona
+  - PersonaId
+  - NombrePersona
+  - FechaMovimiento
+  - Motivo
+  - Observacion
+  - UsuarioRegistra
+
+P1-02. CSV SEGURO
+
+  const csvCell = (value: unknown): string => {
+    let text = value == null ? '' : String(value);
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const csv = [
+    headers.map(csvCell).join(','),
+    ...rows.map(row => row.map(csvCell).join(',')),
+  ].join('\r\n');
+
+Mostrar error:
+
+  } catch (err: any) {
+    showError(
+      'No se pudo exportar',
+      err?.response?.data?.message || 'Intente nuevamente.'
+    );
+  } finally {
+    setExporting(false);
+  }
+
+No pedir 1,000,000. Parche rápido por lotes:
+
+  const pageSize = 500;
+  let page = 1;
+  let all: ReportRow[] = [];
+
+  while (true) {
+    const res = await api.get('/acceso/reporte', {
+      params: { ...appliedFilters, pagina: page, porPagina: pageSize },
+    });
+    const batch = res.data.data ?? [];
+    all = all.concat(batch);
+    if (all.length >= res.data.total || batch.length === 0) break;
+    page += 1;
+  }
+
+P1-03. FOTOS AUTORIZADAS
+
+En FileInterceptor:
+
+  @UseInterceptors(FileInterceptor('foto', {
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  }))
+
+No publicar useStaticAssets para fotos sensibles. Crear:
+
+  @Get('foto/:fileName')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  async foto(
+    @Param('fileName') fileName: string,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    if (!/^[0-9a-f-]{36}\.webp$/i.test(fileName)) {
+      throw new BadRequestException('Archivo inválido.');
+    }
+
+    await this.acceso.assertPhotoAccess(fileName, req.user);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.sendFile(fileName, {
+      root: this.configuredPhotoDirectory,
+    });
+  }
+
+assertPhotoAccess debe buscar el registro por FotoUrl y aplicar
+resolveBuilding. No aceptar rutas del cliente ni usar path.join con texto sin
+validación.
+
+P1-04. REGLA CAPACITACIÓN
+
+Agregar al DTO:
+
+  @IsOptional()
+  @IsIn(['GENERAL', 'CAPACITACION'])
+  modalidadAcceso?: 'GENERAL' | 'CAPACITACION';
+
+Servicio:
+
+  const edificio = await this.edificios.findActive(dto.edificioId);
+
+  if (!edificio.EsCapacitacion && dto.eventoCursoId) {
+    throw new BadRequestException(
+      'Este edificio no admite eventos de capacitación.'
+    );
+  }
+
+  if (
+    edificio.EsCapacitacion &&
+    dto.modalidadAcceso === 'CAPACITACION' &&
+    !dto.eventoCursoId
+  ) {
+    throw new BadRequestException('Seleccione el curso o evento.');
+  }
+
+  if (dto.eventoCursoId) {
+    await this.eventos.assertActiveForBuilding(
+      dto.eventoCursoId,
+      dto.edificioId,
+      new Date(),
+    );
+  }
+
+P1-05. ENTER DE ESCÁNER/BÚSQUEDA
+
+  onKeyDown={(e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    void buscar();
+  }}
+
+Para scanner:
+- si hay coincidencia exacta por carnet, seleccionarla automáticamente;
+- no registrar entrada automáticamente sin motivo/confirmación;
+- conservar foco después de éxito;
+- evitar doble clic mientras registrando=true.
+
+P1-06. E2E QUE TERMINE
+
+Si se conserva setInterval:
+
+  const cleanupTimer = setInterval(cleanExpired, 300_000);
+  cleanupTimer.unref();
+
+Mejor:
+encapsular store en un provider con OnModuleDestroy:
+
+  onModuleDestroy() {
+    clearInterval(this.cleanupTimer);
+  }
+
+Agregar E2E con servicio mock:
+
+  it('acepta el contrato de salida independiente', async () => {
+    await request(app.getHttpServer())
+      .post('/api/acceso/salida-independiente')
+      .set('Authorization', `Bearer ${registradorToken}`)
+      .send({
+        edificioId: 1,
+        personaId: 'TEST',
+        nombrePersona: 'Persona de prueba',
+        observacion: 'Salida observada por CPF',
+      })
+      .expect(201);
+  });
+
+El servicio debe estar mocked para que E2E no escriba en SQL.
+
+P1-07. ACTUALIZAR TESTS EXTERNOS
+
+En test/api_tests.js:
+
+- sustituir la prueba de /acceso/salida por validación real de
+  /acceso/salida-independiente;
+- no hacer mutación en modo lectura;
+- probar payload inválido y esperar 400, lo que confirma que la ruta existe;
+- usar motivo permitido en mutation test, por ejemplo “Otro”, con detalle
+  “PRUEBA_CONTROLADA”;
+- agregar /acceso/pendientes;
+- agregar límite porPagina;
+- agregar alcance por edificio con dos tokens de prueba autorizados.
+
+En test/sql_tests.js, required:
+
+  'sp_Acceso_Pendientes',
+  'sp_Acceso_SalidaIndependiente',
+
+Y comprobar parámetros del SP correcto, no los de RegistrarSalida.
+
+======================================================================
+18. CRITERIOS DE ACEPTACIÓN
+======================================================================
+
+P0:
+
+[ ] Salida independiente UI responde 201.
+[ ] Payload usa nombrePersona.
+[ ] No hay edificioId=1 hardcodeado.
+[ ] Acción visible aunque pendientes esté vacío.
+[ ] No aparece en pendientes después de registrarse.
+[ ] CPF A no consulta ni modifica edificio B.
+[ ] Sin edificio asignado no obtiene alcance global.
+[ ] Rate limit diferencia clientes detrás de Nginx.
+[ ] 60 solicitudes combinadas legítimas no bloquean a todos.
+[ ] E2E termina con exit code 0.
+[ ] Login empleado productivo no ofrece dev-login.
+
+Datos:
+
+[ ] 007 contiene ambos SP.
+[ ] instalación 001-007 en base vacía funciona.
+[ ] columnas y parámetros tienen igual longitud.
+[ ] FK EdificioIdDefecto existe.
+[ ] PersonalExterno se reconstruye desde Git.
+[ ] salida independiente histórica pendiente se revisó con negocio.
+
+Reportes:
+
+[ ] porPagina máximo 500.
+[ ] exportación completa no pide un millón.
+[ ] comillas CSV correctas.
+[ ] fórmulas neutralizadas.
+[ ] error de exportación visible.
+[ ] motivoDetalle y capacitación visibles.
+[ ] móvil sin tabla obligatoria de 11 columnas.
+
+Seguridad:
+
+[ ] fotos requieren JWT y edificio autorizado.
+[ ] CPF desactivado deja de operar.
+[ ] acciones admin quedan auditadas.
+[ ] 3001 no está expuesto públicamente sin necesidad.
+[ ] 1433 está limitado por firewall/red autorizada.
+[ ] health devuelve 503 sin SQL.
+
+UX:
+
+[ ] CPF entra directo a Registro.
+[ ] edificio aparece fijo.
+[ ] Enter busca y no envía el formulario.
+[ ] carnet exacto selecciona persona.
+[ ] los tipos usan etiquetas sencillas.
+[ ] capacitación Sí/No no se confunde con razón de visita.
+[ ] evento obligatorio solo cuando corresponde.
+[ ] confirmación reinicia y devuelve foco.
+
+Pruebas:
+
+[ ] al menos 15 pruebas backend útiles.
+[ ] pruebas React de flujo crítico.
+[ ] SQL estricto sin GAP falsos.
+[ ] API estricta sin GAP falsos.
+[ ] prueba manual con lector/carnet físico.
+[ ] prueba simultánea con al menos dos CPF.
+
+======================================================================
+19. INSTRUCCIÓN LISTA PARA OTRO AGENTE
+======================================================================
+
+Trabaja en /opt/apps/control-acceso sobre el commit
+f173ab9d400f416bef41c5d5c0aca5f94af840f3.
+
+Lee primero este documento completo. No declares resuelto un hallazgo solo
+porque exista un archivo o endpoint: demuestra el flujo completo React -> DTO ->
+controller -> service -> stored procedure -> dato -> reporte.
+
+Orden obligatorio:
+
+1. P0-01 salida independiente.
+2. P0-02 alcance por edificio.
+3. P0-03 rate limit.
+4. P0-04 DTO.
+5. P0-05 login productivo.
+6. migración 007 reproducible.
+7. fotos/reportes/capacitación.
+8. pruebas.
+
+No cambies la regla de negocio a asistencia laboral.
+No obligues salida.
+No supongas que entrar al edificio de capacitación significa ir a un curso.
+No elimines movimientos históricos.
+No uses edificio 1 hardcodeado.
+No publiques fotos sin autorización.
+No inventes la URL del Portal SSO.
+No ejecutes pruebas mutantes en producción sin aprobación.
+No uses “todo OK” si Jest queda abierto, hay GAP falsos o el flujo UI devuelve
+400.
+
+Después de cada fase:
+
+- npm run build en nest;
+- npm test -- --runInBand;
+- npm run test:e2e -- --runInBand y confirmar que el proceso termina;
+- npm run build y npm run lint en react;
+- STRICT_REQUIREMENTS=1 node test/sql_tests.js;
+- prueba API estricta de solo lectura;
+- git diff revisado;
+- no desplegar si existe un crítico abierto.
+
+======================================================================
+20. CONCLUSIÓN FINAL
+======================================================================
+
+El sistema sí está mejor que en V2 y el trabajo reciente no fue inútil. La
+identidad visual ya es adecuada, el frontend está desplegado, la entrada básica
+es razonable y la infraestructura principal responde.
+
+El problema actual no es falta de páginas. Es integración incompleta:
+
+- una propiedad con nombre equivocado rompe salida independiente;
+- un guard sin usar no protege edificios;
+- un rate limiter sin proxy puede bloquear a todos;
+- SP activos fuera de Git impiden recuperar el sistema;
+- un botón productivo llama una ruta de desarrollo prohibida.
+
+Concentrándose en esos cinco puntos, otro agente puede mejorar más en 2-3 días
+que agregando nuevas funciones durante una semana.
+
+Decisión:
+
+- Piloto técnico controlado: posible, sin confiar aún en salida independiente ni
+  aislamiento por edificio.
+- Operación general para retirar papel: no aprobada todavía.
+- Reescritura completa: no necesaria.
+- Prioridad: terminar contratos y seguridad del flujo existente.
+
+CALIFICACIÓN FINAL V3: 6.8 / 10
+
+FIN DEL DOCUMENTO

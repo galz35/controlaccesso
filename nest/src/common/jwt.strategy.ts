@@ -25,6 +25,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       rol: payload.rol,
       tipo: payload.tipo || null,
       cpf: payload.cpf || false,
+      edificioIdDefecto: payload.edificioIdDefecto ?? null,
     };
   }
 }

@@ -11,6 +11,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPwd, setShowPwd] = useState(false);
+  const allowDev = import.meta.env.VITE_ALLOW_DEV_LOGIN === 'true';
+  const portalUrl = import.meta.env.VITE_PORTAL_SSO_URL || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +67,7 @@ export default function LoginPage() {
           </div>
 
           {mode === 'empleado' ? (
+            allowDev ? (
             <div className="form-group">
               <label htmlFor="carnet" className="form-label">Carnet de empleado</label>
               <input
@@ -78,6 +81,15 @@ export default function LoginPage() {
                 autoComplete="username"
               />
             </div>
+            ) : portalUrl ? (
+              <a href={portalUrl} className="btn btn--primary btn--block btn--lg" style={{ justifyContent: 'center' }}>
+                <DoorOpen className="icon icon--sm" /> Entrar desde Portal Claro
+              </a>
+            ) : (
+              <div className="alert alert--warning" role="alert">
+                Seleccione "Externo" e inicie sesión con su usuario CPF. El ingreso por Portal no está configurado aún.
+              </div>
+            )
           ) : (
             <>
               <div className="form-group">

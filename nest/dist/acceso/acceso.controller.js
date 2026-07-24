@@ -19,35 +19,58 @@ const passport_1 = require("@nestjs/passport");
 const acceso_service_1 = require("./acceso.service");
 const roles_decorator_1 = require("../common/roles.decorator");
 const roles_guard_1 = require("../common/roles.guard");
+const building_resolver_1 = require("../common/building.resolver");
 const acceso_dto_1 = require("./dto/acceso.dto");
 let AccesoController = class AccesoController {
     constructor(acceso) {
         this.acceso = acceso;
     }
     async entrada(dto, req, foto) {
-        return this.acceso.registrarEntrada(dto, req.user.carnet || req.user.username || 'cpf', foto);
+        const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, dto.edificioId);
+        return this.acceso.registrarEntrada({ ...dto, edificioId: edificioId }, req.user.carnet || req.user.username || 'cpf', foto);
     }
-    async salida(id) {
-        return this.acceso.registrarSalida(id);
+    async salida(id, req) {
+        return this.acceso.registrarSalida(id, req.user);
     }
     async salidaIndependiente(dto, req) {
-        return this.acceso.registrarSalidaIndependiente(dto, req.user.carnet || req.user.username || 'cpf');
+        const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, dto.edificioId);
+        return this.acceso.registrarSalidaIndependiente({ ...dto, edificioId: edificioId }, req.user.carnet || req.user.username || 'cpf');
     }
-    async hoy(edificioId) {
-        return this.acceso.accesosHoy(edificioId ? parseInt(edificioId) : undefined);
+    async hoy(raw, req) {
+        const requested = raw ? parseInt(raw) : undefined;
+        const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, requested);
+        return this.acceso.accesosHoy(edificioId);
     }
-    async pendientes(edificioId) {
-        return this.acceso.accesosPendientes(edificioId ? parseInt(edificioId) : undefined);
+    async pendientes(raw, req) {
+        const requested = raw ? parseInt(raw) : undefined;
+        const edificioId = (0, building_resolver_1.resolveBuilding)(req.user, requested);
+        return this.acceso.accesosPendientes(edificioId);
     }
-    async reporte(query) {
-        return this.acceso.reporte(query.edificioId, query.tipoPersona, query.desde, query.hasta, query.pagina || 1, query.porPagina || 50, query.motivoAcceso);
+    async reporte(query, req) {
+        let edificioId = query.edificioId;
+        if (query.edificioId) {
+            edificioId = (0, building_resolver_1.resolveBuilding)(req.user, query.edificioId);
+        }
+        else {
+            (0, building_resolver_1.resolveBuilding)(req.user, undefined);
+        }
+        return this.acceso.reporte(edificioId, query.tipoPersona, query.desde, query.hasta, query.pagina || 1, query.porPagina || 50, query.motivoAcceso);
+    }
+    async getFoto(fileName, req, res) {
+        if (!/^[0-9a-f-]{36}\.webp$/i.test(fileName)) {
+            throw new common_1.BadRequestException('Archivo inválido.');
+        }
+        const uploadPath = await this.acceso.assertPhotoAccess(fileName, req.user);
+        res.setHeader('Cache-Control', 'private, no-store');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        return res.sendFile(fileName, { root: uploadPath });
     }
 };
 exports.AccesoController = AccesoController;
 __decorate([
     (0, common_1.Post)('entrada'),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto')),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('foto', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } })),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
     __param(2, (0, common_1.UploadedFile)()),
@@ -59,8 +82,9 @@ __decorate([
     (0, common_1.Post)('salida/:id'),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "salida", null);
 __decorate([
@@ -76,26 +100,39 @@ __decorate([
     (0, common_1.Get)('hoy'),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
     __param(0, (0, common_1.Query)('edificioId')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "hoy", null);
 __decorate([
     (0, common_1.Get)('pendientes'),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
     __param(0, (0, common_1.Query)('edificioId')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "pendientes", null);
 __decorate([
     (0, common_1.Get)('reporte'),
     (0, roles_decorator_1.Roles)('admin', 'registrador'),
     __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [acceso_dto_1.ReporteQueryDto]),
+    __metadata("design:paramtypes", [acceso_dto_1.ReporteQueryDto, Object]),
     __metadata("design:returntype", Promise)
 ], AccesoController.prototype, "reporte", null);
+__decorate([
+    (0, common_1.Get)('foto/:fileName'),
+    (0, roles_decorator_1.Roles)('admin', 'registrador'),
+    __param(0, (0, common_1.Param)('fileName')),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AccesoController.prototype, "getFoto", null);
 exports.AccesoController = AccesoController = __decorate([
     (0, common_1.Controller)('acceso'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt'), roles_guard_1.RolesGuard),

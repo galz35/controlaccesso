@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
 
   const BASE_URL = import.meta.env.VITE_API_URL || '';
-  const photoUrl = (url: string) => url.startsWith('http') ? url : `${BASE_URL}${url}`;
+  const photoUrl = (url: string) => url ? `${BASE_URL}/acceso/foto/${url}` : '';
 
   const load = useCallback(async () => {
     setLoading(true); setApiError(false);
