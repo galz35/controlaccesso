@@ -9,7 +9,7 @@ marcación laboral ni cumplimiento de horario.
 ### SQL tests (solo lectura)
 ```bash
 cd /opt/apps/control-acceso/test
-DB_USER=usr_control_acceso DB_PASSWORD=AccesoClaro2026! DB_NAME=ControlAcceso \
+DB_USER=${DB_USER:-usr_control_acceso} DB_PASSWORD=${DB_PASSWORD:-''} DB_NAME=ControlAcceso \
   NODE_PATH=/opt/apps/control-acceso/nest/node_modules node sql_tests.js
 ```
 

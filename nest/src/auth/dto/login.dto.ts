@@ -37,6 +37,10 @@ export class CpfRegisterDto {
   tipo: string;
 
   @IsOptional()
+  @IsString()
+  correo?: string;
+
+  @IsOptional()
   referenciaId?: number;
 
   @IsOptional()

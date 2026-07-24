@@ -41,7 +41,7 @@ export default function AdminCpfPage() {
   const resetPassword = async (username: string) => {
     const { value: newPwd } = await Swal.fire({ title: 'Nueva contraseña', text: `Para: ${username}`, input: 'password', inputPlaceholder: 'Nueva contraseña (mín. 6 caracteres)', showCancelButton: true, confirmButtonText: 'Cambiar', confirmButtonColor: '#DA291C' });
     if (!newPwd || newPwd.length < 6) return;
-    try { await api.put('/auth/cpf-password', { username, oldPassword: '', newPassword: newPwd }); showSuccess('Contraseña cambiada'); } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
+    try { await api.post('/auth/admin-reset-password', { username, newPassword: newPwd }); showSuccess('Contraseña cambiada'); } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error'); }
   };
 
   if (!isAdmin) return <div className="restricted-page"><h2>Acceso restringido</h2><p className="empty-state__desc">No tenés permisos para administrar usuarios CPF.</p></div>;

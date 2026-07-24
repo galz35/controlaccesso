@@ -10,7 +10,7 @@ export class CpfAuthService {
     private jwt: JwtService,
   ) {}
 
-  async register(dto: { username: string; password: string; nombre: string; tipo: string; referenciaId?: number; edificioIdDefecto?: number }) {
+  async register(dto: { username: string; password: string; nombre: string; tipo: string; referenciaId?: number; edificioIdDefecto?: number; correo?: string }) {
     if (dto.password.length < 6) throw new BadRequestException('La contraseña debe tener al menos 6 caracteres.');
     if (!['PROVEEDOR', 'INSTRUCTOR_EXTERNO'].includes(dto.tipo)) {
       throw new BadRequestException('Tipo inválido.');

@@ -71,7 +71,7 @@ export class AccesoService {
   async accesosPendientes(edificioId?: number) {
     const pool = await this.db.getPool();
     const request = pool.request();
-    let where = 'WHERE r.FechaSalida IS NULL';
+    let where = 'WHERE r.FechaSalida IS NULL AND (r.TipoMovimiento IS NULL OR r.TipoMovimiento = \'ENTRADA\')';
     if (edificioId) { request.input('edificioId', edificioId); where += ' AND r.EdificioId = @edificioId'; }
     const result = await request.query(`
       SELECT r.*, e.Nombre AS EdificioNombre
@@ -100,16 +100,14 @@ export class AccesoService {
       .input('TipoPersona', 'SALIDA_INDEPENDIENTE')
       .input('PersonaId', dto.personaId)
       .input('NombrePersona', dto.nombrePersona)
-      .input('EmpresaPersona', null)
-      .input('FotoUrl', null)
       .input('UsuarioRegistra', usuario)
       .input('MotivoAcceso', dto.observacion)
       .query(`
-        INSERT INTO dbo.tblRegistroAcceso (EdificioId, TipoPersona, PersonaId, NombrePersona, UsuarioRegistra, MotivoAcceso)
-        OUTPUT INSERTED.Id, INSERTED.NombrePersona AS Nombre, INSERTED.FechaEntrada, INSERTED.MotivoAcceso
-        VALUES (@EdificioId, @TipoPersona, @PersonaId, @NombrePersona, @UsuarioRegistra, @MotivoAcceso)
+        INSERT INTO dbo.tblRegistroAcceso (EdificioId, TipoPersona, PersonaId, NombrePersona, UsuarioRegistra, MotivoAcceso, TipoMovimiento, FechaSalida)
+        OUTPUT INSERTED.Id, INSERTED.NombrePersona AS Nombre, INSERTED.FechaSalida, INSERTED.MotivoAcceso, INSERTED.TipoMovimiento
+        VALUES (@EdificioId, @TipoPersona, @PersonaId, @NombrePersona, @UsuarioRegistra, @MotivoAcceso, 'SALIDA_NOCTROL', GETDATE())
       `);
-    return { ...result.recordset[0], tipo: 'SALIDA_INDEPENDIENTE' };
+    return { ...result.recordset[0], tipo: 'SALIDA_NOCTROL' };
   }
 
   async reporte(edificioId?: number, tipoPersona?: string, desde?: string, hasta?: string, pagina = 1, porPagina = 50, motivoAcceso?: string) {

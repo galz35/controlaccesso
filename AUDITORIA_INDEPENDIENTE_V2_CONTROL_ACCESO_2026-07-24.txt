@@ -1,0 +1,930 @@
+AUDITORÍA INDEPENDIENTE V2 — SISTEMA CONTROL DE ACCESO
+Claro Nicaragua
+Fecha de revisión: 2026-07-24
+Repositorio: /opt/apps/control-acceso
+Commit auditado: 099809822b4c6d2fb4c573290a54a2487acb9e8e
+Auditoría realizada después de los commits:
+- f5e7d2d6: “fix: auditoria - 4 criticos y 4 altos resueltos”
+- 09980982: “feat: pagina de reportes web (A-04)”
+
+======================================================================
+1. VEREDICTO EJECUTIVO NUEVO
+======================================================================
+
+CALIFICACIÓN GENERAL V2: 6.1 / 10
+
+Calificación anterior de referencia: 5.4 / 10.
+Mejora estimada comprobada: +0.7 puntos.
+
+Estado real:
+
+- El sistema avanzó y ya no es exactamente la misma versión auditada antes.
+- La página de reportes existe y está desplegada.
+- El JWT CPF conserva ahora sus campos.
+- Existen DTO para los flujos principales.
+- Existe backend para consultar pendientes y salida independiente.
+- Existe backend para restablecer contraseña como administrador.
+- Existe una migración V2.
+
+Sin embargo:
+
+- No está listo para considerarse terminado.
+- No debe aprobarse todavía como reemplazo total del papel.
+- Sigue existiendo acceso de desarrollo en el despliegue activo.
+- La salida independiente fue modelada incorrectamente.
+- Varias mejoras backend no están conectadas a la interfaz.
+- La instalación desde cero continúa sin ser reproducible.
+- Las pruebas internas continúan vacías o rotas.
+
+Conteo de esta auditoría V2:
+
+- 3 hallazgos CRÍTICOS.
+- 11 hallazgos ALTOS.
+- 10 hallazgos MEDIOS.
+- 4 hallazgos BAJOS.
+- Total: 28 hallazgos actuales.
+
+El total coincide numéricamente con la auditoría anterior, pero no son los
+mismos hallazgos: varias fallas fueron corregidas, otras quedaron parciales y
+se introdujo una regresión importante en la salida independiente.
+
+======================================================================
+2. ESTADO DESPLEGADO COMPROBADO
+======================================================================
+
+Backend:
+
+- PM2: proceso control-acceso online.
+- Script activo: /opt/apps/control-acceso/nest/dist/main.js.
+- Puerto: 3001.
+- Reinicios acumulados observados: 6.
+- Uptime observado durante auditoría: 14 minutos.
+- Heap usado observado: aproximadamente 95%.
+- Latencia HTTP media reportada por PM2: aproximadamente 6.5 ms.
+- Endpoint /api/health: HTTP 200.
+- Endpoint /api/acceso/pendientes sin token: HTTP 401.
+- Endpoint /api/acceso/reporte sin token: HTTP 401.
+- Endpoint /api/acceso/salida-independiente sin token: HTTP 401.
+
+Conclusión:
+Los endpoints nuevos están desplegados y protegidos por JWT.
+
+Frontend:
+
+- Build desplegado en /var/www/control-acceso.
+- Archivo JavaScript actual: index-DkTrsD4a.js.
+- La página ReportsPage está incluida en la compilación.
+- React compila correctamente.
+- Nest compila correctamente.
+
+Base activa:
+
+- EMPLEADO: 18 movimientos; 8 pendientes.
+- PROVEEDOR: 4 movimientos; 4 pendientes.
+- SERVICIO_EXTERNO: 5 movimientos; 5 pendientes.
+- VISITANTE: 4 movimientos; 4 pendientes.
+- SALIDA_INDEPENDIENTE: 1 movimiento; 1 pendiente.
+- Llaves foráneas sobre tblUsuariosCPF.EdificioIdDefecto: 0.
+
+No se consultaron nombres, carnets, cédulas ni fotografías.
+
+======================================================================
+3. PRUEBAS EJECUTADAS EN ESTA AUDITORÍA
+======================================================================
+
+3.1 React
+
+Comando:
+npm run build
+
+Resultado:
+PASS.
+
+Bundle:
+- JavaScript: aproximadamente 414 KB.
+- JavaScript gzip: aproximadamente 125 KB.
+- CSS: aproximadamente 17.9 KB.
+
+3.2 Nest
+
+Comando:
+npm run build
+
+Resultado:
+PASS.
+
+3.3 Pruebas unitarias Nest
+
+Resultado:
+FAIL.
+
+Motivo:
+No existe ningún archivo *.spec.ts en nest/src.
+
+Casos ejecutados:
+0.
+
+3.4 Prueba E2E Nest
+
+Resultado:
+FAIL antes de ejecutar casos.
+
+Motivo:
+Jest no puede transformar uuid/dist-node/index.js por ser ESM.
+
+Casos ejecutados:
+0.
+
+Problema adicional:
+nest/test/app.e2e-spec.ts todavía espera “Hello World!” en GET /, aunque la
+aplicación real usa /api/health.
+
+3.5 Diagnóstico SQL estricto
+
+Resultado:
+- 40 PASS.
+- 0 FAIL estructurales inmediatos.
+- 7 GAP.
+
+GAP actuales:
+
+1. EdificioIdDefecto sin FK.
+2. Dos registros existentes sin motivo.
+3. El SP tradicional de salida no cubre salida independiente.
+4. Script base sin EsCapacitacion.
+5. Script base CPF sin EdificioIdDefecto.
+6. Script base sin MotivoAcceso/MotivoDetalle.
+7. SP fuente de entrada sin ambos motivos.
+
+Nota:
+El test SQL no fue actualizado para comprender database/005_migration_v2.sql,
+por lo que parte de sus mensajes sobre scripts están desactualizados. Aun así,
+la instalación completa 001-005 sigue rota por razones explicadas más adelante.
+
+3.6 Diagnóstico API estricto
+
+Resultado:
+- 9 PASS.
+- 0 FAIL.
+- 1 GAP.
+- 2 SKIP.
+
+El GAP “no existe salida independiente” es un falso negativo del test actual:
+el endpoint sí existe, pero test/api_tests.js sigue probando
+/acceso/salida en vez de /acceso/salida-independiente.
+
+Conclusión sobre las pruebas:
+La suite no está sincronizada con la implementación nueva y ya no puede usarse
+como evidencia suficiente de cobertura funcional.
+
+======================================================================
+4. MEJORAS QUE SÍ FUERON RESUELTAS
+======================================================================
+
+R-01. JWT CPF CONSERVA CLAIMS
+
+Estado: RESUELTO EN CÓDIGO Y DESPLEGADO.
+
+JwtStrategy conserva:
+- sub
+- carnet
+- username
+- nombre
+- rol
+- tipo
+- cpf
+
+Esto permite identificar al registrador CPF con username cuando no tiene
+carnet.
+
+R-02. VALIDACIÓN DTO PRINCIPAL
+
+Estado: PARCIALMENTE RESUELTO.
+
+Ya existen DTO para:
+- dev-login
+- SSO
+- login CPF
+- registro CPF
+- cambio y reset de contraseña
+- registrar entrada
+- salida independiente
+- consulta de reporte
+
+Faltan validaciones de longitud, fecha, límites y reglas cruzadas.
+
+R-03. PENDIENTES DE CUALQUIER FECHA
+
+Estado: RESUELTO SOLO EN BACKEND.
+
+Existe:
+GET /api/acceso/pendientes
+
+El endpoint devuelve antigüedad en horas y no se limita al día actual.
+
+R-04. RESET ADMINISTRATIVO DE CONTRASEÑA
+
+Estado: RESUELTO SOLO EN BACKEND.
+
+Existe:
+POST /api/auth/admin-reset-password
+
+Está protegido con rol admin.
+
+R-05. SALIDA INDEPENDIENTE
+
+Estado: ENDPOINT CREADO, MODELO INCORRECTO.
+
+Existe:
+POST /api/acceso/salida-independiente
+
+No puede considerarse resuelto porque registra una entrada pendiente.
+
+R-06. PÁGINA DE REPORTES
+
+Estado: RESUELTO EN FORMA BÁSICA.
+
+Existe:
+- ruta /control-acceso/reportes
+- opción de menú
+- filtros por fechas, edificio, tipo y motivo
+- tabla
+- paginación
+- descarga CSV de la página visible
+
+R-07. MIGRACIÓN V2
+
+Estado: PARCIALMENTE RESUELTO.
+
+Existe database/005_migration_v2.sql, pero no reconstruye todavía todos los
+contratos necesarios.
+
+======================================================================
+5. HALLAZGOS CRÍTICOS
+======================================================================
+
+C-01. DEV-LOGIN CONTINÚA ACTIVO EN EL DESPLIEGUE REAL
+
+Evidencia:
+
+- AuthController solo bloquea dev-login si NODE_ENV === “production”.
+- nest/.env no contiene NODE_ENV.
+- PM2 reporta node env: N/A.
+- LoginPage sigue ofreciendo “Empleado” por carnet.
+- AuthContext sigue llamando POST /auth/dev-login.
+- sp_Login_Empleado crea usuario local si el carnet no existe.
+
+Conclusión:
+La corrección fue escrita, pero la condición de producción no se cumple en el
+servidor activo. Por tanto, dev-login continúa habilitado.
+
+Riesgo:
+Cualquier persona que conozca o pruebe un carnet puede obtener un JWT. Además,
+el SP puede crear usuarios locales para valores no verificados.
+
+Corrección:
+
+1. Definir NODE_ENV=production en PM2.
+2. Reiniciar el proceso con entorno actualizado.
+3. Eliminar la opción de carnet simple del frontend productivo.
+4. Bloquear dev-login por configuración explícita, no solo NODE_ENV.
+5. Usar una variable ALLOW_DEV_LOGIN=false por defecto.
+6. Validar carnet contra la fuente corporativa antes de crear usuario local.
+7. Añadir prueba que confirme HTTP 403 en producción.
+
+C-02. SALIDA INDEPENDIENTE CORROMPE EL CONCEPTO DE OCUPACIÓN
+
+Evidencia de código:
+
+- registrarSalidaIndependiente inserta en tblRegistroAcceso.
+- Usa TipoPersona=SALIDA_INDEPENDIENTE.
+- La tabla asigna FechaEntrada=GETDATE().
+- No asigna FechaSalida.
+
+Evidencia de base:
+
+- Existe 1 SALIDA_INDEPENDIENTE.
+- Ese registro tiene FechaSalida nula.
+- Por tanto aparece como pendiente.
+
+Impacto:
+
+- Una salida incrementa la cantidad de personas “dentro”.
+- El reporte muestra el movimiento como entrada.
+- El panel de pendientes puede mostrar una salida como persona pendiente.
+- Los KPI quedan conceptualmente incorrectos.
+- No se puede distinguir ocupación física real.
+
+Corrección recomendada:
+
+Opción preferida:
+Crear tblMovimientosAcceso con TipoMovimiento ENTRADA/SALIDA/NOVEDAD y enlazar
+eventos cuando exista correspondencia.
+
+Opción mínima:
+Agregar columnas TipoMovimiento y EsSalidaSinEntrada, y registrar FechaSalida
+sin crear una FechaEntrada falsa.
+
+Nunca debe quedar una salida independiente como FechaSalida=NULL.
+
+C-03. CREDENCIALES EXPUESTAS Y SECRETOS CON FALLBACK
+
+Evidencia:
+
+- test/README.md conserva una contraseña de base escrita directamente.
+- Esa información está en historial Git ya publicado.
+- JwtModule y JwtStrategy todavía aceptan un secreto predeterminado conocido.
+- main.ts solo muestra una advertencia; no detiene el servicio.
+
+Aunque nest/.env tiene JWT_SECRET configurado actualmente, el código permite
+iniciar inseguro en otro despliegue.
+
+Corrección:
+
+1. Rotar la contraseña expuesta.
+2. Eliminarla de archivos actuales.
+3. Evaluar limpieza del historial.
+4. Quitar completamente el fallback JWT.
+5. Lanzar error fatal si JWT_SECRET o SSO_SECRET faltan.
+6. Agregar detección de secretos en CI.
+
+======================================================================
+6. HALLAZGOS ALTOS
+======================================================================
+
+A-01. EL BOTÓN ADMINISTRATIVO SIGUE USANDO EL ENDPOINT INCORRECTO
+
+Backend nuevo:
+POST /auth/admin-reset-password
+
+Frontend actual:
+PUT /auth/cpf-password con oldPassword vacío.
+
+Resultado:
+El botón “Cambiar contraseña” del administrador sigue fallando. La mejora existe
+en backend, pero AdminCpfPage no la utiliza.
+
+A-02. EL PANEL DE SALIDA SIGUE CONSULTANDO SOLO /acceso/hoy
+
+Aunque existe /acceso/pendientes, RegistroPage continúa cargando /acceso/hoy y
+filtrando FechaSalida en React.
+
+Resultado:
+Una entrada abierta de ayer sigue sin poder cerrarse desde la interfaz.
+
+A-03. NO EXISTE INTERFAZ PARA SALIDA INDEPENDIENTE
+
+El endpoint está desplegado, pero no hay botón, formulario ni flujo visible.
+
+Debe incluir:
+- edificio
+- búsqueda por carnet/código
+- nombre confirmado
+- observación obligatoria
+- advertencia de que no se encontró entrada
+- confirmación final
+
+Antes debe corregirse el modelo descrito en C-02.
+
+A-04. INSTALACIÓN 001-005 SIGUE SIN SER REPRODUCIBLE
+
+Problemas:
+
+- 004_create_procedures.sql define sp_Acceso_RegistrarEntrada sin
+  @MotivoAcceso y @MotivoDetalle.
+- 005_migration_v2.sql agrega columnas, pero no actualiza ese SP.
+- Nest siempre envía ambos parámetros.
+- Una instalación nueva terminará con contrato Nest/SQL incompatible.
+- tblPersonalExterno y sus SP no están completos en los scripts base/migración.
+
+Resultado:
+Recuperar o instalar el sistema desde Git puede producir un backend que compila
+pero falla al registrar entradas.
+
+A-05. MIGRACIÓN V2 NO AGREGA FK A UNA COLUMNA YA EXISTENTE
+
+La migración crea la FK únicamente dentro del bloque que agrega
+EdificioIdDefecto.
+
+En la base activa la columna ya existía, por lo que el bloque no se ejecutó.
+
+Resultado comprobado:
+Cantidad de FK sobre EdificioIdDefecto = 0.
+
+Debe comprobarse la restricción por nombre/columnas independientemente de la
+existencia de la columna.
+
+A-06. FOTOGRAFÍAS TODAVÍA NO TIENEN PUBLICACIÓN SEGURA COMPLETA
+
+AccesoService guarda archivos y devuelve /control-acceso-uploads/...
+Nginx reenvía esa ruta al backend.
+Nest no configura servicio de archivos estáticos.
+
+También faltan:
+- límite de bytes
+- validación MIME real
+- límite de píxeles
+- control de acceso
+- retención
+- eliminación
+- manejo de imagen corrupta
+
+A-07. MOTIVO SIGUE SIENDO OPCIONAL
+
+RegistrarEntradaDto usa IsOptional para motivoAcceso.
+La UI también lo presenta como opcional.
+La base ya contiene 2 registros sin motivo.
+
+Esto impide garantizar el reporte “quién estuvo y por qué”.
+
+A-08. PROVEEDOR Y SERVICIO EXTERNO PIERDEN EMPRESA/CÉDULA
+
+RegistroPage, al seleccionar una persona, envía únicamente personaId y nombre.
+No copia cédula ni empresa del resultado seleccionado.
+
+Los reportes de PL, cocina, proveedor y conductor quedan incompletos.
+
+A-09. EVENTOS DE CAPACITACIÓN NO SE FILTRAN POR EDIFICIO Y FECHA
+
+La UI sigue mostrando todos los eventos activos.
+Puede asociarse un curso de otro edificio o fuera de fecha.
+Seleccionar evento continúa siendo opcional cuando se marca capacitación.
+
+A-10. CERO PRUEBAS UNITARIAS Y E2E INUTILIZABLE
+
+- Unitarias: 0.
+- E2E: 0 ejecutadas.
+- Error ESM de uuid sin resolver.
+- Caso Hello World obsoleto.
+
+Esto permite introducir regresiones como C-02 sin detectarlas.
+
+A-11. AUTORIZACIÓN DE DATOS NO ESTÁ LIMITADA POR EDIFICIO
+
+Todos los roles registrador pueden consultar:
+- todos los edificios
+- todos los pendientes
+- todos los reportes
+- empleados y personas externas
+
+EdificioIdDefecto solo preselecciona la UI; no limita el backend.
+
+Debe definirse la política real:
+
+- Si CPF es un puesto por edificio, el JWT debe llevar edificios autorizados.
+- El backend debe forzar esos edificios.
+- Admin puede consultar todo.
+- Un registrador no debe ampliar su alcance enviando otro edificioId.
+
+Este punto es especialmente importante por cédulas, fotos y trazabilidad.
+
+======================================================================
+7. HALLAZGOS MEDIOS
+======================================================================
+
+M-01. FECHA “HASTA” DEL REPORTE SIGUE EXCLUYENDO EL ÚLTIMO DÍA
+
+ReportsPage envía AAAA-MM-DD.
+AccesoService crea new Date(hasta).
+SQL usa FechaEntrada <= @Hasta.
+
+El límite queda al inicio del día seleccionado.
+
+Solución:
+Usar FechaEntrada < DATEADD(day, 1, @Hasta).
+
+M-02. EXPORTAR CSV SOLO DESCARGA LA PÁGINA VISIBLE
+
+El reporte pagina de 25 en 25 y exportCSV usa el estado data actual.
+
+El usuario puede creer que exportó “el reporte”, cuando solo exportó hasta 25
+filas.
+
+Debe:
+- pedir todos los datos filtrados a un endpoint de exportación, o
+- indicar claramente “Exportar esta página”.
+
+M-03. CSV VULNERABLE A FÓRMULAS DE HOJA DE CÁLCULO
+
+Valores que empiezan con =, +, - o @ pueden ejecutarse como fórmula al abrir el
+CSV en Excel.
+
+Los nombres, empresas y motivos pueden contener texto controlado por usuarios.
+Sanitizar celdas antes de exportar.
+
+M-04. TIPOS INCOMPLETOS EN FILTRO DE REPORTES
+
+ReportsPage no incluye:
+- INSTRUCTOR_INTERNO
+- SALIDA_INDEPENDIENTE
+
+Además muestra códigos técnicos en vez de etiquetas sencillas.
+
+M-05. CAMBIAR FILTROS DISPARA CONSULTAS AUTOMÁTICAS
+
+load depende de todos los filtros y useEffect depende de load.
+Cada modificación de filtro ejecuta el reporte, aunque existe botón Buscar.
+
+El botón Buscar produce una segunda lógica redundante.
+
+Elegir:
+- búsqueda automática con debounce, o
+- filtros borrador y botón Aplicar.
+
+M-06. DTO TODAVÍA INCOMPLETOS
+
+Faltan, entre otros:
+
+- Max para porPagina.
+- IsIn para tipoPersona en reporte.
+- IsDateString para desde/hasta.
+- MaxLength para nombres, IDs, empresa, motivo y observación.
+- Type(() => Number) e IsInt para IDs CPF.
+- validación hasta >= desde.
+- evento obligatorio si el acceso es capacitación.
+- motivoDetalle obligatorio cuando motivo=Otro.
+
+M-07. CORS SIGUE ABIERTO
+
+main.ts mantiene app.enableCors() sin orígenes permitidos.
+
+M-08. SIN RATE LIMIT, BLOQUEO NI AUDITORÍA DE LOGIN
+
+No se observó Throttler ni política de intentos fallidos.
+
+M-09. SQL TEST SIGUE APUNTANDO A LA BASE EQUIVOCADA POR DEFECTO
+
+nest/.env conserva DB_DATABASE=Asistencia.
+test/sql_tests.js toma DB_DATABASE si DB_NAME no existe.
+La aplicación, en cambio, usa ControlAcceso escrito en DatabaseService.
+
+El comando simple documentado puede fallar o auditar otro sistema.
+
+M-10. PRUEBAS EXTERNAS ESTÁN DESACTUALIZADAS
+
+No cubren:
+- /acceso/pendientes
+- /acceso/salida-independiente
+- /auth/admin-reset-password
+- validaciones DTO nuevas
+- página de reportes
+- CSV
+- alcance por edificio
+
+Además reportan como ausente un endpoint que sí existe.
+
+======================================================================
+8. HALLAZGOS BAJOS
+======================================================================
+
+B-01. ReportsPage usa any de forma extensa y mezcla lógica de consulta,
+      presentación y exportación.
+
+B-02. La tabla repite Fecha, Hora y Entrada; la información puede simplificarse.
+
+B-03. El ObjectURL del CSV no se revoca después de descargar.
+
+B-04. Continúan estilos inline y dominio de fotos escrito directamente en
+      DashboardPage, dificultando ambientes múltiples.
+
+======================================================================
+9. REVISIÓN DE SEGURIDAD
+======================================================================
+
+Puntos positivos:
+
+- Endpoints nuevos requieren JWT.
+- RolesGuard protege las operaciones.
+- bcrypt se usa para contraseñas CPF.
+- JWT CPF conserva claims.
+- DTO rechazan varios cuerpos inválidos.
+- SSO verifica HS256 y tipo SSO_PORTAL.
+
+Pendientes importantes:
+
+- dev-login activo.
+- secreto JWT con fallback.
+- credencial expuesta.
+- CORS abierto.
+- sin rate limit.
+- token SSO en query string.
+- JWT almacenado en localStorage.
+- usuario/rol del frontend restaurado sin /auth/me.
+- no se revalida cuenta activa en cada JWT.
+- acceso a reportes sin alcance por edificio.
+- fotos sin autorización.
+- reset administrativo sin auditoría ni obligación de cambio posterior.
+
+Calificación de seguridad V2: 4.0 / 10.
+
+Mejoró respecto a la versión anterior, pero dev-login impide una valoración
+aprobatoria.
+
+======================================================================
+10. REVISIÓN FUNCIONAL DEL FLUJO REAL
+======================================================================
+
+10.1 Empleado con carnet físico
+
+Existe:
+- búsqueda por nombre/carnet
+- selección
+- entrada
+
+Falta:
+- modo escáner optimizado
+- coincidencia exacta automática
+- foco restaurado
+- prevención de submit accidental
+- SSO obligatorio en producción
+
+10.2 Visitante
+
+Existe:
+- alta manual
+- nombre
+- cédula opcional
+- empresa/motivo
+
+Problema:
+“Empresa / Motivo” mezcla dos datos y el motivo formal es opcional.
+
+10.3 PL, cocina, conductor y carga
+
+Existe:
+- SERVICIO_EXTERNO
+- catálogo Personal Externo
+- motivos específicos
+
+Problema:
+La entrada seleccionada no conserva empresa ni cédula.
+
+10.4 Capacitación
+
+Existe:
+- edificio marcado EsCapacitacion
+- elección general/capacitación
+- evento
+
+Problema:
+Evento no filtrado ni obligatorio.
+
+10.5 Salida opcional
+
+La columna FechaSalida sigue permitiendo NULL correctamente.
+
+10.6 Salida posterior
+
+Backend: existe /pendientes.
+Frontend: no lo usa.
+
+Resultado para el usuario:
+Todavía no funciona.
+
+10.7 Salida sin entrada
+
+Backend: endpoint existe.
+Frontend: no existe.
+Persistencia: incorrecta.
+
+Resultado:
+No puede aprobarse.
+
+10.8 Reporte “quién estuvo y por qué”
+
+Ahora existe una pantalla.
+
+Limitaciones:
+- motivos faltantes históricos
+- motivo opcional
+- fecha hasta incorrecta
+- exportación parcial
+- no muestra MotivoDetalle
+- no limita edificio por usuario
+- salida independiente se presenta incorrectamente
+
+======================================================================
+11. REVISIÓN UX/UI V2
+======================================================================
+
+Calificación visual: 7.8 / 10.
+Calificación de facilidad operativa: 6.7 / 10.
+
+Fortalezas:
+
+- Identidad Claro consistente.
+- Rojo, blanco, gris, negro y verde.
+- No se detectó azul.
+- Navegación clara.
+- Menú y tarjetas móviles.
+- Botones táctiles.
+- Reportes agregados al menú.
+- Mensaje explícito de que no es asistencia laboral.
+
+Problemas:
+
+- Demasiados tipos en el primer paso.
+- Dos bloques llamados “Motivo del acceso”.
+- Salida antigua invisible.
+- Salida independiente invisible.
+- Filtros de reportes consultan antes de pulsar Buscar.
+- Códigos técnicos en reportes.
+- Tabla de 11 columnas difícil en móvil.
+- CSV no explica que exporta solo una página.
+- No hay resumen previo a guardar.
+- No hay flujo prioritario de escáner.
+
+Diseño operativo recomendado:
+
+1. Edificio fijo visible.
+2. Campo principal “Escanee carnet o código”.
+3. Persona confirmada en tarjeta grande.
+4. Tipo detectado automáticamente cuando sea posible.
+5. Motivo obligatorio con botones.
+6. Botón rojo Entrada.
+7. Confirmación verde y reinicio automático.
+8. Segunda pestaña Pendientes con todos los días.
+9. Acción excepcional Salida sin entrada con advertencia.
+10. Reportes separados de la operación diaria.
+
+======================================================================
+12. PLAN DE CORRECCIÓN V2 PRIORIZADO
+======================================================================
+
+FASE 0 — 1 día: seguridad inmediata
+
+1. Configurar NODE_ENV=production en PM2.
+2. Confirmar que /auth/dev-login devuelve 403.
+3. Ocultar login por carnet simple del build productivo.
+4. Rotar credencial expuesta.
+5. Eliminar fallback JWT y fallar al arrancar sin secretos.
+
+FASE 1 — 1 a 2 días: reparar correcciones parciales
+
+1. Cambiar AdminCpfPage a POST /auth/admin-reset-password.
+2. Cambiar SalidaPanel a GET /acceso/pendientes.
+3. Diseñar correctamente salida independiente.
+4. Eliminar/corregir el movimiento independiente ya contaminado.
+5. Crear UI de salida independiente.
+
+La corrección del registro existente debe ser revisada antes de modificarlo;
+esta auditoría no alteró datos.
+
+FASE 2 — 2 días: persistencia reproducible
+
+1. Crear migración V3 idempotente.
+2. Crear FK aunque la columna ya exista.
+3. Actualizar sp_Acceso_RegistrarEntrada.
+4. Incluir PersonalExterno completo.
+5. Usar CREATE OR ALTER en procedimientos.
+6. Ejecutar instalación limpia en una base temporal.
+
+FASE 3 — 2 días: reportes correctos
+
+1. Corregir fecha hasta.
+2. Exportar todos los resultados filtrados.
+3. Prevenir fórmulas CSV.
+4. Añadir todos los tipos.
+5. Mostrar motivoDetalle.
+6. Definir alcance por edificio/rol.
+7. Crear versión móvil del reporte.
+
+FASE 4 — 2 días: validación y fotografías
+
+1. Completar DTO.
+2. Motivo obligatorio.
+3. Conservar cédula/empresa.
+4. Filtrar eventos.
+5. Limitar y servir fotos de forma segura.
+6. Respuestas HTTP 400/409 controladas.
+
+FASE 5 — 2 a 4 días: pruebas
+
+1. Sustituir uuid por crypto.randomUUID o configurar Jest ESM.
+2. Reescribir app.e2e-spec.
+3. Crear unitarias de auth, roles, DTO y reportes.
+4. Probar CPF login -> me -> entrada.
+5. Probar pendiente de ayer.
+6. Probar salida independiente sin crear pendiente.
+7. Probar reset admin.
+8. Actualizar test/api_tests.js.
+9. Actualizar test/sql_tests.js para migraciones.
+10. CI con cero FAIL, cero GAP críticos y log guardado.
+
+======================================================================
+13. CRITERIOS DE ACEPTACIÓN PARA PRODUCCIÓN
+======================================================================
+
+Seguridad:
+
+[ ] dev-login devuelve 403 en producción.
+[ ] No hay contraseña real en archivos actuales.
+[ ] Credencial expuesta fue rotada.
+[ ] JWT_SECRET no tiene fallback.
+[ ] CORS limitado.
+[ ] Rate limit activo.
+
+Funcionalidad:
+
+[ ] CPF registra con username trazable.
+[ ] Entrada de empleado por carnet funciona.
+[ ] Proveedor/PL conserva empresa y cédula.
+[ ] Motivo es obligatorio.
+[ ] Pendientes incluyen días anteriores.
+[ ] Salida independiente no crea ocupación.
+[ ] Existe UI para salida independiente.
+[ ] Capacitación filtra evento correcto.
+
+Reportes:
+
+[ ] Fecha hasta incluye el día completo.
+[ ] CSV exporta todo lo filtrado.
+[ ] CSV está sanitizado.
+[ ] Reporte muestra motivo y detalle.
+[ ] Acceso está limitado por edificio/rol.
+
+Datos:
+
+[ ] FK EdificioIdDefecto existe.
+[ ] Instalación 001-V3 funciona en base vacía.
+[ ] No hay SP incompatibles.
+[ ] PersonalExterno se crea desde migraciones.
+
+Pruebas:
+
+[ ] npm test ejecuta casos reales.
+[ ] npm run test:e2e pasa.
+[ ] Suite externa incluye endpoints nuevos.
+[ ] Se conserva reporte de ejecución.
+
+Operación:
+
+[ ] Fotos son visibles con autorización.
+[ ] Backups probados.
+[ ] Logs sin errores no controlados.
+[ ] PM2 usa entorno productivo explícito.
+
+======================================================================
+14. CALIFICACIÓN POR ÁREA V2
+======================================================================
+
+Funcionalidad principal:                 6.8 / 10
+Flujo CPF real:                          5.8 / 10
+Diseño visual:                           7.8 / 10
+Facilidad de uso:                        6.7 / 10
+Backend/API:                             6.3 / 10
+Base activa:                             6.8 / 10
+Reproducibilidad SQL:                    4.5 / 10
+Reportes:                                6.2 / 10
+Seguridad:                               4.0 / 10
+Pruebas:                                 3.5 / 10
+Operación/despliegue:                    6.4 / 10
+
+PROMEDIO PONDERADO:                      6.1 / 10
+
+======================================================================
+15. CONCLUSIÓN FINAL INDEPENDIENTE
+======================================================================
+
+¿Mejoró el sistema?
+Sí.
+
+¿Se resolvieron realmente los cuatro críticos anunciados?
+No completamente.
+
+Resultados concretos:
+
+- JWT CPF: sí fue corregido.
+- DTO: avance parcial.
+- dev-login: sigue activo por configuración.
+- secretos: siguen con exposición/fallback.
+- salida independiente: existe, pero funciona al revés del negocio.
+- reset admin: backend listo, frontend viejo.
+- pendientes: backend listo, frontend viejo.
+- reportes: pantalla básica ya desplegada.
+- migración: existe, pero no reconstruye todo.
+
+¿Puede usarse para un piloto controlado?
+Sí, con personal técnico presente, sin usar salida independiente y con usuarios
+de confianza.
+
+¿Puede reemplazar totalmente el papel hoy?
+No.
+
+¿Qué bloquea principalmente?
+
+1. Seguridad de dev-login.
+2. Modelo incorrecto de salida independiente.
+3. Flujo frontend incompleto para pendientes y reset.
+4. Base no reproducible desde Git.
+5. Pruebas internas inexistentes.
+
+Calificación final:
+6.1 / 10.
+
+Recomendación:
+Completar Fase 0 y Fase 1 antes de seguir agregando funciones. Después corregir
+SQL y pruebas. El diseño visual ya es suficiente para esta etapa; el esfuerzo
+principal debe concentrarse en integridad, seguridad y flujo CPF.
+
+FIN DE AUDITORÍA V2

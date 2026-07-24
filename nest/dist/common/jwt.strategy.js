@@ -16,9 +16,13 @@ const passport_jwt_1 = require("passport-jwt");
 const config_1 = require("@nestjs/config");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(config) {
+        const secret = config.get('JWT_SECRET');
+        if (!secret || secret === 'control_acceso_jwt_secret_2026') {
+            throw new Error('JWT_SECRET no configurado o usa el valor por defecto. Configure JWT_SECRET en .env');
+        }
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
-            secretOrKey: config.get('JWT_SECRET', 'control_acceso_jwt_secret_2026'),
+            secretOrKey: secret,
         });
     }
     async validate(payload) {

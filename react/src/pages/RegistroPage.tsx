@@ -243,7 +243,7 @@ function SalidaPanel() {
 
   const load = useCallback(async () => {
     setLoading(true); setApiError(false);
-    try { const r = await api.get('/acceso/hoy'); setHoy(r.data?.filter((x: any) => !x.fechaSalida) || []); } catch { setApiError(true); }
+    try { const r = await api.get('/acceso/pendientes'); setHoy(r.data || []); } catch { setApiError(true); }
     setLoading(false);
   }, []);
 
