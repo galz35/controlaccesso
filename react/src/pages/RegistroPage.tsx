@@ -176,21 +176,13 @@ export default function RegistroPage() {
 
   const seleccionar = (item: any) => {
     setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2); setEmpleadoDetalle(item);
-    if (item.carnet) {
-      // Empleado: foto y estado desde HCM
-      const cached = fotosMap[item.carnet];
-      if (cached) {
-        setFotoHcm(cached);
-      } else {
-        setLoadingFoto(true);
-        Promise.all([
-          api.get(`/search/foto/${item.carnet}`).then((r: any) => r.data?.foto).catch(() => null),
-          api.get(`/search/estado/${item.carnet}`).then((r: any) => r.data).catch(() => null),
-        ]).then(([foto, estado]: [string | null, any]) => {
-          if (foto) { setFotoHcm(foto); setFotosMap(prev => ({ ...prev, [item.carnet]: foto })); }
-          if (estado) setEmpleadoDetalle((prev: any) => ({ ...prev, ...estado }));
-        }).finally(() => setLoadingFoto(false));
-      }
+    if (item.carnet && !fotosMap[item.carnet]) {
+      setLoadingFoto(true);
+      api.get(`/search/foto/${item.carnet}`).then((r: any) => {
+        if (r.data?.foto) { setFotoHcm(r.data.foto); setFotosMap(prev => ({ ...prev, [item.carnet]: r.data.foto })); }
+      }).catch(() => {}).finally(() => setLoadingFoto(false));
+    } else if (item.carnet && fotosMap[item.carnet]) {
+      setFotoHcm(fotosMap[item.carnet]);
     }
   };
 
