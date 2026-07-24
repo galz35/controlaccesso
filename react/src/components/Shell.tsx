@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, DoorOpen, Building2, Users, BookOpen, KeyRound, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, DoorOpen, Building2, Users, BookOpen, KeyRound, LogOut, Menu, X, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const navSections = [
@@ -9,6 +9,7 @@ const navSections = [
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, to: '/control-acceso/' },
       { label: 'Registro', icon: DoorOpen, to: '/control-acceso/registro' },
+      { label: 'Reportes', icon: FileText, to: '/control-acceso/reportes' },
     ],
     minRole: 'registrador',
   },

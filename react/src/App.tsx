@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import SsoHandlerPage from './pages/SsoHandlerPage';
 import DashboardPage from './pages/DashboardPage';
 import RegistroPage from './pages/RegistroPage';
+import ReportsPage from './pages/ReportsPage';
 import CatalogPage from './pages/CatalogPage';
 import AdminCpfPage from './pages/AdminCpfPage';
 
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/control-acceso/" element={<ProtectedRoute><LandingPage /></ProtectedRoute>} />
           <Route path="/control-acceso/dashboard" element={<ProtectedRoute><Shell><DashboardPage /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/registro" element={<ProtectedRoute><Shell><RegistroPage /></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/reportes" element={<ProtectedRoute><Shell><ReportsPage /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/edificios" element={<ProtectedRoute><Shell><CatalogPage tipo="edificios" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/proveedores" element={<ProtectedRoute><Shell><CatalogPage tipo="proveedores" /></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/instructores" element={<ProtectedRoute><Shell><CatalogPage tipo="instructores" /></Shell></ProtectedRoute>} />
