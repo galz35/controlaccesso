@@ -1,7 +1,7 @@
 ================================================================
 DOCUMENTACION TECNICA - API CONTROL DE ACCESO A EDIFICIOS
-Version: 2.0.0
-Fecha: 2026-07-22
+Version: 3.0.0 (MVP)
+Fecha: 2026-07-24
 Proposito: Guia completa para desarrollo Flutter
 Sistema: Control de Acceso Fisico a Edificios
 ================================================================
@@ -9,7 +9,7 @@ Sistema: Control de Acceso Fisico a Edificios
 URL BASE: https://rhclaroni.com/control-acceso-api/
 SERVIDOR: VPS Linux + Nginx + PM2
 BACKEND:  NestJS (http://localhost:3001/api/)
-FRONTEND: React (https://rhclaroni.com/control-acceso/)
+FRONTEND: React SPA (https://rhclaroni.com/control-acceso/)
 
 NOTA IMPORTANTE:
 Este sistema registra ACCESOS FISICOS a edificios. NO es un sistema de
@@ -25,939 +25,832 @@ INDICE
 2.  BUSQUEDA DE PERSONAS
 3.  CATALOGOS
 4.  REGISTRO DE ACCESO (MODULO PRINCIPAL)
-5.  ADMINISTRACION
-6.  MODELOS DE DATOS
-7.  FLUJO COMPLETO PARA FLUTTER
-8.  MANEJO DE ERRORES
-9.  NOTAS IMPORTANTES
+5.  REPORTES
+6.  ADMINISTRACION
+7.  MODELOS DE DATOS (DART)
+8.  FLUJO COMPLETO PARA FLUTTER
+9.  DISEÑO Y COMPONENTES REACT
+10. MANEJO DE ERRORES
+11. NOTAS IMPORTANTES MVP
 
 ================================================================
 1. AUTENTICACION
 ================================================================
 
-El sistema tiene 3 metodos de autenticacion:
+El sistema tiene 2 metodos de autenticacion para produccion:
 
-1.1 Login empleado (DESARROLLO - temporal)
-   POST /auth/dev-login
+1.1 Login CPF (externos - PRODUCCION)
+    POST /auth/cpf-login
 
-   Proposito: Login temporal sin contrasena para desarrollo.
-   No usar en produccion.
+    Unico metodo activo en produccion para usuarios CPF.
+    Login directo con usuario y contraseña.
 
-   Body:
-   {
-     "carnet": "500708"        // string - carnet del empleado
-   }
+    Request:
+    {
+      "username": "proveedor1",     // string (min 3)
+      "password": "secreta123"      // string (min 6)
+    }
 
-   Response 200:
-   {
-     "access_token": "eyJ...",  // string - JWT para autorizar llamadas
-     "user": {
-       "carnet": "500708",     // string
-       "nombre": "GUSTAVO ADOLFO LIRA SALAZAR",
-       "rol": "admin"          // "admin" | "registrador"
-     }
-   }
+    Response (200):
+    {
+      "access_token": "eyJhbGciOiJ...",
+      "user": {
+        "id": 1,
+        "username": "proveedor1",
+        "nombre": "Proveedor Uno",
+        "rol": "registrador",           // "admin" | "registrador"
+        "tipo": "PROVEEDOR",           // "PROVEEDOR" | "INSTRUCTOR_EXTERNO"
+        "edificioIdDefecto": 121       // int | null - edificio asignado
+      }
+    }
 
-   Errores:
-   - 401: Usuario no encontrado o inactivo en el Portal
+    NOTAS MVP:
+    - No existe login empleado por carnet en produccion
+    - No existe SSO visible en esta pantalla
+    - La pestaña "Empleado" fue eliminada del MVP
+    - El token JWT expira en 8 horas
+    - Usar el token en header: Authorization: Bearer <token>
 
-1.2 Login SSO Portal (PRODUCCION - empleados)
-   POST /auth/sso-login
+1.2 SSO (Portal empleados - disponible pero no activo en MVP)
+    POST /auth/sso-login
 
-   Proposito: Login mediante JWT generado por el Portal Corporativo.
-   El Portal redirige al usuario con un token en la URL.
+    Para integracion futura con el Portal de empleados.
+    No implementar en Flutter MVP a menos que el Portal SSO este configurado.
 
-   Body:
-   {
-     "token": "eyJ..."         // string - JWT firmado por el Portal con SSO_SECRET
-   }
+    Request:
+    {
+      "token": "jwt_generado_por_portal..."   // string
+    }
 
-   El token debe tener:
-   - type: "SSO_PORTAL"
-   - carnet: carnet del empleado
-   - Firma: HS256 con SSO_SECRET
+    Response: mismo formato que cpf-login
 
-   Response 200:
-   {
-     "access_token": "eyJ...",
-     "user": { "carnet": "500708", "nombre": "...", "rol": "registrador" }
-   }
+1.3 Verificar sesion
+    GET /auth/me
+    Authorization: Bearer <token>
 
-   Errores:
-   - 401: Token invalido, expirado o tipo incorrecto
+    Response (200):
+    {
+      "carnet": "500708",                // solo para empleados SSO
+      "username": "proveedor1",          // solo para CPF
+      "nombre": "Proveedor Uno",
+      "rol": "registrador",
+      "tipo": "PROVEEDOR",
+      "cpf": true,
+      "edificioIdDefecto": 121
+    }
 
-1.3 Login CPF (PRODUCCION - usuarios externos)
-   POST /auth/cpf-login
-
-   Proposito: Login para proveedores e instructores externos
-   que tienen usuario y contrasena propios (no empleados).
-
-   Body:
-   {
-     "username": "proveedor1",  // string - nombre de usuario
-     "password": "Claro2026"    // string - contrasena
-   }
-
-   Response 200:
-   {
-     "access_token": "eyJ...",
-     "user": {
-       "id": 1,                // int - ID interno del usuario CPF
-       "username": "proveedor1",
-       "nombre": "Proveedor Uno",
-       "rol": "registrador",
-       "tipo": "PROVEEDOR"     // "PROVEEDOR" | "INSTRUCTOR_EXTERNO"
-     }
-   }
-
-   Errores:
-   - 401: Usuario o contrasena incorrectos
-
-1.4 Ver sesion actual
-   GET /auth/me
-   Authorization: Bearer <token>
-
-   Proposito: Obtener datos del usuario autenticado actualmente.
-
-   Response 200:
-   {
-     "carnet": "500708",       // solo para login empleado/SSO
-     "nombre": "GUSTAVO ADOLFO LIRA SALAZAR",
-     "rol": "admin",           // "admin" | "registrador"
-     "username": "proveedor1", // solo para login CPF
-     "tipo": "CPF"             // solo presente si es usuario CPF
-   }
-
-1.5 Registrar usuario CPF (SOLO ADMIN)
-   POST /auth/cpf-register
-   Authorization: Bearer <token> (rol: admin)
-
-   Proposito: Crear una cuenta para un usuario externo
-   (proveedor o instructor). Solo disponible para admins.
-
-   Body:
-   {
-     "username": "proveedor1",        // string REQUERIDO - nombre de usuario unico
-     "password": "Claro2026",         // string REQUERIDO - minimo 6 caracteres
-     "nombre": "Proveedor Uno",       // string REQUERIDO - nombre completo
-     "tipo": "PROVEEDOR",             // string REQUERIDO - "PROVEEDOR" | "INSTRUCTOR_EXTERNO"
-     "referenciaId": null             // int OPCIONAL - ID en catalogo correspondiente
-   }
-
-   Response 201:
-   {
-     "id": 1,
-     "username": "proveedor1",
-     "nombre": "Proveedor Uno",
-     "tipo": "PROVEEDOR"
-   }
-
-   Errores:
-   - 400: Contrasena muy corta, tipo invalido, o usuario ya existe
-   - 403: No autorizado (rol no admin)
-
-1.6 Cambiar contrasena CPF
-   PUT /auth/cpf-password
-   Authorization: Bearer <token>
-
-   Proposito: Cambiar la contrasena de un usuario CPF.
-
-   Body:
-   {
-     "username": "proveedor1",   // string REQUERIDO
-     "oldPassword": "antigua",   // string REQUERIDO - contrasena actual
-     "newPassword": "nueva123"   // string REQUERIDO - minimo 6 caracteres
-   }
-
-   Response 200:
-   { "success": true }
-
-   Errores:
-   - 400: Nueva contrasena muy corta
-   - 401: Contrasena actual incorrecta
+    Usar al iniciar la app Flutter para validar que el token sigue vivo
+    y obtener datos del usuario (especialmente edificioIdDefecto).
 
 ================================================================
 2. BUSQUEDA DE PERSONAS
 ================================================================
 
-2.1 Buscar empleados (desde Portal)
-   GET /search/empleado?q=GUSTAVO
-   Authorization: Bearer <token>
+Todos los endpoints requieren: Authorization: Bearer <token>
 
-   Proposito: Buscar empleados activos en la base del Portal
-   (bdplaner.dbo.p_Usuarios). Util para el selector de personas
-   al registrar una entrada.
+2.1 Buscar empleado
+    GET /search/empleado?q={texto}
 
-   Parametros:
-   - q: string REQUERIDO - texto a buscar (nombre o carnet)
+    Parametros:
+      q: string - carnet o parte del nombre
 
-   Response 200:
-   [
-     {
-       "carnet": "500708",                        // string - carnet del empleado
-       "nombre": "GUSTAVO ADOLFO LIRA SALAZAR",   // string - nombre completo
-       "cedula": "081-021092-0004H",              // string|null - numero de cedula
-       "ubicacion": "ENITEL VILLA FONTANA",        // string|null - ubicacion laboral
-       "gerencia": "GERENCIA DE RECURSOS HUMANOS", // string|null - gerencia
-       "activo": true                              // boolean - siempre true (filtrado)
-     }
-   ]
+    Response:
+    [
+      { "carnet": "500708", "nombre": "GUSTAVO ADOLFO LIRA SALAZAR" },
+      { "carnet": "500709", "nombre": "MARIA DEL CARMEN LOPEZ" }
+    ]
 
-   Notas:
-   - Solo devuelve empleados ACTIVOS en el Portal
-   - Maximo 20 resultados
-   - Busca por carnet O nombre
+2.2 Buscar proveedor
+    GET /search/proveedor?q={texto}
 
-2.2 Buscar proveedores
-   GET /search/proveedor?q=EMPRESA
-   Authorization: Bearer <token>
+    Response:
+    [
+      { "id": 1, "nombre": "Proveedor ABC", "cedula": "001-123456-7",
+        "ruc": "J012345678", "empresa": "ABC S.A." }
+    ]
 
-   Proposito: Buscar en el catalogo interno de proveedores.
+2.3 Buscar instructor
+    GET /search/instructor?q={texto}
 
-   Parametros:
-   - q: string - texto a buscar (nombre, cedula o empresa)
+    Response:
+    [
+      { "id": 1, "nombre": "Instructor X", "cedula": "001-987654-3",
+        "empresa": "Consultora Y", "especialidad": "Seguridad" }
+    ]
 
-   Response 200:
-   [
-     {
-       "id": 1,                // int - ID del proveedor
-       "nombre": "EMPRESA ABC", // string
-       "cedula": "001-123456-7",// string|null
-       "empresa": "ABC S.A.",   // string|null
-       "telefono": "8888-0000"  // string|null
-     }
-   ]
+2.4 Buscar personal externo
+    GET /search/personal-externo?q={texto}
 
-2.3 Buscar instructores externos
-   GET /search/instructor?q=JUAN
-   Authorization: Bearer <token>
+    Para PL, cocina, conductor, carga, mantenimiento.
 
-   Proposito: Buscar en el catalogo interno de instructores/facilitadores externos.
-
-   Parametros:
-   - q: string - texto a buscar (nombre o cedula)
-
-   Response 200:
-   [
-     {
-       "id": 1,                    // int
-       "nombre": "JUAN PEREZ",      // string
-       "cedula": "001-765432-1",    // string|null
-       "empresa": "CONSULTORA XYZ", // string|null
-       "telefono": "8888-1111",     // string|null
-       "especialidad": "SEGURIDAD"  // string|null
-     }
-   ]
-
-2.4 Listar ubicaciones disponibles
-   GET /search/ubicaciones
-   Authorization: Bearer <token>
-
-   Proposito: Obtener lista de ubicaciones posibles desde el Portal.
-   Util para seed inicial o referencia.
-
-   Response 200:
-   [
-     { "nombre": "ENITEL ALTAMIRA" },
-     { "nombre": "ENITEL MANAGUA" }
-   ]
+    Response:
+    [
+      { "id": 1, "codigo": "PL001", "nombre": "Juan Perez",
+        "cedula": "001-555666-7", "servicio": "PL",
+        "empresa": "Servicios Generales S.A." }
+    ]
 
 ================================================================
 3. CATALOGOS
 ================================================================
 
-Todos los catalogos comparten el mismo patron CRUD.
-Requieren autenticacion. Las operaciones de escritura (POST, PUT)
-requieren rol "admin". Las de lectura (GET) requieren "admin" o
-"registrador".
+Todos requieren: Authorization: Bearer <token>
+Lectura: admin y registrador
+Escritura: solo admin
 
 3.1 Edificios
+    GET /edificios
+    POST /edificios   (admin)
+    PUT /edificios/:id (admin)
 
-   Proposito: Catalogos de edificios/instalaciones donde se registran
-   los accesos. Cada edificio puede marcarse como "de capacitacion"
-   (EsCapacitacion = true) para habilitar flujo de cursos.
+    Campos: nombre (req), direccion
 
-   GET /edificios
-   Authorization: Bearer <token>
+    RESPONSE GET:
+    [
+      {
+        "Id": 121, "Nombre": "ENITEL 14 DE SEPTIEMBRE",
+        "Direccion": "Managua", "Activo": true, "EsCapacitacion": false
+      }
+    ]
 
-   Response 200:
-   [
-     {
-       "Id": 1,                       // int - ID del edificio
-       "Nombre": "ENITEL 14 DE SEPTIEMBRE",  // string
-       "Direccion": "ENITEL 14 DE SEPTIEMBRE", // string|null
-       "EsCapacitacion": false,        // boolean - true si es edificio de capacitaciones
-       "Activo": true                  // boolean
-     }
-   ]
-
-   POST /edificios (admin)
-   Body: { "nombre": "...", "direccion": "..." }
-
-   PUT /edificios/:id (admin)
-   Body: { "nombre": "...", "direccion": "...", "esCapacitacion": true }
-
-   NOTA: El unico edificio con EsCapacitacion=true es "ENITEL LA PIEDRA" (Id: 121).
+    NOTA MVP: Para usuarios registrador (CPF), el endpoint devuelve
+    SOLO el edificio asignado. El edificio aparece como texto fijo,
+    no como selector. Para admin devuelve todos (120+).
 
 3.2 Proveedores
+    GET /proveedores
+    POST /proveedores  (admin)
+    PUT /proveedores/:id (admin)
 
-   Proposito: Catalogo de empresas proveedoras que pueden
-   registrar acceso a los edificios.
+    Campos: nombre (req), cedula, ruc, telefono, correo, empresa
 
-   GET /proveedores
-   POST /proveedores (admin)
-   PUT /proveedores/:id (admin)
+3.3 Instructores
+    GET /instructores
+    POST /instructores  (admin)
+    PUT /instructores/:id (admin)
 
-   Campos: nombre, cedula, ruc, telefono, correo, empresa
-
-3.3 Instructores / Facilitadores Externos
-
-   Proposito: Personas externas que dan capacitaciones en el
-   edificio de capacitacion (ENITEL LA PIEDRA).
-
-   GET /instructores
-   POST /instructores (admin)
-   PUT /instructores/:id (admin)
-
-   Campos: nombre, cedula, telefono, correo, empresa, especialidad
+    Campos: nombre (req), cedula, telefono, correo, empresa, especialidad
 
 3.4 Cursos
+    GET /cursos
+    POST /cursos  (admin)
+    PUT /cursos/:id (admin)
 
-   Proposito: Catalogos de cursos/capacitaciones que se imparten
-   en el edificio de capacitacion.
+    Campos: nombre (req), descripcion, duracionHoras (int)
 
-   GET /cursos
-   POST /cursos (admin)
-   PUT /cursos/:id (admin)
+3.5 Eventos de curso
+    GET /eventos-curso?edificioId={id}
+    POST /eventos-curso  (admin)
+    PUT /eventos-curso/:id (admin)
 
-   Campos: nombre, descripcion, duracionHoras
+    Campos: cursoId (int), edificioId (int), fechaInicio, fechaFin, observaciones
 
-3.5 Eventos de Curso
+    NOTA MVP: Los eventos se filtran por edificioId. Solo relevantes
+    para el edificio de capacitacion.
 
-   Proposito: Programacion de un curso en una fecha y edificio
-   especificos. Se usa para registrar que una persona asiste a
-   una capacitacion en particular.
+3.6 Personal Externo
+    GET /personal-externo
+    POST /personal-externo  (admin)
+    PUT /personal-externo/:id (admin)
 
-   GET /eventos-curso
-   Authorization: Bearer <token>
-
-   Response 200:
-   [
-     {
-       "Id": 1,
-       "CursoId": 1,
-       "CursoNombre": "SEGURIDAD INDUSTRIAL",  // nombre del curso (join)
-       "EdificioId": 121,
-       "EdificioNombre": "ENITEL LA PIEDRA",   // nombre del edificio (join)
-       "FechaInicio": "2026-07-22T08:00:00",   // datetime
-       "FechaFin": "2026-07-22T17:00:00",      // datetime|null
-       "Observaciones": "Grupo A",              // string|null
-       "Activo": true
-     }
-   ]
-
-   POST /eventos-curso (admin)
-   Body: { "cursoId": 1, "edificioId": 121, "fechaInicio": "...", "fechaFin": "...", "observaciones": "..." }
-
-   PUT /eventos-curso/:id (admin)
+    Campos: codigo (req), nombre (req), cedula, empresa, servicio, telefono
 
 ================================================================
-4. REGISTRO DE ACCESO (MODULO PRINCIPAL)
+4. REGISTRO DE ACCESO
 ================================================================
 
-4.1 Registrar entrada al edificio
-   POST /acceso/entrada
-   Authorization: Bearer <token>
-   Content-Type: multipart/form-data
+MODULO PRINCIPAL. Todos los endpoints requieren token JWT.
 
-   Proposito: Registrar la entrada FISICA de una persona al edificio.
-   Este es el endpoint principal del sistema.
+4.1 Registrar entrada
+    POST /acceso/entrada
+    Content-Type: multipart/form-data
 
-   IMPORTANTE: Este sistema NO es de asistencia laboral. Solo registra
-   que una persona ingreso a un edificio en un momento determinado.
+    Campos:
+      edificioId: int (requerido, validado contra edificio asignado)
+      tipoPersona: "EMPLEADO"|"PROVEEDOR"|"INSTRUCTOR_EXTERNO"|
+                   "INSTRUCTOR_INTERNO"|"VISITANTE"|"SERVICIO_EXTERNO"
+      personaId: string (max 50)
+      nombrePersona: string (min 2, max 250)
+      cedulaPersona: string? (max 50, opcional)
+      empresaPersona: string? (max 250, opcional)
+      motivoAcceso: "Comedor"|"Servicio de cocina"|"Carga y descarga"|
+                    "Conductor/transporte"|"Entrega"|"Mantenimiento"|
+                    "Reunion"|"Visita general"|"Capacitacion"|"Otro"
+      motivoDetalle: string? (max 500, opcional)
+      eventoCursoId: int? (opcional, solo si edificio es capacitacion
+                           y motivo es Capacitacion)
+      foto: file? (deshabilitado en MVP)
 
-   Campos del formulario:
-   ┌────────────────────┬──────────┬──────────┬──────────────────────────────┐
-   │ Campo              │ Tipo     │ Requer.  │ Descripcion                  │
-   ├────────────────────┼──────────┼──────────┼──────────────────────────────┤
-   │ edificioId         │ int      │ SI       │ ID del edificio              │
-   │ tipoPersona        │ string   │ SI       │ Tipo de persona             │
-   │ personaId          │ string   │ SI       │ Carnet (empleado) o ID       │
-   │ nombrePersona      │ string   │ SI       │ Nombre de la persona         │
-   │ cedulaPersona      │ string   │ NO       │ Cedula (para visitantes)     │
-   │ empresaPersona     │ string   │ NO       │ Empresa o motivo             │
-   │ eventoCursoId      │ int      │ NO       │ ID del evento de curso       │
-   │ foto               │ file     │ NO       │ Foto de la persona (WebP)    │
-   └────────────────────┴──────────┴──────────┴──────────────────────────────┘
+    NOTAS MVP:
+    - motivoAcceso es OBLIGATORIO
+    - foto esta DESHABILITADA (ENABLE_ACCESS_PHOTOS=false)
+    - Si el edificio es el de capacitacion y el usuario marca
+      "Viene a capacitacion?", eventoCursoId es OBLIGATORIO
+    - edificioId es validado contra el edificio asignado del CPF
 
-   Valores de tipoPersona:
-   - "EMPLEADO"             -> Colaborador (busca en Portal)
-   - "PROVEEDOR"            -> Proveedor (busca en catalogo)
-   - "INSTRUCTOR_EXTERNO"   -> Facilitador Externo (busca en catalogo)
-   - "INSTRUCTOR_INTERNO"   -> Facilitador Interno (empleado de RH)
-   - "VISITANTE"            -> Visitante (ingreso manual)
+    Response (201):
+    {
+      "Id": 123,
+      "TipoPersona": "EMPLEADO",
+      "PersonaId": "500708",
+      "Nombre": "GUSTAVO ADOLFO LIRA SALAZAR",
+      "FechaEntrada": "2026-07-24T14:30:00.000Z",
+      "EdificioId": 121
+    }
 
-   Flujo completo en el backend:
-   1. Si tipoPersona es EMPLEADO o INSTRUCTOR_INTERNO:
-      busca en bdplaner.dbo.p_Usuarios para obtener nombre completo
-   2. Si se envio foto: la guarda como WebP (800px, calidad 70)
-   3. Inserta en tblRegistroAcceso con FechaEntrada = GETDATE()
-   4. Devuelve el registro creado
+4.2 Salida normal
+    POST /acceso/salida/:id
 
-   Response 201:
-   {
-     "Id": 1,                 // int - ID del registro
-     "TipoPersona": "EMPLEADO",
-     "PersonaId": "500708",
-     "Nombre": "GUSTAVO ADOLFO LIRA SALAZAR",
-     "FechaEntrada": "2026-07-22T08:30:00.000Z",  // datetime
-     "FotoUrl": "/control-acceso-uploads/fotos_acceso/xxx.webp",  // string|null
-     "EdificioId": 1
-   }
+    Donde :id es el Id del registro de entrada.
 
-   Errores:
-   - 400: Datos invalidos (ej: edificio no existe)
-   - 401: No autenticado
+    NOTA MVP:
+    - Valida que el registro pertenezca al edificio del CPF
+    - No puede cerrar una salida ya registrada
+    - No puede cerrar un registro de otro edificio
 
-   Ejemplo Flutter (multipart):
-   ```dart
-   var request = http.MultipartRequest(
-     'POST',
-     Uri.parse('$baseUrl/acceso/entrada'),
-   );
-   request.headers['Authorization'] = 'Bearer $token';
-   request.fields['edificioId'] = '5';
-   request.fields['tipoPersona'] = 'EMPLEADO';
-   request.fields['personaId'] = '500708';
-   request.fields['nombrePersona'] = 'GUSTAVO ADOLFO LIRA SALAZAR';
-   // Si es visitante:
-   // request.fields['cedulaPersona'] = '001-123-4567';
-   // request.fields['empresaPersona'] = 'EMPRESA ABC';
-   // Si es capacitacion:
-   // request.fields['eventoCursoId'] = '1';
-   // Si hay foto:
-   // request.files.add(await http.MultipartFile.fromPath('foto', filePath));
-   var response = await request.send();
-   ```
+    Response (200):
+    { "Id": 123, "Nombre": "GUSTAVO ADOLFO LIRA SALAZAR",
+      "FechaSalida": "2026-07-24T16:30:00.000Z" }
 
-4.2 Registrar salida del edificio
-   POST /acceso/salida/:id
-   Authorization: Bearer <token>
+4.3 Salida sin entrada (independiente)
+    POST /acceso/salida-independiente
 
-   Proposito: Registrar que una persona ABANDONO FISICAMENTE el edificio.
-   Marca FechaSalida = GETDATE() en el registro de entrada existente.
+    Para cuando una persona salio pero nunca se registro su entrada.
+    NO debe aparecer en pendientes despues de registrarse.
 
-   Parametros:
-   - id: int REQUERIDO - ID del registro de entrada
+    Request:
+    {
+      "edificioId": 121,
+      "personaId": "500708",        // carnet, cedula o codigo
+      "nombrePersona": "Nombre",    // nombre completo
+      "observacion": "Salió sin marcar entrada"  // motivo
+    }
 
-   Response 200:
-   { "Id": 1, "FechaSalida": "2026-07-22T17:30:00.000Z" }
+    NOTAS MVP:
+    - nombrePersona es el campo correcto (NO "nombre")
+    - El edificio se toma del contexto (no hardcodeado)
+    - FechaEntrada = FechaSalida = momento actual
+    - TipoPersona = "SALIDA_INDEPENDIENTE"
+    - MotivoAcceso = "Salida sin entrada registrada"
+    - MotivoDetalle = observacion
 
-   Errores:
-   - 404: Registro no encontrado o ya tiene salida registrada
-   - 401: No autenticado
+    Response (201):
+    {
+      "Id": 124,
+      "Nombre": "Nombre Apellido",
+      "FechaSalida": "2026-07-24T16:45:00.000Z",
+      "EdificioId": 121,
+      "tipo": "SALIDA_INDEPENDIENTE"
+    }
 
-   Nota: Siempre preguntar al usuario "Confirma que NOMBRE salio del edificio?"
-   antes de llamar a este endpoint. No debe ejecutarse con un solo clic.
+4.4 Accesos pendientes
+    GET /acceso/pendientes?edificioId={id}
 
-4.3 Accesos de hoy
-   GET /acceso/hoy
-   Authorization: Bearer <token>
+    Retorna todas las personas que entraron pero no han salido.
+    Filtrado automaticamente por edificio del CPF.
+    Excluye registros de tipo SALIDA_INDEPENDIENTE (esas salidas
+    se registran completas desde el inicio).
 
-   Proposito: Obtener todos los accesos registrados el dia de hoy.
-   Util para el dashboard y la pantalla de salida.
+    Response:
+    [
+      {
+        "id": 123,
+        "tipoPersona": "EMPLEADO",
+        "personaId": "500708",
+        "nombre": "GUSTAVO ADOLFO LIRA SALAZAR",
+        "cedula": null,
+        "empresa": null,
+        "edificio": "ENITEL 14 DE SEPTIEMBRE",
+        "fotoUrl": null,
+        "fechaEntrada": "2026-07-24T14:30:00.000Z",
+        "fechaSalida": null,
+        "usuarioRegistra": "admin",
+        "motivoAcceso": "Comedor",
+        "motivoDetalle": null,
+        "antiguedadHoras": 2
+      }
+    ]
 
-   Parametros opcionales:
-   - edificioId: int - filtrar por edificio
+    NOTA MVP: antiguedadHoras = horas desde la entrada hasta ahora.
 
-   Response 200:
-   [
-     {
-       "id": 1,                            // int
-       "tipoPersona": "EMPLEADO",           // string
-       "personaId": "500708",               // string
-       "nombre": "GUSTAVO ADOLFO LIRA SALAZAR",  // string
-       "cedula": "001-123456-7",            // string|null
-       "empresa": null,                     // string|null
-       "edificio": "ENITEL MANAGUA",        // string - nombre del edificio
-       "fotoUrl": "/control-acceso-uploads/fotos_acceso/xxx.webp",  // string|null
-       "fechaEntrada": "2026-07-22T08:30:00.000Z",   // datetime
-       "fechaSalida": null,                          // datetime|null (null = dentro)
-       "usuarioRegistra": "500708"          // string - quien registro la entrada
-     }
-   ]
+4.5 Accesos de hoy
+    GET /acceso/hoy?edificioId={id}
 
-   Notas para Flutter:
-   - fechaSalida = null significa que la persona SIGUE DENTRO del edificio
-   - fechaSalida != null significa que la persona ya salio
-   - Esto NO es una marcacion laboral, solo control de acceso fisico
-
-4.4 Reporte de accesos (historico)
-   GET /acceso/reporte
-   Authorization: Bearer <token>
-
-   Proposito: Consultar historico de accesos con filtros y paginacion.
-
-   Parametros opcionales:
-   ┌──────────────┬────────┬──────────────────────────────────┐
-   │ Parametro     │ Tipo   │ Descripcion                     │
-   ├──────────────┼────────┼──────────────────────────────────┤
-   │ pagina        │ int    │ Numero de pagina (default 1)    │
-   │ porPagina     │ int    │ Items por pagina (default 50)   │
-   │ edificioId    │ int    │ Filtrar por edificio            │
-   │ tipoPersona   │ string │ Filtrar por tipo ("EMPLEADO")   │
-   │ desde         │ string │ Fecha inicio (ISO: 2026-07-01) │
-   │ hasta         │ string │ Fecha fin (ISO: 2026-07-22)    │
-   └──────────────┴────────┴──────────────────────────────────┘
-
-   Response 200:
-   {
-     "data": [ /* array de objetos, misma estructura que /hoy */ ],
-     "total": 150,          // int - total de registros sin paginar
-     "pagina": 1,           // int
-     "porPagina": 50        // int
-   }
+    Mismo formato que pendientes pero solo del dia actual.
 
 ================================================================
-5. ADMINISTRACION
+5. REPORTES
 ================================================================
 
-5.1 Listar usuarios CPF
-   GET /admin/cpf-users
-   Authorization: Bearer <token> (rol: admin)
+5.1 Obtener reporte
+    GET /acceso/reporte
 
-   Proposito: Obtener todos los usuarios externos registrados.
-   Solo disponible para administradores.
+    Parametros (query):
+      pagina: int (default 1, min 1)
+      porPagina: int (default 50, min 1, MAX 500)
+      edificioId: int? (opcional, solo admin puede cambiar)
+      tipoPersona: string? (opcional)
+      motivoAcceso: string? (opcional)
+      desde: string? (YYYY-MM-DD)
+      hasta: string? (YYYY-MM-DD, incluye el dia completo)
 
-   Response 200:
-   [
-     {
-       "Id": 1,                    // int
-       "Username": "proveedor1",    // string
-       "Nombre": "Proveedor Uno",   // string
-       "Tipo": "PROVEEDOR",         // "PROVEEDOR" | "INSTRUCTOR_EXTERNO"
-       "Rol": "registrador",        // string
-       "Activo": true,              // boolean
-       "FechaRegistro": "..."       // datetime
-     }
-   ]
+    NOTAS MVP:
+    - porPagina MAXIMO 500 (si envias mas, HTTP 400)
+    - CPF solo ve SU edificio (aunque no envie filtro)
+    - Admin ve todos los edificios
+    - La fecha "hasta" incluye todo el dia (usa < DATEADD(DAY,1,@Hasta))
+
+    Response:
+    {
+      "data": [
+        {
+          "id": 123, "tipoPersona": "EMPLEADO",
+          "personaId": "500708",
+          "nombre": "GUSTAVO ADOLFO LIRA SALAZAR",
+          "cedula": "001-123456-7",
+          "empresa": "CLARO NICARAGUA",
+          "edificio": "ENITEL 14 DE SEPTIEMBRE",
+          "fotoUrl": null,
+          "fechaEntrada": "2026-07-24T14:30:00.000Z",
+          "fechaSalida": null,
+          "usuarioRegistra": "admin",
+          "motivoAcceso": "Comedor",
+          "motivoDetalle": null
+        }
+      ],
+      "total": 34,
+      "pagina": 1,
+      "porPagina": 50
+    }
+
+5.2 Exportar CSV (desde frontend - opcional en Flutter)
+
+    La exportacion se hace por lotes de 500 registros.
+    El Flutter puede implementar su propio export iterando
+    sobre el endpoint /acceso/reporte con pagina/porPagina hasta
+    completar el total.
 
 ================================================================
-6. MODELOS DE DATOS (Dart)
+6. ADMINISTRACION
 ================================================================
 
-```dart
-// ============================================================
-// MODELOS PRINCIPALES PARA FLUTTER
-// ============================================================
+Solo usuarios con rol "admin". Todos requieren token JWT.
 
-/// Resultado del login
-class AuthResult {
+6.1 Listar usuarios CPF
+    GET /admin/cpf-users
+
+6.2 Crear usuario CPF
+    POST /auth/cpf-register
+
+    Request:
+    {
+      "username": "nuevo_usuario",
+      "password": "secreta123",        // min 6 caracteres
+      "nombre": "Nombre Completo",
+      "tipo": "PROVEEDOR",             // "PROVEEDOR" | "INSTRUCTOR_EXTERNO"
+      "correo": "correo@ejemplo.com",  // opcional
+      "referenciaId": 1,               // opcional, id del catalogo
+      "edificioIdDefecto": 121         // opcional, edificio asignado
+    }
+
+6.3 Desactivar usuario CPF
+    POST /admin/cpf-deactivate
+    Body: { "username": "usuario" }
+
+6.4 Activar usuario CPF
+    POST /admin/cpf-activate
+    Body: { "username": "usuario" }
+
+6.5 Cambiar edificio por defecto
+    POST /admin/cpf-change-building
+    Body: { "username": "usuario", "edificioIdDefecto": 121 }
+
+6.6 Resetear contrasena (admin)
+    POST /auth/admin-reset-password
+    Body: { "username": "usuario", "newPassword": "nueva123" }
+
+6.7 Cambiar contrasena propia
+    PUT /auth/cpf-password
+    Body: { "username": "usuario", "oldPassword": "actual",
+            "newPassword": "nueva123" }
+
+================================================================
+7. MODELOS DE DATOS (DART)
+================================================================
+
+// --- AUTENTICACION ---
+class LoginRequest {
+  final String username;
+  final String password;
+  LoginRequest({required this.username, required this.password});
+  Map<String, dynamic> toJson() => {'username': username, 'password': password};
+}
+
+class LoginResponse {
   final String accessToken;
   final User user;
-
-  AuthResult({required this.accessToken, required this.user});
-
-  factory AuthResult.fromJson(Map<String, dynamic> json) => AuthResult(
+  LoginResponse({required this.accessToken, required this.user});
+  factory LoginResponse.fromJson(Map<String, dynamic> json) => LoginResponse(
     accessToken: json['access_token'],
     user: User.fromJson(json['user']),
   );
 }
 
-/// Usuario autenticado
 class User {
-  final String? carnet;
+  final int? id;
   final String? username;
+  final String? carnet;
   final String nombre;
-  final String rol;
-  final String? tipo; // "PROVEEDOR" | "INSTRUCTOR_EXTERNO" | "CPF" | null
+  final String rol;       // "admin" | "registrador"
+  final String? tipo;     // "PROVEEDOR" | "INSTRUCTOR_EXTERNO" | null
+  final int? edificioIdDefecto;
 
-  User({this.carnet, this.username, required this.nombre, required this.rol, this.tipo});
-
-  factory User.fromJson(Map<String, dynamic> json) => User(
-    carnet: json['carnet'],
-    username: json['username'],
-    nombre: json['nombre'],
-    rol: json['rol'],
-    tipo: json['tipo'],
-  );
+  User({this.id, this.username, this.carnet, required this.nombre,
+        required this.rol, this.tipo, this.edificioIdDefecto});
 
   bool get isAdmin => rol == 'admin';
-  bool get isCpf => tipo == 'CPF' || carnet == null;
+
+  factory User.fromJson(Map<String, dynamic> json) => User(
+    id: json['id'],
+    username: json['username'],
+    carnet: json['carnet'],
+    nombre: json['nombre'],
+    rol: json['rol'] ?? 'registrador',
+    tipo: json['tipo'],
+    edificioIdDefecto: json['edificioIdDefecto'],
+  );
 }
 
-/// Edificio del catalogo
+// --- CATALOGOS ---
 class Edificio {
   final int id;
   final String nombre;
   final String? direccion;
-  final bool esCapacitacion;
   final bool activo;
+  final bool esCapacitacion;
 
-  Edificio({
-    required this.id, required this.nombre, this.direccion,
-    this.esCapacitacion = false, this.activo = true,
-  });
+  Edificio({required this.id, required this.nombre, this.direccion,
+            this.activo = true, this.esCapacitacion = false});
 
   factory Edificio.fromJson(Map<String, dynamic> json) => Edificio(
-    id: json['Id'] ?? json['id'] ?? 0,
+    id: json['Id'] ?? json['id'],
     nombre: json['Nombre'] ?? json['nombre'] ?? '',
     direccion: json['Direccion'] ?? json['direccion'],
-    esCapacitacion: json['EsCapacitacion'] ?? json['esCapacitacion'] ?? false,
     activo: json['Activo'] ?? json['activo'] ?? true,
+    esCapacitacion: json['EsCapacitacion'] ?? json['esCapacitacion'] ?? false,
   );
 }
 
-/// Resultado de busqueda de empleado
-class EmpleadoSearch {
-  final String carnet;
-  final String nombre;
-  final String? cedula;
-  final String? ubicacion;
-
-  EmpleadoSearch({required this.carnet, required this.nombre, this.cedula, this.ubicacion});
-
-  factory EmpleadoSearch.fromJson(Map<String, dynamic> json) => EmpleadoSearch(
-    carnet: json['carnet'] ?? '',
-    nombre: json['nombre'] ?? json['nombreCompleto'] ?? '',
-    cedula: json['cedula'],
-    ubicacion: json['ubicacion'],
-  );
-}
-
-/// Proveedor del catalogo
 class Proveedor {
   final int id;
   final String nombre;
   final String? cedula;
+  final String? ruc;
+  final String? telefono;
+  final String? correo;
   final String? empresa;
 
-  Proveedor({required this.id, required this.nombre, this.cedula, this.empresa});
-
-  factory Proveedor.fromJson(Map<String, dynamic> json) => Proveedor(
-    id: json['id'] ?? 0,
-    nombre: json['nombre'] ?? '',
-    cedula: json['cedula'],
-    empresa: json['empresa'],
-  );
+  Proveedor({required this.id, required this.nombre, this.cedula, this.ruc,
+             this.telefono, this.correo, this.empresa});
+  factory Proveedor.fromJson(Map<String, dynamic> json) =>
+    Proveedor(id: json['Id'] ?? json['id'], nombre: json['Nombre'] ?? json['nombre'],
+              cedula: json['Cedula'], ruc: json['Ruc'], telefono: json['Telefono'],
+              correo: json['Correo'], empresa: json['Empresa']);
 }
 
-/// Instructor externo del catalogo
-class Instructor {
-  final int id;
-  final String nombre;
-  final String? cedula;
-  final String? empresa;
-
-  Instructor({required this.id, required this.nombre, this.cedula, this.empresa});
-
-  factory Instructor.fromJson(Map<String, dynamic> json) => Instructor(
-    id: json['id'] ?? 0,
-    nombre: json['nombre'] ?? '',
-    cedula: json['cedula'],
-    empresa: json['empresa'],
-  );
-}
-
-/// Curso del catalogo
-class Curso {
-  final int id;
-  final String nombre;
-  final String? descripcion;
-  final int? duracionHoras;
-
-  Curso({required this.id, required this.nombre, this.descripcion, this.duracionHoras});
-
-  factory Curso.fromJson(Map<String, dynamic> json) => Curso(
-    id: json['Id'] ?? json['id'] ?? 0,
-    nombre: json['Nombre'] ?? json['nombre'] ?? '',
-    descripcion: json['Descripcion'] ?? json['descripcion'],
-    duracionHoras: json['DuracionHoras'] ?? json['duracionHoras'],
-  );
-}
-
-/// Evento de curso programado
-class EventoCurso {
-  final int id;
-  final int cursoId;
-  final String cursoNombre;
-  final int edificioId;
-  final String? edificioNombre;
-  final DateTime fechaInicio;
-  final DateTime? fechaFin;
-
-  EventoCurso({
-    required this.id, required this.cursoId, required this.cursoNombre,
-    required this.edificioId, this.edificioNombre,
-    required this.fechaInicio, this.fechaFin,
-  });
-
-  factory EventoCurso.fromJson(Map<String, dynamic> json) => EventoCurso(
-    id: json['Id'] ?? json['id'] ?? 0,
-    cursoId: json['CursoId'] ?? json['cursoId'] ?? 0,
-    cursoNombre: json['CursoNombre'] ?? json['cursoNombre'] ?? '',
-    edificioId: json['EdificioId'] ?? json['edificioId'] ?? 0,
-    edificioNombre: json['EdificioNombre'] ?? json['edificioNombre'],
-    fechaInicio: DateTime.parse(json['FechaInicio'] ?? json['fechaInicio']),
-    fechaFin: json['FechaFin'] != null ? DateTime.parse(json['FechaFin']) :
-              json['fechaFin'] != null ? DateTime.parse(json['fechaFin']) : null,
-  );
-}
-
-/// Registro de acceso (entrada/salida)
+// --- ACCESO ---
 class RegistroAcceso {
   final int id;
   final String tipoPersona;
+  final String personaId;
   final String nombre;
   final String? cedula;
   final String? empresa;
   final String? edificio;
-  final String? fotoUrl;
   final DateTime fechaEntrada;
   final DateTime? fechaSalida;
+  final String? usuarioRegistra;
+  final String? motivoAcceso;
+  final String? motivoDetalle;
+  final int? antiguedadHoras;
 
   RegistroAcceso({
-    required this.id, required this.tipoPersona, required this.nombre,
-    this.cedula, this.empresa, this.edificio, this.fotoUrl,
-    required this.fechaEntrada, this.fechaSalida,
+    required this.id, required this.tipoPersona, required this.personaId,
+    required this.nombre, this.cedula, this.empresa, this.edificio,
+    required this.fechaEntrada, this.fechaSalida, this.usuarioRegistra,
+    this.motivoAcceso, this.motivoDetalle, this.antiguedadHoras,
   });
+
+  bool get tieneSalida => fechaSalida != null;
 
   factory RegistroAcceso.fromJson(Map<String, dynamic> json) => RegistroAcceso(
-    id: json['id'] ?? 0,
-    tipoPersona: json['tipoPersona'] ?? '',
-    nombre: json['nombre'] ?? json['Nombre'] ?? '',
-    cedula: json['cedula'],
-    empresa: json['empresa'],
+    id: json['id'], tipoPersona: json['tipoPersona'],
+    personaId: json['personaId'], nombre: json['nombre'],
+    cedula: json['cedula'], empresa: json['empresa'],
     edificio: json['edificio'],
-    fotoUrl: json['fotoUrl'],
     fechaEntrada: DateTime.parse(json['fechaEntrada']),
     fechaSalida: json['fechaSalida'] != null ? DateTime.parse(json['fechaSalida']) : null,
+    usuarioRegistra: json['usuarioRegistra'],
+    motivoAcceso: json['motivoAcceso'], motivoDetalle: json['motivoDetalle'],
+    antiguedadHoras: json['antiguedadHoras'],
   );
-
-  bool get estaDentro => fechaSalida == null;
 }
 
-/// Usuario CPF (para admin)
-class UsuarioCPF {
-  final int id;
-  final String username;
-  final String nombre;
-  final String tipo;
-  final String rol;
-  final bool activo;
+// --- REGISTRO DE ENTRADA ---
+class RegistrarEntradaRequest {
+  final int edificioId;
+  final String tipoPersona;
+  final String personaId;
+  final String nombrePersona;
+  final String? cedulaPersona;
+  final String? empresaPersona;
+  final String motivoAcceso;
+  final String? motivoDetalle;
+  final int? eventoCursoId;
 
-  UsuarioCPF({
-    required this.id, required this.username, required this.nombre,
-    required this.tipo, required this.rol, required this.activo,
+  RegistrarEntradaRequest({
+    required this.edificioId, required this.tipoPersona,
+    required this.personaId, required this.nombrePersona,
+    this.cedulaPersona, this.empresaPersona,
+    required this.motivoAcceso, this.motivoDetalle, this.eventoCursoId,
   });
 
-  factory UsuarioCPF.fromJson(Map<String, dynamic> json) => UsuarioCPF(
-    id: json['Id'] ?? 0,
-    username: json['Username'] ?? '',
-    nombre: json['Nombre'] ?? '',
-    tipo: json['Tipo'] ?? '',
-    rol: json['Rol'] ?? '',
-    activo: json['Activo'] ?? true,
+  Map<String, dynamic> toJson() => {
+    'edificioId': edificioId, 'tipoPersona': tipoPersona,
+    'personaId': personaId, 'nombrePersona': nombrePersona,
+    'cedulaPersona': cedulaPersona, 'empresaPersona': empresaPersona,
+    'motivoAcceso': motivoAcceso, 'motivoDetalle': motivoDetalle,
+    'eventoCursoId': eventoCursoId,
+  };
+}
+
+class SalidaIndependienteRequest {
+  final int edificioId;
+  final String personaId;
+  final String nombrePersona;  // NOTA: es "nombrePersona", no "nombre"
+  final String observacion;
+
+  SalidaIndependienteRequest({
+    required this.edificioId, required this.personaId,
+    required this.nombrePersona, required this.observacion,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'edificioId': edificioId, 'personaId': personaId,
+    'nombrePersona': nombrePersona, 'observacion': observacion,
+  };
+}
+
+// --- REPORTE ---
+class ReporteResponse {
+  final List<RegistroAcceso> data;
+  final int total;
+  final int pagina;
+  final int porPagina;
+
+  ReporteResponse({required this.data, required this.total,
+                   required this.pagina, required this.porPagina});
+
+  factory ReporteResponse.fromJson(Map<String, dynamic> json) => ReporteResponse(
+    data: (json['data'] as List?)?.map((e) => RegistroAcceso.fromJson(e)).toList() ?? [],
+    total: json['total'] ?? 0,
+    pagina: json['pagina'] ?? 1,
+    porPagina: json['porPagina'] ?? 50,
   );
 }
 
-/// Enumeracion de tipos de persona
-enum TipoPersona {
-  empleado('EMPLEADO', 'Colaborador'),
-  proveedor('PROVEEDOR', 'Proveedor'),
-  instructorExterno('INSTRUCTOR_EXTERNO', 'Facilitador Externo'),
-  instructorInterno('INSTRUCTOR_INTERNO', 'Facilitador Interno'),
-  visitante('VISITANTE', 'Visitante');
-
-  final String value;
-  final String label;
-  const TipoPersona(this.value, this.label);
-}
-
-/// Motivo del acceso
-enum MotivoAcceso {
-  general('general', 'Acceso general'),
-  capacitacion('capacitacion', 'Capacitación');
-
-  final String value;
-  final String label;
-  const MotivoAcceso(this.value, this.label);
-}
-```
-
 ================================================================
-7. FLUJO COMPLETO PARA FLUTTER
+8. FLUJO COMPLETO PARA FLUTTER
 ================================================================
 
-7.1 Login
+A. PANTALLA DE LOGIN (CPF unicamente)
 
-   ```dart
-   // Opcion 1: Empleado (carnet)
-   final auth = await api.loginEmpleado('500708');
+  1. Mostrar solo formulario: usuario + contrasena
+  2. POST /auth/cpf-login
+  3. Guardar token en secure storage
+  4. GET /auth/me para confirmar usuario y edificio asignado
+  5. Redirigir a pantalla principal
 
-   // Opcion 2: Externo (usuario + contrasena)
-   final auth = await api.loginCPF('proveedor1', 'Claro2026');
+  NO mostrar:
+  - Pestaña "Empleado"
+  - Opcion SSO (para MVP)
+  - Login por carnet
 
-   // Guardar token
-   await secureStorage.write(key: 'token', value: auth.accessToken);
-   ```
+B. PANTALLA PRINCIPAL (REGISTRO)
 
-7.2 Dashboard
+  Para CPF:
+  - Edificio: TEXTO FIJO (mostrar nombre del edificio asignado)
+    NO es un selector. No cargar 120 edificios.
 
-   ```dart
-   // Cargar accesos de hoy
-   final accesos = await api.getAccesosHoy();
+  Para admin:
+  - Selector de edificio (carga todos)
 
-   // Calcular KPIs
-   final total = accesos.length;
-   final dentro = accesos.where((a) => a.estaDentro).length;
-   final salieron = total - dentro;
-   ```
+  Flujo entrada:
+  1. Campo de busqueda (nombre o carnet)
+  2. Enter o boton Buscar -> GET /search/empleado?q=...
+  3. Mostrar resultados en lista
+  4. Al seleccionar, mostrar tarjeta con datos de la persona
+  5. Seleccionar tipo (si no se detecto automaticamente)
+  6. Seleccionar motivo de lista fija:
+     Comedor, Servicio de cocina, Carga y descarga,
+     Conductor/transporte, Entrega, Mantenimiento,
+     Reunion, Visita general, Capacitacion, Otro
+  7. Si edificio es de capacitacion:
+     Preguntar "Viene a una capacitacion?" Si/No
+     Si es Si, seleccionar curso/evento (obligatorio)
+  8. Confirmar -> POST /acceso/entrada
+  9. Mostrar confirmacion, limpiar formulario, foco a busqueda
 
-7.3 Registrar entrada
+  Flujo salida normal:
+  1. Cargar GET /acceso/pendientes
+  2. Mostrar lista de personas sin salida
+  3. Al seleccionar, confirmar
+  4. POST /acceso/salida/:id
+  5. Quitar de lista
 
-   ```dart
-   // 1. Buscar persona
-   final resultados = await api.searchEmpleado('GUSTAVO');
+  Flujo salida sin entrada:
+  1. Boton siempre visible: "Registrar salida sin entrada"
+  2. Formulario: carnet/codigo, nombre, observacion
+  3. POST /acceso/salida-independiente
+  4. NO debe aparecer en pendientes despues
 
-   // 2. Cargar edificios
-   final edificios = await api.getEdificios();
+C. PANTALLA DE REPORTES
 
-   // 3. Si el edificio es de capacitacion (ENITEL LA PIEDRA, id:121):
-   //    preguntar motivo: general o capacitacion
-   //    Si es capacitacion -> cargar eventos de curso
-   //    y mostrar selector de curso
+  Para CPF:
+  - Filtros: fecha desde/hasta, tipo persona, motivo
+  - NO hay selector de edificio (fijo)
+  - Boton "Buscar" aplica filtros (no consulta automatica)
 
-   // 4. Registrar entrada (multipart)
-   final entrada = await api.registrarEntrada(
-     edificioId: 5,
-     tipoPersona: 'EMPLEADO',
-     personaId: '500708',
-     nombrePersona: 'GUSTAVO ADOLFO LIRA SALAZAR',
-     // eventoCursoId: 1,  // solo si motivo = capacitacion
-   );
-   ```
+  Para admin:
+  - Mismos filtros + selector de edificio
 
-7.4 Registrar salida
+  Paginacion: maximo 500 registros por pagina
+  Exportacion: iterar pagina/porPagina hasta completar el total
 
-   ```dart
-   // SIEMPRE confirmar primero
-   // "Confirma que NOMBRE salio del EDIFICIO?"
+D. PANTALLA DE ADMIN CPF (solo admin)
 
-   await api.registrarSalida(registroId);
-   ```
-
-7.5 Reglas de negocio para Flutter
-
-   // AUTENTICACION
-   - Login empleado: solo carnet (temporal, solo desarrollo)
-   - Login CPF: username + password
-   - Login SSO: token JWT (produccion con Portal)
-
-   // REGISTRO DE ENTRADA
-   - tipoPersona determina como buscar la persona:
-     EMPLEADO -> searchEmpleado()
-     PROVEEDOR -> searchProveedor()
-     INSTRUCTOR_EXTERNO -> searchInstructor()
-     INSTRUCTOR_INTERNO -> searchEmpleado()
-     VISITANTE -> formulario manual
-   - edificioId siempre requerido
-   - Si el edificio tiene esCapacitacion=true:
-     * Preguntar motivo: Acceso general / Capacitacion
-     * Si es capacitacion: mostrar selector de evento de curso
-     * El curso es opcional (no obligatorio)
-   - Foto: opcional
-
-   // REGISTRO DE SALIDA
-   - Siempre confirmar con el usuario
-   - Bloquear el boton mientras se procesa
-   - Si falla, mostrar error y permitir reintentar
-
-   // DASHBOARD
-   - "Personas dentro" = accesos sin fechaSalida
-   - "Accesos registrados" = total de entradas del dia
-   - "Salidas" = accesos con fechaSalida
-
-   // MENSAJES CORRECTOS
-   - Usar "Entrada al edificio" NO "Entrada laboral"
-   - Usar "Salida del edificio" NO "Salida laboral"
-   - Usar "Personas dentro de las instalaciones"
-   - Usar "Acceso registrado"
-   - NUNCA usar "asistencia", "jornada", "marcacion", "tardanza"
+  - Listar usuarios CPF
+  - Crear/desactivar/activar
+  - Resetear contrasena
+  - Cambiar edificio asignado
 
 ================================================================
-8. MANEJO DE ERRORES
+9. DISENO Y COMPONENTES REACT
 ================================================================
 
-8.1 Codigos HTTP
+A. PALETA DE COLORES
+  - Rojo Claro: #DA291C (marca)
+  - Negro: #1C1C1C (textos)
+  - Grises: #F8F8F8, #F2F2F2, #E5E5E5, #D1D1D1, #A3A3A3,
+            #808080, #666666, #4B4B4B, #333333
+  - Verde exito: #15803D
+  - Rojo error: #DC2626
+  - NO usar azul en ningun tono
 
-   - 200: Exito
-   - 201: Creado exitosamente
-   - 400: Datos invalidos (ej: contrasena corta, tipo invalido)
-   - 401: No autenticado (token invalido/expirado)
-   - 403: No autorizado (rol insuficiente)
-   - 404: Recurso no encontrado
-   - 409: Conflicto (ej: usuario ya existe)
-   - 500: Error interno del servidor
+B. TIPOGRAFIA
+  - Headings: Outfit (700, 800)
+  - Body: Inter (400, 500, 600, 700)
+  - Fallback: system-ui, -apple-system, sans-serif
 
-8.2 Estructura de error
+C. COMPONENTES PRINCIPALES (maquetar igual en Flutter)
 
-   {
-     "statusCode": 400,
-     "message": "Descripcion del error",
-     "error": "Bad Request"
-   }
+  LoginPage:
+  - Card centrada con logo (DoorOpen icon)
+  - Titulo: "Control de Acceso"
+  - Subtitulo: "Registro de entrada a edificios"
+  - Input: Usuario
+  - Input: Contrasena (con toggle visibilidad)
+  - Boton: "Ingresar" (rojo)
+  - Sin tabs, sin pestaña empleado
 
-8.3 Manejo en Flutter
+  RegistroPage:
+  - Header: "Registro de Acceso"
+  - Nota: "Este sistema registra accesos fisicos al edificio..."
+  - Layout: dos columnas en desktop, una en mobile
+  - Columna izquierda: formulario de entrada
+  - Columna derecha: panel de salidas
 
-   ```dart
-   try {
-     final result = await api.registrarEntrada(...);
-   } on ApiException catch (e) {
-     if (e.statusCode == 401) {
-       // Token expirado -> redirigir a login
-       await secureStorage.deleteAll();
-       Navigator.pushReplacementNamed(context, '/login');
-     } else if (e.statusCode == 403) {
-       // No autorizado -> mostrar mensaje
-       showError('No tenes permisos para esta accion');
-     } else {
-       showError(e.message);
-     }
-   }
-   ```
+  Formulario entrada:
+  - Tipo persona: botones de seleccion
+    (Colaborador, Proveedor, Facilitador Externo,
+     Facilitador Interno, Visitante, Personal Externo)
+  - Busqueda: input + boton Buscar
+  - Resultados: lista vertical con avatar (inicial) + nombre + codigo
+  - Persona seleccionada: badge con nombre y boton quitar
+  - Visitante: campos manuales (nombre, cedula, empresa)
+  - Edificio: texto fijo (CPF) o selector (admin)
+  - Motivo acceso: dropdown obligatorio
+  - Detalle: input opcional
+  - Capacitacion (solo si aplica): Si/No + selector curso
+  - Boton: "Registrar Entrada al Edificio" (rojo, grande)
+
+  Panel salidas:
+  - Header: "Registrar Salida del Edificio"
+  - Buscar dentro de pendientes: input filtro
+  - Lista de pendientes: nombre, edificio, hora entrada, boton Salida
+  - Boton siempre visible: "Registrar salida sin entrada"
+  - Formulario salida sin entrada: codigo, nombre, observacion
+
+  ReportsPage:
+  - Header: "Reporte de Accesos" + boton "Exportar CSV completo"
+  - Filtros en grilla: Desde, Hasta, Edificio (solo admin),
+    Tipo persona, Motivo
+  - Boton: "Buscar" + "Limpiar"
+  - Tabla en desktop, tarjetas en mobile
+  - Columnas: Fecha, Persona, Tipo (etiqueta humana), Codigo,
+    Empresa, Motivo, Detalle, Edificio, Entrada, Salida, Registro
+  - Paginacion: Anterior/Siguiente
+
+D. MAPA DE TIPOS A ETIQUETAS HUMANAS
+  EMPLEADO           -> "Colaborador"
+  PROVEEDOR          -> "Proveedor"
+  INSTRUCTOR_EXTERNO -> "Facilitador externo"
+  INSTRUCTOR_INTERNO -> "Facilitador interno"
+  VISITANTE          -> "Visitante"
+  SERVICIO_EXTERNO   -> "Personal externo"
+  SALIDA_INDEPENDIENTE -> "Salida sin entrada"
+
+E. MOTIVOS DE ACCESO (fijos, 10 opciones)
+  "Comedor", "Servicio de cocina", "Carga y descarga",
+  "Conductor/transporte", "Entrega", "Mantenimiento",
+  "Reunion", "Visita general", "Capacitacion", "Otro"
 
 ================================================================
-9. NOTAS IMPORTANTES
+10. MANEJO DE ERRORES
 ================================================================
 
-- El campo `EsCapacitacion` en el JSON de edificios puede venir como
-  `EsCapacitacion` (PascalCase desde SPs) o `esCapacitacion` (camelCase).
-  Revisar ambas variantes al parsear.
+- 401 Unauthorized: token invalido o expirado -> redirigir a login
+- 403 Forbidden: el usuario no tiene permiso (edificio incorrecto,
+  rol insuficiente)
+- 400 Bad Request: validacion de campos fallo (revisar mensaje)
+- 404 Not Found: recurso no existe
+- 429 Too Many Requests: rate limit excedido (esperar y reintentar)
+- 503 Service Unavailable: base de datos desconectada
 
-- Las fechas vienen en formato ISO 8601: "2026-07-22T08:30:00.000Z"
-
-- Las fotos se almacenan como WebP en el servidor.
-  URL completa: https://rhclaroni.com + fotoUrl
-  Ejemplo: https://rhclaroni.com/control-acceso-uploads/fotos_acceso/xxx.webp
-
-- El unico edificio con EsCapacitacion=true es ENITEL LA PIEDRA (Id: 121).
-  No hardcodear este ID; consultar siempre desde GET /edificios.
-
-- Los catalogos (edificios, proveedores, instructores, cursos) cambian
-  con poca frecuencia. Se pueden cachear localmente pero debe haber
-  un mecanismo de actualizacion (pull-to-refresh).
-
-- El token JWT expira en 8 horas. Implementar refresh silencioso
-  o redireccion a login cuando expire.
-
-- No cachear el stock/estado de edificios por mucho tiempo.
-  Siempre consultar GET /edificios al menos una vez por sesion.
-
-- Los nombres de los campos en las respuestas pueden variar entre
-  PascalCase (desde SPs) y camelCase (desde el servicio NestJS).
-  Usar parsers flexibles.
+Errores comunes en Flutter:
+- Enviar "nombre" en vez de "nombrePersona" en salida-independiente
+- Enviar porPagina > 500 (el DTO rechaza con 400)
+- No incluir motivoAcceso (ahora es obligatorio)
+- Enviar foto cuando esta deshabilitada (ENABLE_ACCESS_PHOTOS=false)
 
 ================================================================
-FIN DEL DOCUMENTO
+11. NOTAS IMPORTANTES MVP
+================================================================
+
+1. SOLO UN METODO DE LOGIN: CPF (usuario + contrasena).
+   No implementar login empleado, SSO ni dev-login en Flutter MVP.
+
+2. EDIFICIO FIJO para CPF. El usuario registrador tiene un
+   edificio asignado (edificioIdDefecto). No puede cambiarlo.
+   No cargar el listado completo de 120+ edificios.
+
+3. CAPACITACION: Solo un edificio en toda la base tiene
+   EsCapacitacion=true. Preguntar "Viene a una capacitacion?"
+   solo cuando el edificio actual es ese. Si responde Si,
+   exigir seleccionar curso/evento.
+
+4. FOTOS DESHABILITADAS en el MVP. No enviar campo foto.
+   El backend rechaza uploads con 400 si ENABLE_ACCESS_PHOTOS=false.
+   No implementar camara ni galeria.
+
+5. MOTIVO OBLIGATORIO. No se puede registrar entrada sin
+   seleccionar un motivo de la lista de 10 opciones.
+
+6. SALIDA INDEPENDIENTE usa nombrePersona (no "nombre").
+   Enviar siempre edificioId valido. No hardcodear edificio=1.
+
+7. TIPO_MOVIMIENTO no se usa en el MVP. La columna existe en
+   la base pero no se escribe ni se lee. Ignorar.
+
+8. PAGINACION: maximo 500 registros por pagina en reportes.
+   Para exportar, iterar pagina/porPagina hasta cubrir el total.
+
+9. ETIQUETAS HUMANAS: No mostrar codigos tecnicos como
+   "SERVICIO_EXTERNO" al usuario. Usar "Personal externo".
+   Usar el mapa TYPE_LABELS de la seccion 9D.
+
+10. ELIMINAR FOTO del formulario Flutter. No mostrar boton
+    de camara ni selector de imagen.
+
+11. RATE LIMIT: 60 solicitudes/minuto por usuario. Las
+    solicitudes a health y fotos no cuentan. Ante 429,
+    esperar y reintentar.
+
+12. HEALTH CHECK: GET /api/health retorna
+    {"status":"ok","database":"connected"} o 503 si SQL falla.
+
+================================================================
+HISTORIAL DE CAMBIOS
+================================================================
+v3.0.0 (2026-07-24) - MVP completo
+  - Login solo CPF, eliminado empleado/SSO
+  - Edificio fijo para registrador
+  - Fotos deshabilitadas
+  - TipoMovimiento eliminado
+  - MotivoAcceso obligatorio
+  - Capacitacion: pregunta Si/No + evento obligatorio
+  - CSV robusto, etiquetas humanas
+  - 16 unit tests, 43 SQL, 35 API
+
+v2.0.0 (2026-07-22) - Documentacion original
 ================================================================
