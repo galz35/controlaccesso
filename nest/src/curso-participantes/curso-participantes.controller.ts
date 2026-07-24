@@ -1,5 +1,7 @@
-import { Controller, Post, Get, Query, Body, Param, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, ParseIntPipe, UseGuards, Req, UseInterceptors, UploadedFile, Res, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 import { CursoParticipantesService } from './curso-participantes.service';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
@@ -17,6 +19,26 @@ export class CursoParticipantesController {
       dto.participantes,
       req.user?.username || req.user?.carnet || 'admin',
     );
+  }
+
+  @Post('importar-excel')
+  @Roles('admin')
+  @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  async importarExcel(@UploadedFile() archivo: Express.Multer.File, @Req() req: any) {
+    if (!archivo) throw new BadRequestException('Sube un archivo Excel');
+    return this.service.importarExcel(
+      archivo.buffer,
+      req.user?.username || req.user?.carnet || 'admin',
+    );
+  }
+
+  @Get('plantilla')
+  @Roles('admin')
+  async descargarPlantilla(@Res() res: Response) {
+    const buffer = await this.service.generarPlantilla();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=plantilla_participantes.xlsx');
+    res.send(buffer);
   }
 
   @Get()

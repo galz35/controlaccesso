@@ -51,4 +51,8 @@ export class SearchService {
     const foto = await this.hcm.obtenerFotoEmpleado(carnet);
     return { foto };
   }
+
+  async obtenerEstado(carnet: string): Promise<{ activo: boolean; cargo?: string; empresa?: string } | null> {
+    return this.hcm.obtenerEstadoEmpleado(carnet);
+  }
 }

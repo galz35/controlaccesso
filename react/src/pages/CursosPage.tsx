@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { BookOpen, Plus, Save, Search, Users, Upload, ChevronDown, ChevronRight } from 'lucide-react';
+import { BookOpen, Plus, Save, Search, Users, Upload, Download, ChevronDown, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { showSuccess, showError } from '../lib/swal';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -99,7 +99,9 @@ export default function CursosPage() {
           <p className="page-header__subtitle" style={{ fontSize: 13, marginTop: 4 }}>Cursos, eventos y participantes registrados en el sistema</p>
         </div>
         {isAdmin && <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowImport(true)} className="btn btn--secondary"><Upload className="icon icon--sm" /> Importar</button>
+          <button onClick={() => setShowImport(v => !v)} className="btn btn--secondary">
+            {showImport ? 'Cancelar' : <><Upload className="icon icon--sm" /> Importar</>}
+          </button>
           <button onClick={openNew} className="btn btn--primary"><Plus className="icon icon--sm" /> Nuevo curso</button>
         </div>}
       </div>
@@ -116,16 +118,43 @@ export default function CursosPage() {
         <div className="card mb-3">
           <div className="card__header"><span className="card-title"><Upload className="icon" /> Importar participantes</span></div>
           <div className="card__body">
-            <p className="form-hint" style={{ marginBottom: 8 }}>
-              Pegue un JSON con los participantes. Cada registro debe tener: eventoCursoId, tipoPersona, personaId, nombrePersona.
-              Opcional: cedulaPersona, empresaPersona.
-            </p>
-            <textarea className="form-control" rows={8} value={importText} onChange={e => setImportText(e.target.value)}
-              placeholder='[
-  {"eventoCursoId":1,"tipoPersona":"EMPLEADO","personaId":"500708","nombrePersona":"GUSTAVO ADOLFO LIRA SALAZAR"},
-  {"eventoCursoId":1,"tipoPersona":"PROVEEDOR","personaId":"3","nombrePersona":"Proveedor ABC","cedulaPersona":"001-123456-7","empresaPersona":"ABC S.A."}
-]' style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }} />
-            <div className="form-actions" style={{ marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+              <a href={`${import.meta.env.VITE_API_URL || '/control-acceso-api'}/curso-participantes/plantilla`}
+                className="btn btn--secondary btn--sm" target="_blank" rel="noreferrer">
+                <Download className="icon icon--sm" /> Descargar plantilla Excel
+              </a>
+              <span className="text-muted text-xs">Llene la plantilla y súbala aquí</span>
+            </div>
+
+            <div style={{ border: '2px dashed var(--gray-300)', borderRadius: 'var(--radius-md)', padding: 20, textAlign: 'center', marginBottom: 16 }}>
+              <FileSpreadsheet className="icon--lg" style={{ color: 'var(--gray-400)', margin: '0 auto 8px' }} />
+              <p style={{ fontWeight: 600, marginBottom: 8 }}>Subir archivo Excel</p>
+              <input type="file" accept=".xlsx,.xls" id="excel-upload" className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setImporting(true);
+                  try {
+                    const fd = new FormData();
+                    fd.append('archivo', file);
+                    const res = await api.post('/curso-participantes/importar-excel', fd, {
+                      headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                    showSuccess(`Importados ${res.data.importados} participante(s)`);
+                    setShowImport(false); load();
+                  } catch (err: any) { showError('Error', err?.response?.data?.message || 'Error al importar'); }
+                  setImporting(false);
+                }} />
+              <label htmlFor="excel-upload" className="btn btn--primary btn--sm" style={{ cursor: 'pointer' }}>
+                {importing ? 'Importando…' : 'Seleccionar archivo Excel'}
+              </label>
+            </div>
+
+            <details style={{ marginTop: 12 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--gray-600)' }}>O pegar JSON</summary>
+              <textarea className="form-control" rows={6} value={importText} onChange={e => setImportText(e.target.value)}
+                placeholder='[{&quot;eventoCursoId&quot;:1,&quot;tipoPersona&quot;:&quot;EMPLEADO&quot;,&quot;personaId&quot;:&quot;500708&quot;,&quot;nombrePersona&quot;:&quot;Nombre&quot;}]'
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 12, marginTop: 8 }} />
               <button onClick={async () => {
                 try {
                   const parsed = JSON.parse(importText);
@@ -136,11 +165,10 @@ export default function CursosPage() {
                   setShowImport(false); setImportText(''); load();
                 } catch (err: any) { showError('Error', err?.response?.data?.message || 'JSON inválido'); }
                 setImporting(false);
-              }} disabled={importing || !importText.trim()} className="btn btn--primary">
-                {importing ? 'Importando…' : 'Importar participantes'}
+              }} disabled={importing || !importText.trim()} className="btn btn--primary btn--sm" style={{ marginTop: 8 }}>
+                {importing ? 'Importando…' : 'Importar JSON'}
               </button>
-              <button onClick={() => { setShowImport(false); setImportText(''); }} className="btn btn--secondary">Cancelar</button>
-            </div>
+            </details>
           </div>
         </div>
       )}

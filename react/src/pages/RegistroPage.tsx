@@ -82,6 +82,7 @@ export default function RegistroPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [fotoHcm, setFotoHcm] = useState<string | null>(null);
   const [loadingFoto, setLoadingFoto] = useState(false);
+  const [empleadoDetalle, setEmpleadoDetalle] = useState<any>(null);
   const [fotosMap, setFotosMap] = useState<Record<string, string>>({});
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -174,17 +175,20 @@ export default function RegistroPage() {
   };
 
   const seleccionar = (item: any) => {
-    setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2);
-    // Usar foto ya cargada del map, o obtenerla
+    setSelected(item); setResults(null); setSearchQ(''); setError(''); setStep(2); setEmpleadoDetalle(item);
     if (item.carnet) {
       const cached = fotosMap[item.carnet];
       if (cached) {
         setFotoHcm(cached);
       } else {
         setLoadingFoto(true);
-        api.get(`/search/foto/${item.carnet}`).then(r => {
-          if (r.data?.foto) { setFotoHcm(r.data.foto); setFotosMap(prev => ({ ...prev, [item.carnet]: r.data.foto })); }
-        }).catch(() => {}).finally(() => setLoadingFoto(false));
+        Promise.all([
+          api.get(`/search/foto/${item.carnet}`).then((r: any) => r.data?.foto).catch(() => null),
+          api.get(`/search/estado/${item.carnet}`).then((r: any) => r.data).catch(() => null),
+        ]).then(([foto, estado]: [string | null, any]) => {
+          if (foto) { setFotoHcm(foto); setFotosMap(prev => ({ ...prev, [item.carnet]: foto })); }
+          if (estado) setEmpleadoDetalle((prev: any) => ({ ...prev, ...estado }));
+        }).finally(() => setLoadingFoto(false));
       }
     }
   };
@@ -357,25 +361,46 @@ export default function RegistroPage() {
             )}
 
             {selected && (
-              <div className="selected-person" style={{ justifyContent: 'space-between', padding: '12px 16px', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ padding: 'var(--space-4)', background: 'var(--white)', borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-200)', boxShadow: 'var(--shadow-sm)' }}>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  {/* Foto grande */}
                   {loadingFoto ? (
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Loader2 className="icon icon--sm icon--spin" />
+                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Loader2 className="icon icon--spin" />
                     </div>
                   ) : fotoHcm ? (
-                    <img src={fotoHcm} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-red)' }} />
+                    <img src={fotoHcm} alt="" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--brand-red)', flexShrink: 0 }} />
                   ) : (
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gray-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'var(--gray-500)' }}>
-                      {(selected.nombre || selected.nombreCompleto || '?').charAt(0)}
+                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 32, fontWeight: 700, color: 'var(--gray-400)' }}>
+                      {(empleadoDetalle?.nombre || empleadoDetalle?.nombreCompleto || '?').charAt(0)}
                     </div>
                   )}
-                  <div>
-                    <div className="font-bold" style={{ fontSize: 16 }}>{selected.nombre || selected.nombreCompleto}</div>
-                    <div className="text-sm text-muted" style={{ marginTop: 2 }}>{selected.carnet || selected.cedula || ''} · {TIPOS.find(t => t.value === tipo)?.label}</div>
+                  <div className="flex--1" style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div className="font-bold" style={{ fontSize: 18 }}>{empleadoDetalle?.nombre || empleadoDetalle?.nombreCompleto}</div>
+                        <span className="badge badge--neutral" style={{ fontSize: 11 }}>
+                          {empleadoDetalle?.carnet ? `Carnet ${empleadoDetalle.carnet}` : empleadoDetalle?.cedula || ''}
+                        </span>
+                        {empleadoDetalle?.activo !== undefined && (
+                          <span className={`badge ${empleadoDetalle.activo ? 'badge--success' : 'badge--danger'}`} style={{ fontSize: 11, marginLeft: 6 }}>
+                            {empleadoDetalle.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => { setSelected(null); setStep(1); setFotoHcm(null); setEmpleadoDetalle(null); }}
+                        className="btn btn--ghost btn--sm">Cambiar</button>
+                    </div>
+                    <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '4px 16px', fontSize: 13 }}>
+                      {empleadoDetalle?.cargo && <div><span className="text-muted">Cargo:</span> {empleadoDetalle.cargo}</div>}
+                      {empleadoDetalle?.gerencia && <div><span className="text-muted">Gerencia:</span> {empleadoDetalle.gerencia}</div>}
+                      {empleadoDetalle?.area && <div><span className="text-muted">Área:</span> {empleadoDetalle.area}</div>}
+                      {empleadoDetalle?.ubicacion && <div><span className="text-muted">Ubicación:</span> {empleadoDetalle.ubicacion}</div>}
+                      {empleadoDetalle?.departamento && <div><span className="text-muted">Departamento:</span> {empleadoDetalle.departamento}</div>}
+                      {empleadoDetalle?.empresa && <div><span className="text-muted">Empresa:</span> {empleadoDetalle.empresa}</div>}
+                    </div>
                   </div>
                 </div>
-                <button type="button" onClick={() => { setSelected(null); setStep(1); setFotoHcm(null); }} className="btn btn--ghost btn--sm">Cambiar</button>
               </div>
             )}
           </div>
@@ -451,14 +476,14 @@ export default function RegistroPage() {
             </div>
 
             {step >= 2 && (selected || tipo === 'VISITANTE') && motivoAcceso && (
-              <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: 14 }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', padding: 12, background: 'var(--gray-50)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: 14 }}>
                 {fotoHcm && (
-                  <img src={fotoHcm} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-red)', flexShrink: 0 }} />
+                  <img src={fotoHcm} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--brand-red)', flexShrink: 0 }} />
                 )}
                 <div>
-                  <div><strong>Persona:</strong> {selected?.nombre || nombreManual}</div>
-                  <div><strong>Código:</strong> {selected?.carnet || selected?.cedula || cedulaManual || '—'}</div>
-                  <div><strong>Edificio:</strong> {edificioSel?.Nombre || edificioSel?.nombre || '—'}</div>
+                  <div><strong>{empleadoDetalle?.nombre || nombreManual}</strong></div>
+                  <div className="text-muted text-xs">{empleadoDetalle?.carnet || cedulaManual || ''}</div>
+                  <div style={{ marginTop: 4 }}><strong>Edificio:</strong> {edificioSel?.Nombre || edificioSel?.nombre || '—'}</div>
                   <div><strong>Motivo:</strong> {motivoAcceso}{motivoDetalle ? ` · ${motivoDetalle}` : ''}</div>
                   {vieneCapacitacion === 'si' && eventoCursoId && (
                     <div><strong>Capacitación:</strong> {eventos.find((ev: any) => String(ev.Id || ev.id) === eventoCursoId)?.CursoNombre || 'Seleccionado'}</div>

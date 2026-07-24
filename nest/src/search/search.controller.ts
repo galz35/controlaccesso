@@ -32,4 +32,8 @@ export class SearchController {
   @Get('foto/:carnet')
   @Roles('admin', 'registrador')
   async foto(@Param('carnet') carnet: string) { return this.search.obtenerFoto(carnet); }
+
+  @Get('estado/:carnet')
+  @Roles('admin', 'registrador')
+  async estado(@Param('carnet') carnet: string) { return this.search.obtenerEstado(carnet); }
 }
