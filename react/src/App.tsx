@@ -12,6 +12,7 @@ import ReportsPage from './pages/ReportsPage';
 import CatalogPage from './pages/CatalogPage';
 import AdminCpfPage from './pages/AdminCpfPage';
 import AdminPage from './pages/AdminPage';
+import CursosPage from './pages/CursosPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -47,7 +48,7 @@ export default function App() {
           <Route path="/control-acceso/edificios" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="edificios" /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/proveedores" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="proveedores" /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/instructores" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="instructores" /></RoleGuard></Shell></ProtectedRoute>} />
-          <Route path="/control-acceso/cursos" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="cursos" /></RoleGuard></Shell></ProtectedRoute>} />
+          <Route path="/control-acceso/cursos" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CursosPage /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/personal-externo" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><CatalogPage tipo="personal-externo" /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/admin-cpf" element={<ProtectedRoute><Shell><RoleGuard roles={['admin']}><AdminCpfPage /></RoleGuard></Shell></ProtectedRoute>} />
           <Route path="/control-acceso/forbidden" element={<ForbiddenPage />} />

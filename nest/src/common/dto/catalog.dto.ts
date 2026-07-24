@@ -78,6 +78,11 @@ export class InstructorDto {
 }
 
 export class CursoDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  codigo?: string;
+
   @IsString()
   @MinLength(2)
   @MaxLength(250)

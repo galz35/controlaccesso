@@ -22,4 +22,12 @@ export class CursoParticipantesService {
       .execute('sp_CursoParticipantes_ListarPorPersona');
     return result.recordset;
   }
+
+  async listarPorCurso(cursoId: number) {
+    const pool = await this.db.getPool();
+    const result = await pool.request()
+      .input('CursoId', cursoId)
+      .execute('sp_CursoParticipantes_ListarConDetalle');
+    return result.recordset;
+  }
 }

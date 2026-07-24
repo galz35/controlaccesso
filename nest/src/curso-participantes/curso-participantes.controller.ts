@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Query, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Query, Body, Param, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CursoParticipantesService } from './curso-participantes.service';
 import { Roles } from '../common/roles.decorator';
@@ -26,5 +26,11 @@ export class CursoParticipantesController {
     @Query('personaId') personaId: string,
   ) {
     return this.service.listarPorPersona(tipoPersona, personaId);
+  }
+
+  @Get('por-curso/:cursoId')
+  @Roles('admin', 'registrador')
+  async listarPorCurso(@Param('cursoId', ParseIntPipe) cursoId: number) {
+    return this.service.listarPorCurso(cursoId);
   }
 }
